@@ -29,6 +29,8 @@
 #include "src/system/core/config.h"
 #include "src/system/library/cue.h"
 #include "src/system/library/folderorder.h"
+#include "src/system/library/library.h"
+#include "src/system/library/playlists.h"
 #include "src/system/playback/playlist.h"
 // SQLite is vendored: this header, not the system's.
 #include "src/system/db/sqlite3.h"
@@ -776,6 +778,12 @@ static bool hash_rows(sqlite3 *db, const char *sql, uint64_t *sum, uint64_t *row
 	return rc == SQLITE_DONE;
 }
 
+// The tables the player's playlists are right now: the index's own, or the
+// mirrors of the card's Playlists folder, so the phone lists what the player does.
+static const char *playlist_prefix(void) {
+	return playlists_card_folder_mode() ? LIBRARY_CARD_PLAYLIST_PREFIX : LIBRARY_PLAYLIST_PREFIX;
+}
+
 static bool hash_index(const char *path, uint64_t *out) {
 	sqlite3 *db = NULL;
 	if (sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) {
@@ -800,12 +808,15 @@ static bool hash_index(const char *path, uint64_t *out) {
 		total = fnv_bytes(total, &rows, sizeof(rows));
 	}
 
-	// The playlists: one table each, found by name. The name goes into the
-	// hash too, so renaming a playlist counts.
+	// The playlists: one table each, found by name -- the set the player is
+	// showing, as /api/playlists lists it. The name goes into the hash too, so
+	// renaming a playlist counts.
 	sqlite3_stmt *names = NULL;
 	if (sqlite3_prepare_v2(db,
-						   "SELECT name FROM sqlite_master WHERE type='table' AND substr(name,1,4)='M3U_' ORDER BY name",
+						   "SELECT name FROM sqlite_master WHERE type='table'"
+						   " AND substr(name, 1, length(?1)) = ?1 ORDER BY name",
 						   -1, &names, NULL) == SQLITE_OK) {
+		sqlite3_bind_text(names, 1, playlist_prefix(), -1, SQLITE_STATIC);
 		while (sqlite3_step(names) == SQLITE_ROW) {
 			const char *name = (const char *)sqlite3_column_text(names, 0);
 			if (!name || strchr(name, '"')) {
@@ -849,6 +860,7 @@ typedef struct {
 	char path[600];
 	long size;
 	long mtime;
+	int variant; // what else the hash depends on: for the index, which playlists
 	char text[20];
 } fingerprint_t;
 
@@ -856,9 +868,10 @@ typedef struct {
 static fingerprint_t index_print, thumbs_print;
 
 // The fingerprint of a file, as 16 hex digits, or "" when it cannot be had.
-static const char *fingerprint(fingerprint_t *cache, const char *path, long size, long mtime,
+static const char *fingerprint(fingerprint_t *cache, const char *path, long size, long mtime, int variant,
 							   bool (*hash)(const char *, uint64_t *)) {
-	if (strcmp(cache->path, path) == 0 && cache->size == size && cache->mtime == mtime && cache->text[0]) {
+	if (strcmp(cache->path, path) == 0 && cache->size == size && cache->mtime == mtime && cache->variant == variant &&
+		cache->text[0]) {
 		return cache->text;
 	}
 	uint64_t h = 0;
@@ -870,6 +883,7 @@ static const char *fingerprint(fingerprint_t *cache, const char *path, long size
 	snprintf(cache->path, sizeof(cache->path), "%s", path);
 	cache->size = size;
 	cache->mtime = mtime;
+	cache->variant = variant;
 	snprintf(cache->text, sizeof(cache->text), "%016llx", (unsigned long long)h);
 	if (verbose) {
 		printf("sonixlink: fingerprint of %s is %s (%u ms)\n", path, cache->text, now_ms() - began);
@@ -888,6 +902,10 @@ static void route_info(client_t *c) {
 	sonixlink_state_t s;
 	state_copy(&s);
 
+	// The card folder looked at first, so the hash below is of what is in it.
+	playlists_refresh();
+	bool read_only = playlists_card_folder_mode();
+
 	long size = 0, mtime = 0;
 	bool have_db = db_stat(&size, &mtime);
 
@@ -901,6 +919,8 @@ static void route_info(client_t *c) {
 	buf_fmt(&j, "\"api\":1,\"port\":%d,", SONIXLINK_PORT);
 	buf_fmt(&j, "\"tracks\":%u,", s.track_count);
 	buf_fmt(&j, "\"scanning\":%s,", s.scanning ? "true" : "false");
+	// The playlists are the card folder's: the app hides adding and removing.
+	buf_fmt(&j, "\"playlists_read_only\":%s,", read_only ? "true" : "false");
 	buf_sort_field(&j, &s);
 	buf_fmt(&j, "\"db_available\":%s,", have_db ? "true" : "false");
 	buf_fmt(&j, "\"db_size\":%ld,\"db_mtime\":%ld,", size, mtime);
@@ -909,7 +929,7 @@ static void route_info(client_t *c) {
 		pthread_mutex_lock(&lock);
 		snprintf(path, sizeof(path), "%s", db_path);
 		pthread_mutex_unlock(&lock);
-		buf_json_field(&j, "db_hash", fingerprint(&index_print, path, size, mtime, hash_index), true);
+		buf_json_field(&j, "db_hash", fingerprint(&index_print, path, size, mtime, read_only, hash_index), true);
 	}
 
 	char thumbs[sizeof(thumbs_path)];
@@ -925,7 +945,7 @@ static void route_info(client_t *c) {
 		covers_mtime = (long)cst.st_mtime;
 	}
 	if (have_covers) {
-		buf_json_field(&j, "covers_hash", fingerprint(&thumbs_print, thumbs, covers_size, covers_mtime, hash_thumbs),
+		buf_json_field(&j, "covers_hash", fingerprint(&thumbs_print, thumbs, covers_size, covers_mtime, 0, hash_thumbs),
 					   true);
 	}
 	buf_json_field(&j, "accent", s.accent[0] ? s.accent : "#3584e4", true);
@@ -1227,6 +1247,12 @@ static void route_command(client_t *c, const char *query) {
 			reply_status(c, "400 Bad Request", "no playlist");
 			return;
 		}
+		// Refused here rather than queued and dropped by the player: the card
+		// folder's playlists are read only (see playlists_read_only in /api/info).
+		if (to_playlist && playlists_card_folder_mode()) {
+			reply_status(c, "409 Conflict", "playlists are read only");
+			return;
+		}
 		// The command keeps SONIXLINK_TEXT_MAX bytes of it: a longer name
 		// would reach the playlist code cut, as a different playlist.
 		if (to_playlist && strlen(value) >= SONIXLINK_TEXT_MAX) {
@@ -1511,6 +1537,9 @@ static void route_history(client_t *c, const char *query) {
 // on the player or from the phone belongs in the list now. Names with their
 // track counts; the order is the app's to apply.
 static void route_playlists(client_t *c) {
+	// The card folder as it is now, not as the player's Playlists page last saw it.
+	playlists_refresh();
+
 	char path[sizeof(db_path)];
 	sonixlink_state_t s;
 	state_copy(&s);
@@ -1522,15 +1551,18 @@ static void route_playlists(client_t *c) {
 	sqlite3 *db = NULL;
 	if (index_path(path, sizeof(path)) && sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, NULL) == SQLITE_OK) {
 		sqlite3_busy_timeout(db, 1000);
+		const char *prefix = playlist_prefix();
+		size_t prefix_len = strlen(prefix);
 		sqlite3_stmt *names = NULL;
 		if (sqlite3_prepare_v2(db,
 							   "SELECT name FROM sqlite_master WHERE type='table'"
-							   " AND name LIKE 'M3U\\_%' ESCAPE '\\' ORDER BY name",
+							   " AND substr(name, 1, length(?1)) = ?1 ORDER BY name",
 							   -1, &names, NULL) == SQLITE_OK) {
+			sqlite3_bind_text(names, 1, prefix, -1, SQLITE_STATIC);
 			bool first = true;
 			while (sqlite3_step(names) == SQLITE_ROW) {
 				const char *table = (const char *)sqlite3_column_text(names, 0);
-				if (!table || strlen(table) <= 4 || strchr(table, '"')) {
+				if (!table || strlen(table) <= prefix_len || strchr(table, '"')) {
 					continue;
 				}
 				char sql[400];
@@ -1543,7 +1575,7 @@ static void route_playlists(client_t *c) {
 				sqlite3_finalize(st);
 				buf_str(&j, first ? "{" : ",{");
 				first = false;
-				buf_json_field(&j, "name", table + 4, true);
+				buf_json_field(&j, "name", table + prefix_len, true);
 				buf_fmt(&j, "\"count\":%d}", count);
 			}
 		}
@@ -1565,6 +1597,7 @@ static void route_playlist(client_t *c, const char *query) {
 		reply_status(c, "400 Bad Request", "which playlist?");
 		return;
 	}
+	playlists_refresh();
 
 	buf_t j;
 	memset(&j, 0, sizeof(j));
@@ -1576,7 +1609,8 @@ static void route_playlist(client_t *c, const char *query) {
 	if (index_path(path, sizeof(path)) && sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, NULL) == SQLITE_OK) {
 		sqlite3_busy_timeout(db, 1000);
 		char sql[420];
-		snprintf(sql, sizeof(sql), "SELECT path,title,artist FROM \"M3U_%s\" WHERE present<>0 ORDER BY idx", name);
+		snprintf(sql, sizeof(sql), "SELECT path,title,artist FROM \"%s%s\" WHERE present<>0 ORDER BY idx",
+				 playlist_prefix(), name);
 		sqlite3_stmt *st = NULL;
 		if (sqlite3_prepare_v2(db, sql, -1, &st, NULL) == SQLITE_OK) {
 			bool first = true;
