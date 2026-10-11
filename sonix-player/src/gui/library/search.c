@@ -309,8 +309,13 @@ static void track_long_pressed_cb(lv_event_t *e) {
 	snprintf(menu_name, sizeof(menu_name), "%s", row->name);
 	menu_anchor = row->button;
 
+	// The card folder's playlists are read only: nothing to add to or take
+	// out of, and no reason to read the folder for them.
+	bool read_only = playlists_card_folder_mode();
 	menu_playlist_count = 0;
-	playlists_for_each(collect_playlist_cb, NULL);
+	if (!read_only) {
+		playlists_for_each(collect_playlist_cb, NULL);
+	}
 
 	popover_item_t items[4];
 	int n = 0;
@@ -318,7 +323,9 @@ static void track_long_pressed_cb(lv_event_t *e) {
 		library_fav_contains(menu_path) ? "remove_from_favourites" : "medialist_add_to_favourites", menu_fav_action, NULL,
 		false};
 	items[n++] = (popover_item_t){"add_to_queue", menu_queue_action, NULL, false};
-	items[n++] = (popover_item_t){"add_to_playlist", menu_playlist_action, NULL, false};
+	if (!read_only) {
+		items[n++] = (popover_item_t){"add_to_playlist", menu_playlist_action, NULL, false};
+	}
 	if (menu_playlist_count > 0) {
 		items[n++] = (popover_item_t){"medialist_remove_from_playlist", menu_remove_action, NULL, false};
 	}

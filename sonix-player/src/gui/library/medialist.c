@@ -1489,15 +1489,17 @@ static void window_update(panel_t *p);
 
 // Selection mode's buttons, four on every list: the queue first, close last,
 // and in between what fits the list. A playlist trades "add to a playlist" for
-// "take out of this one", the favourites trade the star for its removal.
+// "take out of this one", the favourites trade the star for its removal. Over
+// the card folder's playlists, which are read only, neither is there.
 static void sel_buttons_show(panel_t *p, bool on) {
 	bool playlist = p->kind == LIBRARY_LIST_PLAYLIST;
 	bool favourites = p->kind == LIBRARY_LIST_FAVOURITES;
+	bool read_only = playlists_card_folder_mode();
 	show_if(p->sel_queue_btn, on);
 	show_if(p->sel_fav_btn, on && !favourites);
-	show_if(p->sel_add_btn, on && !playlist);
+	show_if(p->sel_add_btn, on && !playlist && !read_only);
 	show_if(p->sel_unfav_btn, on && favourites);
-	show_if(p->sel_unlist_btn, on && playlist);
+	show_if(p->sel_unlist_btn, on && playlist && !read_only);
 	show_if(p->sel_close_btn, on);
 	if (p->sel_delete_btn) {
 		bool bin = on && allow_delete && !p->from_paths;
@@ -1781,7 +1783,7 @@ static void sel_gather(panel_t *p, path_list_t *list) {
 
 static void sel_add_cb(lv_event_t *e) {
 	panel_t *p = lv_event_get_user_data(e);
-	if (!p || !p->selecting || p->sel_count == 0) {
+	if (!p || !p->selecting || p->sel_count == 0 || playlists_card_folder_mode()) {
 		return;
 	}
 	path_list_t list = {NULL, 0, 0};
@@ -1922,7 +1924,11 @@ static void sel_remove_ask(panel_t *p) {
 				 remove_confirmed, NULL);
 }
 
-static void sel_unlist_cb(lv_event_t *e) { sel_remove_ask(lv_event_get_user_data(e)); }
+static void sel_unlist_cb(lv_event_t *e) {
+	if (!playlists_card_folder_mode()) {
+		sel_remove_ask(lv_event_get_user_data(e));
+	}
+}
 
 static void sel_unfav_cb(lv_event_t *e) { sel_remove_ask(lv_event_get_user_data(e)); }
 
@@ -3063,7 +3069,7 @@ static void drag_end(void) {
 		return;
 	}
 
-	if (!library_playlist_move(p->playlist, from, to)) {
+	if (!playlists_move(p->playlist, from, to)) {
 		toast_error("medialist_reorder_failed");
 		return;
 	}
@@ -3837,7 +3843,10 @@ static void menu_btn_cb(lv_event_t *e) {
 	// Inside a playlist the useful action is the opposite one: this list is
 	// where the track already is, so offering to file it somewhere else while
 	// looking at it would be the wrong way round.
-	if (p->playlist[0]) {
+	// Neither over the card folder's playlists, which are read only.
+	if (playlists_card_folder_mode()) {
+		// nothing
+	} else if (p->playlist[0]) {
 		items[n++] = (popover_item_t){"medialist_remove_from_playlist", menu_playlist_remove_action, NULL};
 	} else {
 		items[n++] = (popover_item_t){"add_to_playlist", menu_playlist_action, NULL};
@@ -5307,7 +5316,8 @@ void medialist_open(const char *title, library_list_t kind, library_filter_t fil
 	// A playlist is the only list whose order belongs to the user. Every other
 	// one comes back from the database in an order the database decides, and
 	// dragging a row in it would have nowhere to be written down.
-	bool want_reorder = kind == LIBRARY_LIST_PLAYLIST;
+	// Not the card folder's, which are read only.
+	bool want_reorder = kind == LIBRARY_LIST_PLAYLIST && !playlists_card_folder_mode();
 
 	// Whatever this panel was showing before, it is not showing it now.
 	reorder_stop(p);

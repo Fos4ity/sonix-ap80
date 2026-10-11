@@ -1459,7 +1459,8 @@ void library_close(void) {
 }
 
 #define PLAYLIST_TABLE_MAX 512
-static bool playlist_table(const char *name, char *out, size_t out_size);
+static bool prefixed_table(const char *prefix, const char *name, char *out, size_t out_size);
+static int playlist_names_locked(const char *prefix, char ***names_out);
 
 // The tables worth carrying out of a damaged file: everything the user made or
 // left where it was, which no scan can rebuild. The playlists, one table each,
@@ -1514,7 +1515,12 @@ static void rescue_user_tables(const char *damaged) {
 			const char *name = (const char *)sqlite3_column_text(stmt, 0);
 			const char *create = (const char *)sqlite3_column_text(stmt, 1);
 			char quoted[PLAYLIST_TABLE_MAX];
-			if (!name || !create || !playlist_table(name + strlen(LIBRARY_PLAYLIST_PREFIX), quoted, sizeof(quoted))) {
+			// The index's prefix, not the one in use: with the card folder on,
+			// that one would carry these over as card mirrors, and the next
+			// look at the folder would drop them for having no file.
+			if (!name || !create ||
+				!prefixed_table(LIBRARY_PLAYLIST_PREFIX, name + strlen(LIBRARY_PLAYLIST_PREFIX), quoted,
+								sizeof(quoted))) {
 				continue;
 			}
 			rescue_table(quoted, create);
@@ -2593,15 +2599,29 @@ struct library_index {
 // typed so that the table is called what the playlist is called.
 // ---------------------------------------------------------------------------
 
-// "M3U_<name>", quoted. False when the name is too long to be one, which is the
-// only thing that can go wrong here.
-static bool playlist_table(const char *name, char *out, size_t out_size) {
+// Which set of tables "the playlists" means. The index's own are "M3U_"; the
+// ones mirrored from the card's Playlists folder are "SDM3U_", kept apart so
+// that turning the card folder on and off again leaves the index's untouched.
+static const char *playlist_prefix = LIBRARY_PLAYLIST_PREFIX;
+
+void library_playlists_use_card_folder(bool on) {
+	pthread_mutex_lock(&db_lock);
+	const char *wanted = on ? LIBRARY_CARD_PLAYLIST_PREFIX : LIBRARY_PLAYLIST_PREFIX;
+	if (playlist_prefix != wanted) {
+		playlist_prefix = wanted;
+		bump_generation(GEN_PLAYLISTS); // every playlist on screen is now another one
+	}
+	pthread_mutex_unlock(&db_lock);
+}
+
+// "<prefix><name>", quoted. False when the name is too long to be one, which is
+// the only thing that can go wrong here.
+static bool prefixed_table(const char *prefix, const char *name, char *out, size_t out_size) {
 	if (!name || !name[0] || !out || out_size < 8) {
 		return false;
 	}
 	size_t at = 0;
 	out[at++] = '"';
-	const char *prefix = LIBRARY_PLAYLIST_PREFIX;
 	while (*prefix && at + 2 < out_size) {
 		out[at++] = *prefix++;
 	}
@@ -2620,6 +2640,11 @@ static bool playlist_table(const char *name, char *out, size_t out_size) {
 	out[at++] = '"';
 	out[at] = '\0';
 	return true;
+}
+
+// "M3U_<name>", or "SDM3U_<name>" while the card folder is the playlists.
+static bool playlist_table(const char *name, char *out, size_t out_size) {
+	return prefixed_table(playlist_prefix, name, out, out_size);
 }
 
 // Which of a playlist's entries are shown, for a query that names the
@@ -5834,14 +5859,20 @@ static bool in_walked_folders(const char *path) {
 // the player plays, and is hidden; one outside them is left as it is, since
 // nothing here has looked. A track the library has is shown whatever `present`
 // says. On the scan thread, with nothing locked.
-static void playlists_follow_library(void) {
+//
+// Both sets, the index's and the card folder's, whichever is showing: the one
+// put aside is shown again the moment the setting changes, and should be as
+// current as the other.
+static int playlists_follow_library_in(const char *prefix) {
 	char **names = NULL;
-	int count = library_playlist_names(&names);
+	pthread_mutex_lock(&db_lock);
+	int count = playlist_names_locked(prefix, &names);
+	pthread_mutex_unlock(&db_lock);
 	int hidden = 0;
 
 	for (int i = 0; i < count && !scan_cancel; i++) {
 		char quoted[PLAYLIST_TABLE_MAX];
-		if (!playlist_table(names[i], quoted, sizeof(quoted))) {
+		if (!prefixed_table(prefix, names[i], quoted, sizeof(quoted))) {
 			continue;
 		}
 		char read_sql[PLAYLIST_TABLE_MAX + 160];
@@ -5895,6 +5926,12 @@ static void playlists_follow_library(void) {
 	}
 
 	library_playlist_names_free(names, count);
+	return hidden;
+}
+
+static void playlists_follow_library(void) {
+	int hidden = playlists_follow_library_in(LIBRARY_PLAYLIST_PREFIX);
+	hidden += playlists_follow_library_in(LIBRARY_CARD_PLAYLIST_PREFIX);
 	if (hidden > 0) {
 		printf("library: %d playlist entr%s no longer on the card\n", hidden, hidden == 1 ? "y is" : "ies are");
 	}
@@ -7043,7 +7080,7 @@ static bool playlist_table_exists_locked(const char *name) {
 		return false;
 	}
 	// By value, not by name in the statement: this one can be bound.
-	snprintf(table, sizeof(table), LIBRARY_PLAYLIST_PREFIX "%s", name);
+	snprintf(table, sizeof(table), "%s%s", playlist_prefix, name);
 	sqlite3_stmt *stmt = NULL;
 	bool found = false;
 	if (sqlite3_prepare_v2(db, "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", -1, &stmt, NULL) ==
@@ -7065,22 +7102,22 @@ bool library_playlist_exists(const char *name) {
 	return found;
 }
 
-int library_playlist_names(char ***names_out) {
-	if (names_out) {
-		*names_out = NULL;
-	}
+// The names of the playlists whose tables start with `prefix`, in the order the
+// lists show them. With db_lock held.
+static int playlist_names_locked(const char *prefix, char ***names_out) {
+	*names_out = NULL;
 	char **names = NULL;
 	int count = 0, capacity = 0;
 
-	pthread_mutex_lock(&db_lock);
 	sqlite3_stmt *stmt = NULL;
-	// The underscore in the prefix is a wildcard to LIKE, hence the escape:
-	// without it "M3U_" would also match "M3UX...".
+	// The prefix compared as it is, from the first character: "M3U_" does not
+	// take in the card's "SDM3U_" tables, nor "SDM3U_" the index's.
 	if (db && sqlite3_prepare_v2(db,
 								 "SELECT name FROM sqlite_master WHERE type='table'"
-								 " AND name LIKE 'M3U\\_%' ESCAPE '\\' ORDER BY name COLLATE listorder",
+								 " AND substr(name, 1, length(?1)) = ?1 ORDER BY name COLLATE listorder",
 								 -1, &stmt, NULL) == SQLITE_OK) {
-		size_t prefix_len = strlen(LIBRARY_PLAYLIST_PREFIX);
+		sqlite3_bind_text(stmt, 1, prefix, -1, SQLITE_STATIC);
+		size_t prefix_len = strlen(prefix);
 		while (sqlite3_step(stmt) == SQLITE_ROW) {
 			const char *table = (const char *)sqlite3_column_text(stmt, 0);
 			if (!table || strlen(table) <= prefix_len) {
@@ -7103,6 +7140,14 @@ int library_playlist_names(char ***names_out) {
 		}
 		sqlite3_finalize(stmt);
 	}
+	*names_out = names;
+	return count;
+}
+
+int library_playlist_names(char ***names_out) {
+	char **names = NULL;
+	pthread_mutex_lock(&db_lock);
+	int count = playlist_names_locked(playlist_prefix, &names);
 	pthread_mutex_unlock(&db_lock);
 
 	if (names_out) {

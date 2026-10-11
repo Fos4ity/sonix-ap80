@@ -43,6 +43,7 @@ This is everything Sonix Player can do today, on both the **R1** and the **R3 Pr
 - **Selection** - long press a track, album or artist to select more, then add them all to the queue, to the favourites or to a playlist, or remove them from a playlist.
 - **Delete tracks** from the card, after asking (turn it on in the settings first).
 - **Playlists** - create, rename, reorder and delete. You can back them up to the card as `.m3u` files that other players can read, and import `.m3u` playlists back, even when some files were moved.
+- **Use card playlists** - the `.m3u` and `.m3u8` files in the card's `Playlists` folder become your playlists, so you can keep them on a computer and copy them over. They are read only on the player, and the songs must be listed with paths relative to the playlist file. The player's own playlists come back when you turn it off.
 
 ## Playback
 

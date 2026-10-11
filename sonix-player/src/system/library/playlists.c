@@ -7,6 +7,8 @@
 #include "src/system/playback/playlist.h"
 
 #include <dirent.h>
+#include <pthread.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <errno.h>
@@ -28,6 +30,17 @@ static char playlist_data_path[512];  // path used by the original firmware. use
 static char dir_path[512];
 static char card_root[512];
 
+// The card's Playlists folder, and whether the player is set to use the files
+// in it as its playlists instead of the index's own. See playlists.h.
+static char card_dir_path[512];
+static bool card_mode;
+
+// The folder is looked at from the interface and from SonixLink's thread. One
+// look at a time, and the mode is not changed in the middle of one: a look that
+// began over the card's tables and went on over the index's would drop the
+// index's playlists for having no file.
+static pthread_mutex_t card_lock = PTHREAD_MUTEX_INITIALIZER;
+
 // Cleared here rather than kept for the life of the process: this runs again
 // when a card is mounted, and the next card has its own folder and its own flag.
 static bool migration_tried;
@@ -37,14 +50,29 @@ void playlists_init(const char *sd_root) {
 	if (!sd_root || !sd_root[0]) {
 		dir_path[0] = '\0';
 		card_root[0] = '\0';
+		pthread_mutex_lock(&card_lock);
+		card_dir_path[0] = '\0';
+		pthread_mutex_unlock(&card_lock);
 		return;
 	}
 	snprintf(card_root, sizeof(card_root), "%s", sd_root);
 	snprintf(dir_path, sizeof(dir_path), "%s/Playlist", sd_root);
 	snprintf(playlist_data_path, sizeof(dir_path), "%s/playlist_data", sd_root);
+	pthread_mutex_lock(&card_lock);
+	snprintf(card_dir_path, sizeof(card_dir_path), "%s/Playlists", sd_root);
+	pthread_mutex_unlock(&card_lock);
 }
 
 const char *playlists_dir(void) { return dir_path; }
+
+void playlists_set_card_folder_mode(bool on) {
+	pthread_mutex_lock(&card_lock);
+	card_mode = on;
+	library_playlists_use_card_folder(on);
+	pthread_mutex_unlock(&card_lock);
+}
+
+bool playlists_card_folder_mode(void) { return card_mode; }
 
 // The folder is made on demand, not at startup: a card with no playlists on
 // it should not grow an empty folder just because the player booted.
@@ -187,7 +215,7 @@ static bool file_is_marked(const char *path) {
 // conversion must not delete the user's only other copy.
 // ---------------------------------------------------------------------------
 
-static int rows_from_file(const char *name, const char *file_path);
+static int rows_from_file(const char *name, const char *file_path, const char *base_dir, bool check_presence);
 
 static void migrate_folder_once(void) {
 	if (migration_tried || !dir_path[0] || library_playlists_migrated()) {
@@ -226,7 +254,7 @@ static void migrate_folder_once(void) {
 			continue;
 		}
 
-		int count = rows_from_file(name, full);
+		int count = rows_from_file(name, full, dir_path, true);
 		if (count > 0) {
 			moved++;
 			tracks += count;
@@ -242,11 +270,229 @@ static void migrate_folder_once(void) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// The card's Playlists folder
+//
+// With the card folder on, the files in <card>/Playlists are the playlists. Each
+// is mirrored into a table of its own -- the SDM3U_ set, apart from the index's
+// playlists -- so that everything which opens, counts, plays or reorders a
+// playlist does it the one way it always has.
+//
+// A file is read again only when it has changed: its modification time and
+// size are written down beside it, and a file that still matches keeps the
+// table it has.
+//
+// Read only. The files are kept on a computer and copied over, so the player
+// writing into them would only be undone by the next copy -- or worse, undo
+// it. Every call below that would change a playlist refuses while this is on.
+// ---------------------------------------------------------------------------
+
+static bool has_playlist_extension(const char *file_name);
+static void name_from_file(const char *file_name, char *out, size_t out_size);
+static bool name_listed(char **names, int count, const char *name) {
+	for (int i = 0; i < count; i++) {
+		if (strcmp(names[i], name) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static void names_free(char **names, int count) {
+	for (int i = 0; i < count; i++) {
+		free(names[i]);
+	}
+	free(names);
+}
+
+static bool names_add(char ***names, int *count, int *capacity, const char *name) {
+	if (*count == *capacity) {
+		int grown = *capacity ? *capacity * 2 : 32;
+		char **bigger = realloc(*names, (size_t)grown * sizeof(**names));
+		if (!bigger) {
+			return false;
+		}
+		*names = bigger;
+		*capacity = grown;
+	}
+	char *copy = strdup(name);
+	if (!copy) {
+		return false;
+	}
+	(*names)[(*count)++] = copy;
+	return true;
+}
+
+static int by_name(const void *a, const void *b) { return strcmp(*(char *const *)a, *(char *const *)b); }
+
+// The playlist files in the folder, by file name. Sorted, so that which of two
+// files making the same playlist name wins is the same on every card: "Sera.m3u"
+// before "Sera.m3u8". False unless the folder was listed to the end -- a card
+// that fails halfway is not a card without the rest of its playlists. A folder
+// that is not there at all is listed, and empty.
+static bool card_folder_files(char ***out, int *out_count) {
+	*out = NULL;
+	*out_count = 0;
+	if (!card_dir_path[0]) {
+		return false;
+	}
+	DIR *dir = opendir(card_dir_path);
+	if (!dir) {
+		return errno == ENOENT;
+	}
+	char **files = NULL;
+	int count = 0, capacity = 0;
+	bool complete = true;
+	for (;;) {
+		errno = 0;
+		struct dirent *de = readdir(dir);
+		if (!de) {
+			complete = errno == 0;
+			break;
+		}
+		// Dot files too: a Mac leaves a "._Name.m3u" beside every file it
+		// copies, and that is not a playlist.
+		if (de->d_name[0] == '.' || !has_playlist_extension(de->d_name)) {
+			continue;
+		}
+		if (!names_add(&files, &count, &capacity, de->d_name)) {
+			complete = false;
+			break;
+		}
+	}
+	closedir(dir);
+	if (count > 1) {
+		qsort(files, (size_t)count, sizeof(*files), by_name);
+	}
+	*out = files;
+	*out_count = count;
+	return complete;
+}
+
+// What a look at the folder found worth saying, said only when it is not what
+// the last look said: SonixLink looks on every request, and the log is on the
+// card. With card_lock held.
+static char sync_note[1024], sync_note_said[sizeof(sync_note)];
+static size_t sync_note_len;
+
+static void sync_note_add(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+static void sync_note_add(const char *fmt, ...) {
+	if (sync_note_len >= sizeof(sync_note) - 1) {
+		return;
+	}
+	va_list ap;
+	va_start(ap, fmt);
+	int n = vsnprintf(sync_note + sync_note_len, sizeof(sync_note) - sync_note_len, fmt, ap);
+	va_end(ap);
+	if (n > 0) {
+		sync_note_len += (size_t)n;
+		if (sync_note_len > sizeof(sync_note) - 1) {
+			sync_note_len = sizeof(sync_note) - 1;
+		}
+	}
+}
+
+// With card_lock held, and the card folder on.
+static void sync_card_folder(void) {
+	sync_note_len = 0;
+	sync_note[0] = '\0';
+
+	char **files = NULL;
+	int file_count = 0;
+	bool complete = card_folder_files(&files, &file_count);
+
+	char **seen = NULL;
+	int seen_count = 0, seen_capacity = 0;
+	int read_again = 0, failed = 0;
+
+	for (int i = 0; i < file_count; i++) {
+		char full[600];
+		if (snprintf(full, sizeof(full), "%s/%s", card_dir_path, files[i]) >= (int)sizeof(full)) {
+			continue;
+		}
+		struct stat st;
+		if (stat(full, &st) != 0) {
+			complete = false; // listed a moment ago: not a file that has gone
+			continue;
+		}
+		if (!S_ISREG(st.st_mode)) {
+			continue;
+		}
+		char name[201];
+		name_from_file(files[i], name, sizeof(name));
+		if (!name_is_usable(name)) {
+			continue;
+		}
+		if (name_listed(seen, seen_count, name)) {
+			sync_note_add("playlists: card folder: %s left out, an earlier file is already the playlist %s\n", files[i],
+						  name);
+			continue;
+		}
+		if (!names_add(&seen, &seen_count, &seen_capacity, name)) {
+			complete = false;
+			break;
+		}
+
+		if (library_playlist_exists(name) &&
+			library_playlist_count_get(full, (long)st.st_mtime, (long)st.st_size) >= 0) {
+			continue; // unchanged since it was last read
+		}
+		library_playlist_drop(name);
+		int tracks = rows_from_file(name, full, card_dir_path, false);
+		if (tracks < 0) {
+			// Not stamped, so the next look reads it again rather than taking a
+			// half-read file for the whole of it.
+			library_playlist_drop(name);
+			failed++;
+			continue;
+		}
+		library_playlist_count_save(full, (long)st.st_mtime, (long)st.st_size, tracks);
+		read_again++;
+	}
+	names_free(files, file_count);
+
+	// And the tables whose file has gone: deleted, or renamed, on a computer.
+	// Only when the whole folder was seen.
+	int dropped = 0;
+	if (complete) {
+		char **names = NULL;
+		int count = library_playlist_names(&names);
+		for (int i = 0; i < count; i++) {
+			if (!name_listed(seen, seen_count, names[i]) && library_playlist_drop(names[i])) {
+				dropped++;
+			}
+		}
+		library_playlist_names_free(names, count);
+	}
+	names_free(seen, seen_count);
+
+	if (read_again > 0 || dropped > 0 || failed > 0 || !complete) {
+		sync_note_add("playlists: card folder: %d read, %d gone, %d could not be read%s\n", read_again, dropped, failed,
+					  complete ? "" : "; not listed in full, so nothing was taken away");
+	}
+	if (strcmp(sync_note, sync_note_said) != 0) {
+		fputs(sync_note, stderr);
+		memcpy(sync_note_said, sync_note, sizeof(sync_note));
+	}
+}
+
+void playlists_refresh(void) {
+	pthread_mutex_lock(&card_lock);
+	if (card_mode) {
+		sync_card_folder();
+	}
+	pthread_mutex_unlock(&card_lock);
+}
+
 int playlists_for_each(playlists_name_cb_t cb, void *user) {
 	if (!cb) {
 		return 0;
 	}
-	migrate_folder_once();
+	if (card_mode) {
+		playlists_refresh();
+	} else {
+		migrate_folder_once();
+	}
 
 	char **names = NULL;
 	int count = library_playlist_names(&names);
@@ -269,7 +515,7 @@ bool playlists_exists(const char *name) { return name_is_usable(name) && library
 // ---------------------------------------------------------------------------
 
 bool playlists_create(const char *name) {
-	if (!name_is_usable(name)) {
+	if (card_mode || !name_is_usable(name)) {
 		return false;
 	}
 	return library_playlist_create(name);
@@ -300,8 +546,8 @@ void playlists_track_names(const char *track_path, char *title, size_t title_siz
 	}
 }
 
-bool playlists_add_track(const char *name, const char *track_path) {
-	if (!name_is_usable(name) || !track_path || !track_path[0]) {
+static bool add_track_row(const char *name, const char *track_path) {
+	if (card_mode || !name_is_usable(name) || !track_path || !track_path[0]) {
 		return false;
 	}
 
@@ -318,8 +564,20 @@ bool playlists_add_track(const char *name, const char *track_path) {
 	return library_playlist_append(name, &row);
 }
 
+bool playlists_add_track(const char *name, const char *track_path) { return add_track_row(name, track_path); }
+
+int playlists_add_tracks(const char *name, const char *const *track_paths, int count) {
+	int added = 0;
+	for (int i = 0; i < count; i++) {
+		if (add_track_row(name, track_paths[i])) {
+			added++;
+		}
+	}
+	return added;
+}
+
 bool playlists_remove_track(const char *name, const char *track_path) {
-	if (!name_is_usable(name) || !track_path || !track_path[0]) {
+	if (card_mode || !name_is_usable(name) || !track_path || !track_path[0]) {
 		return false;
 	}
 	return library_playlist_remove_path(name, track_path);
@@ -330,16 +588,23 @@ bool playlists_has_track(const char *name, const char *track_path) {
 }
 
 int playlists_remove_positions(const char *name, const int *positions, int count) {
-	if (!name_is_usable(name)) {
+	if (card_mode || !name_is_usable(name)) {
 		return 0;
 	}
 	return library_playlist_remove_positions(name, positions, count);
 }
 
-bool playlists_delete(const char *name) { return name_is_usable(name) && library_playlist_drop(name); }
+bool playlists_move(const char *name, int from, int to) {
+	if (card_mode || !name_is_usable(name)) {
+		return false;
+	}
+	return library_playlist_move(name, from, to);
+}
+
+bool playlists_delete(const char *name) { return !card_mode && name_is_usable(name) && library_playlist_drop(name); }
 
 bool playlists_rename(const char *name, const char *new_name) {
-	if (!name_is_usable(name) || !name_is_usable(new_name)) {
+	if (card_mode || !name_is_usable(name) || !name_is_usable(new_name)) {
 		return false;
 	}
 	// No special case for case alone: a table name is compared exactly, so
@@ -563,18 +828,24 @@ static void name_entry(const char *path, const char *extinf, char *title_out, si
 // Reads a .m3u straight into a playlist of its own: the path each line means,
 // the title and artist to show, whether the file is there. One row at a time,
 // so a long list costs a row rather than all of them. Returns how many went in,
-// 0 if nothing did. Used by the one-time move off the card; Import has its own
-// reader, because it also has to look up entries the card no longer has at the
-// path they name.
-static int rows_from_file(const char *name, const char *file_path) {
+// 0 if nothing did. Used by the one-time move off the card and by the card
+// folder's sync; Import has its own reader, because it also has to look up
+// entries the card no longer has at the path they name.
+//
+// Relative entries are taken from `base_dir`. Without `check_presence` no entry
+// is looked for: each goes in as there, and a scan or Detect changes that walks
+// its folder without finding it hides it (see library.h).
+// How many entries went in, or -1 when the file could not be read to the end or
+// its rows could not all be written, in which case nothing of it is kept.
+static int rows_from_file(const char *name, const char *file_path, const char *base_dir, bool check_presence) {
 	FILE *f = fopen(file_path, "r");
 	if (!f) {
-		return 0;
+		return -1;
 	}
 	library_playlist_writer_t *writer = library_playlist_write_begin(name);
 	if (!writer) {
 		fclose(f);
-		return 0;
+		return -1;
 	}
 
 	int count = 0;
@@ -604,9 +875,9 @@ static int rows_from_file(const char *name, const char *file_path) {
 
 		library_playlist_row_t row;
 		memset(&row, 0, sizeof(row));
-		resolve_entry(text, NULL, row.path, sizeof(row.path));
+		resolve_entry(text, base_dir, row.path, sizeof(row.path));
 		row.seconds = pending_seconds;
-		row.present = entry_is_present(row.path);
+		row.present = check_presence ? entry_is_present(row.path) : true;
 		name_entry(row.path, pending_title, row.title, sizeof(row.title), row.artist, sizeof(row.artist),
 				   &tags_started_ms, &tags_budget_spent);
 		pending_title[0] = '\0';
@@ -617,10 +888,19 @@ static int rows_from_file(const char *name, const char *file_path) {
 			count++;
 		}
 	}
+	// fgets() stops on an error the same way it stops at the end.
+	if (ferror(f)) {
+		ok = false;
+	}
 	fclose(f);
 
-	if (!library_playlist_write_end(writer, ok && count > 0)) {
-		return 0;
+	// An empty file in the card folder is still a playlist: it is on the card,
+	// and it would be stranger for it to vanish from the list than to be empty.
+	// One the index takes in is not, and is left out.
+	bool keep = ok && (count > 0 || !check_presence);
+	if (!library_playlist_write_end(writer, keep)) {
+		// Either nothing was meant to be kept, or the commit failed.
+		return ok && !keep ? 0 : -1;
 	}
 	return count;
 }

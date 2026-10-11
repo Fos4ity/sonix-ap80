@@ -33,6 +33,7 @@
 #include "src/system/device/system.h"
 #include "src/system/library/cue.h"
 #include "src/system/library/folderorder.h"
+#include "src/system/library/playlists.h"
 #include "src/system/playback/device_state.h"
 #include "src/system/playback/playlist.h"
 #include "src/system/streaming/subsonic.h"
@@ -962,7 +963,9 @@ static void sel_fav_cb(lv_event_t *e) {
 
 static void sel_add_cb(lv_event_t *e) {
 	(void)e;
-	selection_send(SEND_PLAYLIST);
+	if (!playlists_card_folder_mode()) {
+		selection_send(SEND_PLAYLIST);
+	}
 }
 
 static void sel_close_cb(lv_event_t *e) {
@@ -1111,15 +1114,29 @@ static void show_if(lv_obj_t *obj, bool show) {
 	}
 }
 
+// Where a corner button sits: slot 0 at the right edge, each one further left
+// the next slot over.
+static void corner_place(lv_obj_t *btn, int slot) {
+	if (btn) {
+		lv_obj_align(btn, LV_ALIGN_TOP_RIGHT, -config->padding - slot * 62, config->padding + config->top_bar_height);
+	}
+}
+
 static void update_corner_buttons(void) {
+	// No "add to a playlist" over the card folder's, which are read only.
+	bool can_add = selecting && !playlists_card_folder_mode();
 	show_if(root_button, !selecting && browser_can_go_up());
 	show_if(shuffle_button, !selecting && listing_has_tracks());
 	show_if(sel_queue_btn, selecting);
 	show_if(sel_fav_btn, selecting);
-	show_if(sel_add_btn, selecting);
+	show_if(sel_add_btn, can_add);
 	show_if(sel_close_btn, selecting);
+	// The favourites and the queue close up over the playlist button's slot
+	// when it is not there.
+	corner_place(sel_fav_btn, can_add ? 2 : 1);
+	corner_place(sel_queue_btn, can_add ? 3 : 2);
 	if (title_label) {
-		settingsrow_title_corner_slots(title_label, config, selecting ? 4 : 2);
+		settingsrow_title_corner_slots(title_label, config, selecting ? (can_add ? 4 : 3) : 2);
 	}
 }
 
@@ -2017,14 +2034,14 @@ static void build_rows(int width) {
 
 // A button in the title row's corner, `slot` places from the right edge.
 // Hidden until something shows it.
-static lv_obj_t *corner_button(gui_config_t *cfg, int slot, const lv_image_dsc_t *glyph, lv_event_cb_t cb) {
+static lv_obj_t *corner_button(int slot, const lv_image_dsc_t *glyph, lv_event_cb_t cb) {
 	lv_obj_t *btn = lv_btn_create(browser_screen);
 	lv_obj_set_size(btn, 56, 56);
 	lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
 	lv_obj_set_style_border_width(btn, 0, 0);
 	lv_obj_set_style_shadow_width(btn, 0, 0);
 	lv_obj_set_style_pad_all(btn, 0, 0);
-	lv_obj_align(btn, LV_ALIGN_TOP_RIGHT, -cfg->padding - slot * 62, cfg->padding + cfg->top_bar_height);
+	corner_place(btn, slot);
 	lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, NULL);
 	lv_obj_set_hidden(btn, true);
 
@@ -2059,20 +2076,20 @@ void browser_init(gui_config_t *cfg) {
 	// Straight back to the top of the card, from however deep the walk went.
 	// Same corner, size and spacing as the buttons on the Music page, so the
 	// two pages' top right corners are the same place.
-	root_button = corner_button(cfg, 0, &icon_folder_root, root_button_cb);
+	root_button = corner_button(0, &icon_folder_root, root_button_cb);
 
 	// And this folder in a random order, in the slot to its left. Only where
 	// there is something to play: in a folder of nothing but folders it would
 	// be a control with no meaning, and the walk down to an album passes
 	// through several of those.
-	shuffle_button = corner_button(cfg, 1, &icon_shuffle, shuffle_button_cb);
+	shuffle_button = corner_button(1, &icon_shuffle, shuffle_button_cb);
 
 	// Selection mode's buttons, in the same corner while it lasts, from the
 	// right: close, a playlist, the favourites, the queue.
-	sel_close_btn = corner_button(cfg, 0, &icon_close, sel_close_cb);
-	sel_add_btn = corner_button(cfg, 1, &icon_list_plus, sel_add_cb);
-	sel_fav_btn = corner_button(cfg, 2, &icon_star_plus, sel_fav_cb);
-	sel_queue_btn = corner_button(cfg, 3, &icon_list_queue, sel_queue_cb);
+	sel_close_btn = corner_button(0, &icon_close, sel_close_cb);
+	sel_add_btn = corner_button(1, &icon_list_plus, sel_add_cb);
+	sel_fav_btn = corner_button(2, &icon_star_plus, sel_fav_cb);
+	sel_queue_btn = corner_button(3, &icon_list_queue, sel_queue_cb);
 	lv_obj_add_event_cb(browser_screen, screen_unloaded_cb, LV_EVENT_SCREEN_UNLOADED, NULL);
 
 	int content_top = settingsrow_content_top(cfg);
