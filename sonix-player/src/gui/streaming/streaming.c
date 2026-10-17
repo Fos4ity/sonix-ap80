@@ -4,6 +4,7 @@
 
 #include "src/gui/shell/gridpage.h"
 #include "src/gui/shell/icons.h"
+#include "src/gui/streaming/audiobookshelfpage.h"
 #include "src/gui/streaming/podcastpage.h"
 #include "src/gui/streaming/qobuzpage.h"
 #include "src/gui/streaming/radiopage.h"
@@ -18,6 +19,7 @@ void streaming_init(gui_config_t *cfg) {
 	tidalpage_init(cfg);
 	ytmpage_init(cfg);
 	podcastpage_init(cfg);
+	audiobookshelfpage_init(cfg);
 
 	const grid_entry_t entries[] = {
 		{"tidal", &icon_menu_tidal, &tidal_screen, NULL},
@@ -25,6 +27,7 @@ void streaming_init(gui_config_t *cfg) {
 		{"qobuz", &icon_menu_qobuz, &qobuz_screen, NULL},
 		{"radio", &icon_menu_radio, &radiopage_screen, NULL},
 		{"podcasts", &icon_menu_podcast, &podcast_screen, NULL},
+		{"audiobookshelf", &icon_menu_audiobooks, &audiobookshelf_screen, NULL},
 	};
 
 	// Two columns and three rows of tile, exactly like Music and Wireless, so a
