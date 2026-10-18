@@ -26,10 +26,11 @@
 // album carousel takes 84..89; and the cover at the head of an album's tracks
 // takes 90; the podcasts on the card take 91..102 for their twelve rows, 103
 // for the cover at the head of one of them and 104..107 for the episodes being
-// listened to; the Audiobookshelf book-detail screen takes 108; and the
-// playlists' grid takes 109..120 -- so the pools never trample each other's
-// requests.
-#define COVERLOADER_SLOTS 121
+// listened to; the Audiobookshelf book-detail screen takes 108; the
+// playlists' grid takes 109..120; and the rows a grid of three or four columns
+// adds past the first dozen take 121..136 on the name lists and 137..152 on one
+// artist's records -- so the pools never trample each other's requests.
+#define COVERLOADER_SLOTS 153
 #define COVERLOADER_PLAYLISTS_BASE 109
 #define COVERLOADER_PLAYLISTS_COUNT 12
 #define COVERLOADER_SEARCH_BASE 36
@@ -47,9 +48,15 @@
 // The album carousel's six places take 84..89 -- five that can be seen and one
 // that is always just off an edge, because the column scrolls through the
 // positions in between and not only from one record to the next. It asks for
-// bigger pictures than any list does -- 210 px against the lists' 72 -- but
-// never more than six at a time, and only while its page is the one on screen.
+// bigger pictures than a list of rows does -- COVERLOADER_COVERFLOW_SIZE against
+// their 72 -- but never more than six at a time, and only while its page is the
+// one on screen.
 #define COVERLOADER_COVERFLOW_BASE 84
+
+// The side of the carousel's covers. The album grid at two columns asks for its
+// covers at the same size, so the two share one thumbnail per album on the card
+// (medialist.c): the one number for both, or they would quietly stop sharing.
+#define COVERLOADER_COVERFLOW_SIZE 210
 
 // The big cover above an album's tracks, when the album page is laid out with
 // one (Music > Library). One picture, the size of most of the
