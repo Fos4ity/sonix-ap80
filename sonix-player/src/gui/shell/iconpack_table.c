@@ -235,6 +235,7 @@ iconpack_entry_t iconpack_table[] = {
 	{&icon_menu_explorer, "explorer", false},
 	{&icon_menu_playlist, "playlist", false},
 	{&icon_menu_streaming, "streaming", false},
+	{&icon_menu_navidrome, "navidrome", false},
 	{&icon_menu_wireless, "wireless", false},
 	{&icon_menu_wifi_settings, "wifi-settings", false},
 	{&icon_menu_bluetooth, "bluetooth", false},

@@ -242,6 +242,7 @@ extern lv_image_dsc_t icon_menu_most_played;
 extern lv_image_dsc_t icon_menu_explorer;
 extern lv_image_dsc_t icon_menu_playlist;
 extern lv_image_dsc_t icon_menu_streaming;
+extern lv_image_dsc_t icon_menu_navidrome;
 extern lv_image_dsc_t icon_menu_wireless;
 extern lv_image_dsc_t icon_menu_wifi_settings;
 extern lv_image_dsc_t icon_menu_bluetooth;
