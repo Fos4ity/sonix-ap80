@@ -388,6 +388,11 @@ typedef struct {
 // headers and stops there. Returns false if the URL is neither http:// nor
 // https://, the host does not resolve, the connection or the TLS handshake
 // fails, or the status is not 200.
+// The same request as a POST with `body` already form-encoded, and no ICY
+// metadata (a file server has none). Subsonic puts its credentials in the
+// body so they never reach an access log. A redirect drops the body.
+bool http_stream_open_post(http_stream_t *st, const char *url, const char *body, int timeout_secs);
+
 bool http_stream_open(http_stream_t *st, const char *url, int timeout_secs);
 
 // The authenticated form. `extra_headers` is the same CRLF-terminated list

@@ -1060,8 +1060,8 @@ static conn_t stream_conn(http_stream_t *st) {
 	return c;
 }
 
-static bool stream_open_once(http_stream_t *st, const char *url, const char *extra_headers, int timeout_secs, int *status_out,
-							 char *location, size_t location_size, http_op_t *op) {
+static bool stream_open_once(http_stream_t *st, const char *url, const char *extra_headers, const char *body,
+							 int timeout_secs, int *status_out, char *location, size_t location_size, http_op_t *op) {
 	url_t u;
 	if (!url_parse(url, &u)) {
 		return false;
@@ -1084,7 +1084,23 @@ static bool stream_open_once(http_stream_t *st, const char *url, const char *ext
 	host_header_value(&u, host_header, sizeof(host_header));
 
 	char request[4096];
-	int n = snprintf(request, sizeof(request),
+	int n;
+	if (body) {
+		// Subsonic: parameters in the body, so the credentials never reach an
+		// access log. No ICY metadata here -- this is a file, not a station.
+		n = snprintf(request, sizeof(request),
+					 "POST %s HTTP/1.0\r\n"
+					 "Host: %s\r\n"
+					 "User-Agent: " HTTP_USER_AGENT "\r\n"
+					 "Content-Type: application/x-www-form-urlencoded\r\n"
+					 "Content-Length: %u\r\n"
+					 "Accept: */*\r\n"
+					 "%s"
+					 "\r\n"
+					 "%s",
+					 u.path, host_header, (unsigned)strlen(body), extra_headers ? extra_headers : "", body);
+	} else {
+		n = snprintf(request, sizeof(request),
 					 "GET %s HTTP/1.0\r\n" // 1.0: no chunking, no keep-alive to argue about
 					 "Host: %s\r\n"
 					 "User-Agent: " HTTP_USER_AGENT "\r\n"
@@ -1093,6 +1109,7 @@ static bool stream_open_once(http_stream_t *st, const char *url, const char *ext
 					 "%s"
 					 "\r\n",
 					 u.path, host_header, extra_headers ? extra_headers : "");
+	}
 	// As above: snprintf returns what it would have written, not what it did.
 	if (n <= 0 || (size_t)n >= sizeof(request) || !conn_write_all_op(&conn, request, (size_t)n, op)) {
 		conn_close_op(&conn, op);
@@ -1153,8 +1170,20 @@ bool http_stream_open_ex(http_stream_t *st, const char *url, const char *extra_h
 	return http_stream_open_ex_op(st, url, extra_headers, timeout_secs, NULL, NULL);
 }
 
+static bool stream_open_impl(http_stream_t *st, const char *url, const char *extra_headers, const char *body,
+							 int timeout_secs, http_op_t *op, int *status_out);
+
 bool http_stream_open_ex_op(http_stream_t *st, const char *url, const char *extra_headers, int timeout_secs,
 							http_op_t *op, int *status_out) {
+	return stream_open_impl(st, url, extra_headers, NULL, timeout_secs, op, status_out);
+}
+
+bool http_stream_open_post(http_stream_t *st, const char *url, const char *body, int timeout_secs) {
+	return stream_open_impl(st, url, NULL, body, timeout_secs, NULL, NULL);
+}
+
+static bool stream_open_impl(http_stream_t *st, const char *url, const char *extra_headers, const char *body,
+							 int timeout_secs, http_op_t *op, int *status_out) {
 	if (!st || !url) {
 		return false;
 	}
@@ -1175,7 +1204,7 @@ bool http_stream_open_ex_op(http_stream_t *st, const char *url, const char *extr
 	for (int hop = 0; hop <= HTTP_MAX_REDIRECTS; hop++) {
 		int status = 0;
 		char location[2048] = "";
-		if (stream_open_once(st, current, hop_headers, timeout_secs, &status, location, sizeof(location), op)) {
+		if (stream_open_once(st, current, hop_headers, body, timeout_secs, &status, location, sizeof(location), op)) {
 			if (status_out) {
 				*status_out = status;
 			}
@@ -1187,6 +1216,11 @@ bool http_stream_open_ex_op(http_stream_t *st, const char *url, const char *extr
 		if (status < 300 || status >= 400 || !location[0]) {
 			return false;
 		}
+
+		// A redirect is a new request, and a browser drops the body on one.
+		// The credentials went with it, so the next hop answers 401 -- which
+		// the caller reports as it would any refusal.
+		body = NULL;
 
 		char next[2600];
 		if (location[0] == '/') {
