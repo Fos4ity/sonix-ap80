@@ -3,11 +3,11 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <malloc.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
@@ -16,20 +16,25 @@
 
 #include <pthread.h>
 
+#include "src/gui/fonts/fonts.h"
+#include "src/gui/library/playlistpage.h"
 #include "src/gui/nowplaying/cover.h"
 #include "src/gui/nowplaying/coverloader.h"
-#include "src/gui/fonts/fonts.h"
+#include "src/gui/nowplaying/player.h"
+#include "src/gui/settings/musicsettings.h"
 #include "src/gui/shell/gui.h"
 #include "src/gui/shell/icons.h"
-#include "src/gui/settings/musicsettings.h"
-#include "src/gui/library/playlistpage.h"
-#include "src/gui/nowplaying/player.h"
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
 #include "src/gui/shell/theme.h"
+#include "src/gui/shell/toast.h"
+#include "src/system/core/lang.h"
+#include "src/system/core/utils.h"
+#include "src/system/device/system.h"
 #include "src/system/library/cue.h"
 #include "src/system/library/folderorder.h"
 #include "src/system/playback/device_state.h"
+#include "src/system/playback/playlist.h"
 #include "src/system/streaming/subsonic.h"
 #include "src/system/streaming/subsoniccache.h"
 #include "src/system/device/system.h"
@@ -197,8 +202,8 @@ typedef struct {
 	uint32_t file_offset; // what gets appended to the folder path
 	folder_place_t place; // where a track sits on its record
 	uint8_t is_dir;
-	uint8_t is_virtual; // remote (Navidrome/Subsonic) entry, not on the card
-	char virtual_id[64]; // Subsonic id, valid when is_virtual
+	uint8_t is_virtual;		// remote (Navidrome/Subsonic) entry, not on the card
+	char virtual_id[64];	// Subsonic id, valid when is_virtual
 	char virtual_suffix[8]; // file extension, valid when is_virtual and !is_dir
 } entry_t;
 
@@ -265,8 +270,7 @@ static bool listing_reserve(listing_t *list, size_t needed_entries, size_t neede
 
 // `file` may be NULL, which means "the same as the name" -- every entry that
 // is a real thing on the card.
-static bool listing_add(listing_t *list, const char *name, const char *file, bool is_dir,
-                       bool is_virtual, const char *virtual_id, const char *virtual_suffix) {
+static bool listing_add(listing_t *list, const char *name, const char *file, bool is_dir, bool is_virtual, const char *virtual_id, const char *virtual_suffix) {
 	size_t name_len = strlen(name) + 1;
 	size_t file_len = file ? strlen(file) + 1 : 0;
 
@@ -634,9 +638,7 @@ static bool is_playable_file(const char *name) {
 	// -- opening every container to find out would be one extra read per row
 	// of every folder. An audio-only .mp4 is still found by the library scan,
 	// which opens the container anyway (see is_video_file in library.c).
-	static const char *const playable_exts[] = {".wav",  ".mp3",  ".flac", ".ogg", ".m4b", ".m4a",
-												 ".alac", ".aac",  ".dsf",  ".dff", ".aif", ".aiff",
-												 ".aifc", ".caf",  ".opus", ".wv",   ".ape"};
+	static const char *const playable_exts[] = {".wav", ".mp3", ".flac", ".ogg", ".m4b", ".m4a", ".alac", ".aac", ".dsf", ".dff", ".aif", ".aiff", ".aifc", ".caf", ".opus", ".wv", ".ape"};
 
 	if (playlist_is_junk_name(name)) {
 		return false; // a macOS resource fork with a .flac on the end is not a track
@@ -983,7 +985,7 @@ static void screen_unloaded_cb(lv_event_t *e) {
 static void virtual_play(int index) {
 	subsoniccache_set_root(storage_sd_root());
 	if (!subsoniccache_ready()) {
-		fprintf(stderr, "browser: no storage card for virtual play\\n");
+		toast_error("sd_card_missing");
 		return;
 	}
 
@@ -993,27 +995,36 @@ static void virtual_play(int index) {
 	int start = -1;
 	// First pass: count
 	for (size_t i = 0; i < shown.count; i++) {
-		if (shown.entries[i].is_virtual && !shown.entries[i].is_dir) count++;
+		if (shown.entries[i].is_virtual && !shown.entries[i].is_dir)
+			count++;
 	}
-	if (count == 0) return;
+	if (count == 0)
+		return;
 
 	// Allocate queue
 	char (*queue)[512] = calloc((size_t)count, 512);
 	const char **ptrs = calloc((size_t)count, sizeof(char *));
-	if (!queue || !ptrs) { free(queue); free(ptrs); return; }
+	if (!queue || !ptrs) {
+		free(queue);
+		free(ptrs);
+		return;
+	}
 
 	int qi = 0;
 	for (size_t i = 0; i < shown.count; i++) {
-		if (!(shown.entries[i].is_virtual && !shown.entries[i].is_dir)) continue;
+		if (!(shown.entries[i].is_virtual && !shown.entries[i].is_dir))
+			continue;
 		char cache[512];
 		const char *suf = shown.entries[i].virtual_suffix[0] ? shown.entries[i].virtual_suffix : "bin";
 		subsoniccache_path(shown.entries[i].virtual_id, suf, cache, sizeof(cache));
 		snprintf(queue[qi], 512, "%s", cache);
 		ptrs[qi] = queue[qi];
-		if ((int)i == index) start = qi;
+		if ((int)i == index)
+			start = qi;
 		qi++;
 	}
-	if (start < 0) start = 0;
+	if (start < 0)
+		start = 0;
 
 	// Fetch the tapped song synchronously.
 	const char *suf = shown.entries[index].virtual_suffix[0] ? shown.entries[index].virtual_suffix : "bin";
@@ -1022,8 +1033,9 @@ static void virtual_play(int index) {
 		bool ok = subsoniccache_fetch(shown.entries[index].virtual_id, suf);
 		subsoniccache_set_network_wanted(false);
 		if (!ok) {
-			fprintf(stderr, "browser: fetch failed: %s\n", subsonic_last_error());
-			free(queue); free(ptrs);
+			toast_error(subsonic_last_error());
+			free(queue);
+			free(ptrs);
 			return;
 		}
 	}
@@ -1153,13 +1165,13 @@ static void shuffle_button_cb(lv_event_t *e) {
 			continue;
 		}
 		if (seen++ == wanted) {
-		if (shown.entries[i].is_virtual) {
-			virtual_play((int)i);
-			return;
+			if (shown.entries[i].is_virtual) {
+				virtual_play((int)i);
+				return;
+			}
+			name = entry_file(i);
+			break;
 		}
-		name = entry_file(i);
-		break;
-	}
 	}
 	if (!name) {
 		return;
@@ -1436,31 +1448,39 @@ static void listing_place_tracks(const char *path, listing_t *list) {
 //   "subsonic:/<artist>"   -> albums of that artist
 //   "subsonic:/<a>/<album>"-> songs of that album
 // ---------------------------------------------------------------------------
-static bool is_virtual_path(const char *path) {
-	return path && strncmp(path, "subsonic", 8) == 0;
-}
+static bool is_virtual_path(const char *path) { return path && strncmp(path, "subsonic", 8) == 0; }
 
 static void virtual_path_ids(const char *path, char *artist, size_t asz, char *album, size_t bsz) {
 	artist[0] = '\0';
 	album[0] = '\0';
-	if (!path) return;
+	if (!path)
+		return;
 	const char *p = path + strlen("subsonic");
-	if (*p == ':') p++;
-	if (*p == '/') p++;
-	if (!*p) return;
+	if (*p == ':')
+		p++;
+	if (*p == '/')
+		p++;
+	if (!*p)
+		return;
 	// first segment = artist id
 	char buf[256];
 	snprintf(buf, sizeof(buf), "%s", p);
 	char *slash = strchr(buf, '/');
-	if (slash) { *slash = '\0'; snprintf(artist, asz, "%s", buf); snprintf(album, bsz, "%s", slash + 1); }
-	else { snprintf(artist, asz, "%s", buf); }
+	if (slash) {
+		*slash = '\0';
+		snprintf(artist, asz, "%s", buf);
+		snprintf(album, bsz, "%s", slash + 1);
+	} else {
+		snprintf(artist, asz, "%s", buf);
+	}
 }
 
 static bool list_virtual_directory(const char *path, listing_t *out) {
 	out->count = 0;
 	out->pool_used = 0;
 
-	if (!subsonic_configured()) return false;
+	if (!subsonic_configured())
+		return false;
 
 	subsoniccache_set_root(storage_sd_root());
 
@@ -1635,8 +1655,7 @@ static bool list_directory(const char *path, listing_t *out, cue_sheet_t *sheets
 	// Telling them apart matters: a truncated listing otherwise just looks like
 	// a folder with fewer files in it.
 	if (errno != 0) {
-		fprintf(stderr, "browser: readdir stopped after %zu entries in '%s': %s\n", out->count, path,
-				strerror(errno));
+		fprintf(stderr, "browser: readdir stopped after %zu entries in '%s': %s\n", out->count, path, strerror(errno));
 	}
 
 	closedir(dir);
@@ -1654,7 +1673,7 @@ static bool list_directory(const char *path, listing_t *out, cue_sheet_t *sheets
 	// configured, offer the remote catalog as a folder. It is not on the card,
 	// so it sorts after the real folders via is_dir (it is a dir) and the name.
 	if (root_path[0] && strcmp(path, root_path) == 0 && subsonic_configured()) {
-		listing_add(out, "Navidrome", "subsonic:", true, true, "", "");
+		listing_add(out, tr("subsonic"), "subsonic:", true, true, "", "");
 	}
 
 	return true;
@@ -1914,8 +1933,7 @@ static void adopt_listing(void) {
 	browser_rebuild_index();
 	azindex_flash(az_index);
 
-	fprintf(stderr, "browser: '%s': %zu entries, %d row widgets, %zu KB of names\n", current_path, shown.count,
-			ROW_POOL, shown.pool_used / 1024);
+	fprintf(stderr, "browser: '%s': %zu entries, %d row widgets, %zu KB of names\n", current_path, shown.count, ROW_POOL, shown.pool_used / 1024);
 }
 
 // ---------------------------------------------------------------------------
@@ -1966,10 +1984,7 @@ static void build_rows(int width) {
 		// Two lines at most: the cap on the height is what makes LV_LABEL_LONG_DOT
 		// cut the name there, with the ellipsis, instead of wrapping on past the
 		// row. A cap and not a height, so a one-line name stays centred.
-		lv_obj_set_style_max_height(row->label,
-									2 * lv_font_get_line_height(&font_ui_24) +
-										lv_obj_get_style_text_line_space(row->label, LV_PART_MAIN),
-									0);
+		lv_obj_set_style_max_height(row->label, 2 * lv_font_get_line_height(&font_ui_24) + lv_obj_get_style_text_line_space(row->label, LV_PART_MAIN), 0);
 
 		row->check = lv_image_create(row->button);
 		lv_image_set_src(row->check, &icon_check);
