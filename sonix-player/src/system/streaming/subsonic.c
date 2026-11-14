@@ -561,3 +561,92 @@ bool subsonic_download(const char *song_id, const char *out_path, unsigned long 
 	snprintf(params, sizeof(params), "id=%s", encoded);
 	return fetch_to_file("download.view", params, out_path, bytes_out);
 }
+
+int subsonic_get_playlists(subsonic_playlist_t *out, int max) {
+	if (!out || max <= 0) {
+		return 0;
+	}
+	char *body = NULL;
+	size_t len = 0;
+	if (!api_call("getPlaylists.view", NULL, &body, &len)) {
+		free(body);
+		return 0;
+	}
+
+	json_doc_t doc;
+	if (!json_parse(body, &doc)) {
+		set_error("the server did not answer with JSON");
+		free(body);
+		return 0;
+	}
+
+	int written = 0;
+	int playlists = json_path(&doc, json_root(&doc), "subsonic-response.playlists.playlist");
+	int count = json_len(&doc, playlists);
+	for (int i = 0; i < count && written < max; i++) {
+		int item = json_at(&doc, playlists, i);
+		subsonic_playlist_t *p = &out[written];
+		memset(p, 0, sizeof(*p));
+		json_obj_str(&doc, item, "id", p->id, sizeof(p->id));
+		json_obj_str(&doc, item, "name", p->name, sizeof(p->name));
+		json_obj_str(&doc, item, "owner", p->owner, sizeof(p->owner));
+		p->song_count = (int)json_obj_long(&doc, item, "songCount", 0);
+		if (p->id[0] && p->name[0]) {
+			written++;
+		}
+	}
+
+	json_free(&doc);
+	free(body);
+	clear_error();
+	return written;
+}
+
+int subsonic_get_playlist_songs(const char *playlist_id, subsonic_song_t *out, int max) {
+	if (!playlist_id || !playlist_id[0] || !out || max <= 0) {
+		return 0;
+	}
+
+	char encoded[SUBSONIC_ID_MAX * 3 + 1];
+	http_url_encode(playlist_id, encoded, sizeof(encoded));
+	char params[SUBSONIC_ID_MAX * 3 + 16];
+	snprintf(params, sizeof(params), "id=%s", encoded);
+
+	char *body = NULL;
+	size_t len = 0;
+	if (!api_call("getPlaylist.view", params, &body, &len)) {
+		free(body);
+		return 0;
+	}
+
+	json_doc_t doc;
+	if (!json_parse(body, &doc)) {
+		set_error("the server did not answer with JSON");
+		free(body);
+		return 0;
+	}
+
+	int written = 0;
+	int songs = json_path(&doc, json_root(&doc), "subsonic-response.playlist.entry");
+	int count = json_len(&doc, songs);
+	for (int i = 0; i < count && written < max; i++) {
+		int item = json_at(&doc, songs, i);
+		subsonic_song_t *s = &out[written];
+		memset(s, 0, sizeof(*s));
+		json_obj_str(&doc, item, "id", s->id, sizeof(s->id));
+		json_obj_str(&doc, item, "title", s->title, sizeof(s->title));
+		json_obj_str(&doc, item, "artist", s->artist, sizeof(s->artist));
+		json_obj_str(&doc, item, "album", s->album, sizeof(s->album));
+		json_obj_str(&doc, item, "suffix", s->suffix, sizeof(s->suffix));
+		s->duration = (int)json_obj_long(&doc, item, "duration", 0);
+		s->track = (int)json_obj_long(&doc, item, "track", 0);
+		if (s->id[0]) {
+			written++;
+		}
+	}
+
+	json_free(&doc);
+	free(body);
+	clear_error();
+	return written;
+}

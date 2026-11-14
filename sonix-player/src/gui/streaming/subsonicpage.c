@@ -67,6 +67,8 @@ typedef enum {
 	JOB_ARTISTS,
 	JOB_ALBUMS,
 	JOB_SONGS,
+	JOB_PLAYLISTS,
+	JOB_PLAYLIST_SONGS,
 	JOB_PLAY,
 } job_kind_t;
 
@@ -95,6 +97,7 @@ static union {
 	subsonic_artist_t artists[SUBSONIC_LIST_MAX];
 	subsonic_album_t albums[SUBSONIC_LIST_MAX];
 	subsonic_song_t songs[SUBSONIC_LIST_MAX];
+	subsonic_playlist_t playlists[SUBSONIC_LIST_MAX];
 } results;
 static int result_count;
 static job_kind_t result_kind;
@@ -257,16 +260,33 @@ static void fill_list(void) {
 			make_row(a->name, detail, i);
 			break;
 		}
-		case JOB_SONGS: {
+		case JOB_SONGS:
+		case JOB_PLAYLIST_SONGS: {
 			const subsonic_song_t *s = &results.songs[i];
 			char length[16];
 			duration_text(s->duration, length, sizeof(length));
 			if (s->track > 0 && length[0]) {
 				snprintf(detail, sizeof(detail), "%d \xC2\xB7 %s", s->track, length);
+			} else if (s->artist[0] && length[0]) {
+				snprintf(detail, sizeof(detail), "%s \xC2\xB7 %s", s->artist, length);
+			} else if (s->artist[0]) {
+				snprintf(detail, sizeof(detail), "%s", s->artist);
 			} else {
 				snprintf(detail, sizeof(detail), "%s", length);
 			}
 			make_row(s->title, detail, i);
+			break;
+		}
+		case JOB_PLAYLISTS: {
+			const subsonic_playlist_t *p = &results.playlists[i];
+			if (p->song_count > 0) {
+				snprintf(detail, sizeof(detail), "%d", p->song_count);
+			} else if (p->owner[0]) {
+				snprintf(detail, sizeof(detail), "%s", p->owner);
+			} else {
+				detail[0] = '\0';
+			}
+			make_row(p->name, detail, i);
 			break;
 		}
 		default:
@@ -575,6 +595,16 @@ static void *worker_main(void *arg) {
 			snprintf(result_title, sizeof(result_title), "%.150s", job.text);
 			break;
 
+		case JOB_PLAYLISTS:
+			n = subsonic_get_playlists(results.playlists, SUBSONIC_LIST_MAX);
+			snprintf(result_title, sizeof(result_title), "%s", tr("playlists"));
+			break;
+
+		case JOB_PLAYLIST_SONGS:
+			n = subsonic_get_playlist_songs(job.id, results.songs, SUBSONIC_LIST_MAX);
+			snprintf(result_title, sizeof(result_title), "%.150s", job.text);
+			break;
+
 		case JOB_PLAY:
 			do_play(job.index);
 			break;
@@ -690,8 +720,16 @@ static void row_clicked_cb(lv_event_t *e) {
 		return;
 
 	case JOB_SONGS:
+	case JOB_PLAYLIST_SONGS:
 		job.kind = JOB_PLAY;
 		job.index = index;
+		run(&job);
+		return;
+
+	case JOB_PLAYLISTS:
+		job.kind = JOB_PLAYLIST_SONGS;
+		snprintf(job.id, sizeof(job.id), "%s", results.playlists[index].id);
+		snprintf(job.text, sizeof(job.text), "%s", results.playlists[index].name);
 		run(&job);
 		return;
 
@@ -860,6 +898,18 @@ static void open_artists_cb(lv_event_t *e) {
 	run(&job);
 }
 
+static void open_playlists_cb(lv_event_t *e) {
+	(void)e;
+	if (!subsonic_configured()) {
+		gui_notify_popup("subsonic_note");
+		open_account_cb(NULL);
+		return;
+	}
+	job_t job = {0};
+	job.kind = JOB_PLAYLISTS;
+	run(&job);
+}
+
 static void sign_out_cb(lv_event_t *e);
 
 static void do_sign_out(void *user) {
@@ -906,6 +956,7 @@ static void rebuild_home(void) {
 	settingsrow_add(home_container, "server", &address, open_account_cb, NULL);
 	lv_label_set_text(address, subsonic_server());
 	settingsrow_add(home_container, "artists", NULL, open_artists_cb, NULL);
+	settingsrow_add(home_container, "playlists", NULL, open_playlists_cb, NULL);
 	settingsrow_action(home_container, "sign_out", sign_out_cb, NULL);
 }
 

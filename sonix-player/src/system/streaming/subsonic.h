@@ -43,6 +43,13 @@ typedef struct {
 
 typedef struct {
 	char id[SUBSONIC_ID_MAX];
+	char name[SUBSONIC_NAME_MAX];
+	char owner[SUBSONIC_USER_MAX];
+	int song_count;
+} subsonic_playlist_t;
+
+typedef struct {
+	char id[SUBSONIC_ID_MAX];
 	char title[SUBSONIC_NAME_MAX];
 	char artist[SUBSONIC_NAME_MAX];
 	char album[SUBSONIC_NAME_MAX];
@@ -84,6 +91,11 @@ bool subsonic_ping(void);
 int subsonic_get_artists(subsonic_artist_t *out, int max);
 int subsonic_get_albums(const char *artist_id, subsonic_album_t *out, int max);
 int subsonic_get_songs(const char *album_id, subsonic_song_t *out, int max);
+
+// Playlists. get_playlists returns the server's playlists; get_playlist_songs
+// returns the songs in one playlist in order.
+int subsonic_get_playlists(subsonic_playlist_t *out, int max);
+int subsonic_get_playlist_songs(const char *playlist_id, subsonic_song_t *out, int max);
 
 // Writes the cover art to `out_path`. False on any failure; the caller leaves
 // the destination as it was.
