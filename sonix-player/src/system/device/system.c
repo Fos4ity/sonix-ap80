@@ -43,6 +43,7 @@
 #include "src/system/streaming/abs_download.h"
 #include "src/system/streaming/audiobookshelf.h"
 #include "src/system/streaming/qobuzcache.h"
+#include "src/system/streaming/subsoniccache.h"
 #include "src/system/streaming/podcastcache.h"
 #include "src/system/streaming/podcastsubs.h"
 #include "src/system/streaming/podcaststate.h"
@@ -892,6 +893,7 @@ static void card_databases_attach(const char *root) {
 	peq_presets_set_dir(root);
 	mseb_presets_set_dir(root);
 	qobuzcache_set_root(root);
+	subsoniccache_set_root(root);
 	tidalcache_set_root(root);
 	ytmcache_set_root(root);
 	podcastcache_set_root(root);

@@ -53,6 +53,7 @@
 #include "src/system/streaming/abs_download.h"
 #include "src/system/streaming/audiobookshelf.h"
 #include "src/system/streaming/qobuz.h"
+#include "src/system/streaming/subsonic.h"
 #include "src/system/streaming/tidal.h"
 #include "src/system/remote/dlna.h"
 #include "src/system/gearboy/gbdb.h"
@@ -60,6 +61,7 @@
 #include "src/system/remote/sonixlink.h"
 #include "src/system/core/panel.h"
 #include "src/system/streaming/qobuzcache.h"
+#include "src/system/streaming/subsoniccache.h"
 #include "src/system/streaming/podcastcache.h"
 #include "src/system/streaming/podcastsubs.h"
 #include "src/system/streaming/podcaststate.h"
@@ -2285,6 +2287,7 @@ int main(int argc, char **argv) {
 	tidal_init();
 	ytm_init();
 	audiobookshelf_init();
+	subsonic_init();
 	// Upstream switched Last.fm off for lack of keys; here it stays, it only
 	// does anything once the user's own keys are in streaming-keys.ini.
 	lastfm_init();
@@ -2553,6 +2556,7 @@ int main(int argc, char **argv) {
 	// cache and the code that cleans it must agree on one root.
 	const char *card_root = storage_sd_root();
 	qobuzcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
+	subsoniccache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	tidalcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	ytmcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	podcastcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
