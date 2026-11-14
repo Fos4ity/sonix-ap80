@@ -78,6 +78,16 @@ void subsonic_clear_account(void);
 const char *subsonic_server(void);
 const char *subsonic_user(void);
 
+// Sync (metadata refresh): manual and automatic at intervals, as in #253.
+// The last successful sync time is stored in configuration; auto-sync runs
+// when enabled and the configured interval has elapsed.
+bool subsonic_auto_sync_enabled(void);
+int subsonic_sync_interval_min(void);
+long subsonic_last_sync_time(void);
+void subsonic_set_auto_sync(bool enabled, int interval_min);
+void subsonic_mark_synced(void);
+bool subsonic_sync_due(void);
+
 // Why the last call failed. Per thread, like http_last_error(): more than one
 // worker can have a request in flight.
 const char *subsonic_last_error(void);

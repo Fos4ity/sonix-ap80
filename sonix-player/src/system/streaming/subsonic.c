@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "src/system/core/config.h"
@@ -287,10 +288,51 @@ void subsonic_clear_account(void) {
 	subsonicaccount_clear();
 	config_set("subsonic", "server", "");
 	config_set("subsonic", "user", "");
+	config_set("subsonic", "last_sync", "0");
 	config_save();
 	server_url[0] = '\0';
 	user_name[0] = '\0';
 	password[0] = '\0';
+}
+
+bool subsonic_auto_sync_enabled(void) { return config_get_int("subsonic", "auto_sync", 0) != 0; }
+
+int subsonic_sync_interval_min(void) {
+	int v = (int)config_get_int("subsonic", "sync_interval", 60);
+	if (v < 1)
+		v = 1;
+	if (v > 24 * 60)
+		v = 24 * 60;
+	return v;
+}
+
+long subsonic_last_sync_time(void) { return config_get_int("subsonic", "last_sync", 0); }
+
+void subsonic_set_auto_sync(bool enabled, int interval_min) {
+	if (interval_min < 1)
+		interval_min = 1;
+	if (interval_min > 24 * 60)
+		interval_min = 24 * 60;
+	config_set_int("subsonic", "auto_sync", enabled ? 1 : 0);
+	config_set_int("subsonic", "sync_interval", interval_min);
+	config_save();
+}
+
+void subsonic_mark_synced(void) {
+	config_set_int("subsonic", "last_sync", (long)time(NULL));
+	config_save();
+}
+
+bool subsonic_sync_due(void) {
+	if (!subsonic_configured() || !subsonic_auto_sync_enabled()) {
+		return false;
+	}
+	long last = subsonic_last_sync_time();
+	if (last <= 0) {
+		return true;
+	}
+	long now = (long)time(NULL);
+	return now - last >= (long)subsonic_sync_interval_min() * 60;
 }
 
 // ---------------------------------------------------------------------------

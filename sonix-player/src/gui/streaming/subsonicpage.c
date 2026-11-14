@@ -64,6 +64,7 @@ lv_obj_t *subsonic_screen;
 typedef enum {
 	JOB_NONE = 0,
 	JOB_CONNECT,
+	JOB_SYNC,
 	JOB_ARTISTS,
 	JOB_ALBUMS,
 	JOB_SONGS,
@@ -106,6 +107,11 @@ static char result_title[SUBSONIC_NAME_MAX];
 
 // What the list is showing right now, so a row tap knows what to do.
 static job_kind_t list_kind;
+
+static bool sync_job_running;
+static bool sync_quiet;
+static void maybe_start_auto_sync(void);
+static bool wifi_is_connected(void);
 
 static void submit(const job_t *job) {
 	pthread_mutex_lock(&job_lock);
@@ -517,6 +523,10 @@ static void job_done_cb(void *user) {
 	busy_hide();
 
 	if (result_error[0]) {
+		if (result_kind == JOB_SYNC || result_kind == JOB_CONNECT) {
+			sync_job_running = false;
+			sync_quiet = false;
+		}
 		toast_busy_end();
 		gui_notify_popup(result_error);
 		return;
@@ -524,9 +534,20 @@ static void job_done_cb(void *user) {
 
 	switch (result_kind) {
 	case JOB_CONNECT:
+		sync_job_running = false;
 		rebuild_home();
 		switch_screen(subsonic_screen);
 		toast_success("signed_in");
+		break;
+
+	case JOB_SYNC:
+		sync_job_running = false;
+		rebuild_home();
+		if (!sync_quiet) {
+			switch_screen(subsonic_screen);
+			toast_success("signed_in");
+		}
+		sync_quiet = false;
 		break;
 
 	case JOB_PLAY:
@@ -561,7 +582,7 @@ static void *worker_main(void *arg) {
 		result_error[0] = '\0';
 		result_kind = job.kind;
 
-		if (job.kind != JOB_PLAY && job.kind != JOB_CONNECT) {
+		if (job.kind != JOB_PLAY && job.kind != JOB_CONNECT && job.kind != JOB_SYNC) {
 			result_count = 0;
 		}
 
@@ -577,6 +598,17 @@ static void *worker_main(void *arg) {
 				// again for no reason.
 				const char *why = subsonic_last_error();
 				snprintf(result_error, sizeof(result_error), "%s", why && why[0] ? why : tr("connect"));
+			} else {
+				subsonic_mark_synced();
+			}
+			break;
+
+		case JOB_SYNC:
+			if (!subsonic_ping()) {
+				const char *why = subsonic_last_error();
+				snprintf(result_error, sizeof(result_error), "%s", why && why[0] ? why : tr("connect"));
+			} else {
+				subsonic_mark_synced();
 			}
 			break;
 
@@ -618,7 +650,7 @@ static void *worker_main(void *arg) {
 			snprintf(result_error, sizeof(result_error), "%s", why && why[0] ? why : tr("no_results"));
 			n = 0;
 		}
-		if (job.kind != JOB_PLAY && job.kind != JOB_CONNECT) {
+		if (job.kind != JOB_PLAY && job.kind != JOB_CONNECT && job.kind != JOB_SYNC) {
 			result_count = n;
 		}
 
@@ -669,7 +701,7 @@ static bool list_back_guard(void) {
 }
 
 static void run(const job_t *job) {
-	if (job->kind != JOB_PLAY && job->kind != JOB_CONNECT) {
+	if (job->kind != JOB_PLAY && job->kind != JOB_CONNECT && job->kind != JOB_SYNC) {
 		bool same = have_current_list && current_list_job.kind == job->kind && strcmp(current_list_job.id, job->id) == 0 && strcmp(current_list_job.text, job->text) == 0;
 		if (have_current_list && !same && lv_screen_active() == list_screen && list_history_len < LIST_HISTORY_DEPTH) {
 			list_history[list_history_len++] = current_list_job;
@@ -681,6 +713,9 @@ static void run(const job_t *job) {
 	}
 
 	start_worker();
+	if (job->kind == JOB_SYNC || job->kind == JOB_CONNECT) {
+		sync_job_running = true;
+	}
 	if (job->kind == JOB_PLAY) {
 		// The tapped song has to arrive whole before it can play, unlike a
 		// Qobuz track: the toast is the only sign anything is happening.
@@ -870,6 +905,42 @@ static void open_account_cb(lv_event_t *e) {
 // ---------------------------------------------------------------------------
 
 static lv_obj_t *home_container;
+static lv_timer_t *auto_sync_timer;
+
+static void sync_now_cb(lv_event_t *e) {
+	(void)e;
+	if (!subsonic_configured()) {
+		return;
+	}
+	sync_quiet = false;
+	job_t job = {0};
+	job.kind = JOB_SYNC;
+	run(&job);
+}
+
+static void auto_sync_toggle_cb(lv_event_t *e) {
+	lv_obj_t *sw = lv_event_get_target(e);
+	bool on = lv_obj_has_state(sw, LV_STATE_CHECKED);
+	subsonic_set_auto_sync(on, subsonic_sync_interval_min());
+}
+
+static void maybe_start_auto_sync(void) {
+	if (sync_job_running) {
+		return;
+	}
+	if (!wifi_is_connected() || !subsonic_configured() || !subsonic_sync_due()) {
+		return;
+	}
+	sync_quiet = true;
+	job_t job = {0};
+	job.kind = JOB_SYNC;
+	run(&job);
+}
+
+static void auto_sync_timer_cb(lv_timer_t *timer) {
+	(void)timer;
+	maybe_start_auto_sync();
+}
 
 static bool wifi_is_connected(void) {
 #ifdef HOST_BUILD
@@ -957,6 +1028,16 @@ static void rebuild_home(void) {
 	lv_label_set_text(address, subsonic_server());
 	settingsrow_add(home_container, "artists", NULL, open_artists_cb, NULL);
 	settingsrow_add(home_container, "playlists", NULL, open_playlists_cb, NULL);
+	settingsrow_action(home_container, "sync", sync_now_cb, NULL);
+
+	lv_obj_t *auto_sw = NULL;
+	settingsrow_toggle(home_container, "auto_sync", &auto_sw, auto_sync_toggle_cb);
+	if (subsonic_auto_sync_enabled()) {
+		lv_obj_add_state(auto_sw, LV_STATE_CHECKED);
+	} else {
+		lv_obj_remove_state(auto_sw, LV_STATE_CHECKED);
+	}
+
 	settingsrow_action(home_container, "sign_out", sign_out_cb, NULL);
 }
 
@@ -965,6 +1046,7 @@ static void home_loaded_cb(lv_event_t *e) {
 	// The card may have been inserted or removed since the page was built.
 	subsoniccache_set_root(storage_sd_root());
 	rebuild_home();
+	maybe_start_auto_sync();
 }
 
 void subsonicpage_init(gui_config_t *cfg) {
@@ -978,6 +1060,10 @@ void subsonicpage_init(gui_config_t *cfg) {
 
 	device_state_add_prepare_cb(subsonic_prepare_track);
 	start_fetch_thread();
+
+	if (!auto_sync_timer) {
+		auto_sync_timer = lv_timer_create(auto_sync_timer_cb, 60 * 1000, NULL);
+	}
 
 	subsonic_init();
 	subsoniccache_set_root(storage_sd_root());
