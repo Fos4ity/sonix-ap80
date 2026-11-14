@@ -16,6 +16,7 @@
 #include "src/gui/shell/theme.h"
 #include "src/gui/shell/toast.h"
 #include "src/gui/wireless/wifisettings.h"
+#include "src/system/core/config.h"
 #include "src/system/core/lang.h"
 #include "src/system/device/system.h"
 #include "src/system/net/wifi.h"
@@ -25,6 +26,17 @@
 #include "src/system/streaming/subsonic.h"
 #include "src/system/streaming/subsonicaccount.h"
 #include "src/system/streaming/subsoniccache.h"
+
+static void apply_cache_limit(void) {
+	int mb = (int)config_get_int("subsonic", "cache_limit_mb", 1024);
+	if (mb < 64)
+		mb = 64;
+	if (mb > 4096)
+		mb = 4096;
+	subsoniccache_set_limit((unsigned long long)mb * 1024ULL * 1024ULL);
+}
+
+static bool keep_all_offline(void) { return config_get_int("subsonic", "keep_all_offline", 0) != 0; }
 
 // ---------------------------------------------------------------------------
 // Subsonic front end: Navidrome, Airsonic, Gonic, Supysonic.
@@ -271,16 +283,32 @@ static void fill_list(void) {
 			const subsonic_song_t *s = &results.songs[i];
 			char length[16];
 			duration_text(s->duration, length, sizeof(length));
+			char base[SUBSONIC_NAME_MAX + 32];
 			if (s->track > 0 && length[0]) {
-				snprintf(detail, sizeof(detail), "%d \xC2\xB7 %s", s->track, length);
+				snprintf(base, sizeof(base), "%d \xC2\xB7 %s", s->track, length);
 			} else if (s->artist[0] && length[0]) {
-				snprintf(detail, sizeof(detail), "%s \xC2\xB7 %s", s->artist, length);
+				snprintf(base, sizeof(base), "%s \xC2\xB7 %s", s->artist, length);
 			} else if (s->artist[0]) {
-				snprintf(detail, sizeof(detail), "%s", s->artist);
+				snprintf(base, sizeof(base), "%s", s->artist);
 			} else {
-				snprintf(detail, sizeof(detail), "%s", length);
+				snprintf(base, sizeof(base), "%s", length);
 			}
-			make_row(s->title, detail, i);
+			bool cached = subsoniccache_has(s->id);
+			bool pinned = cached && subsoniccache_pinned(s->id);
+			bool unavailable = !cached && !wifi_is_connected();
+			const char *state = "";
+			if (unavailable) {
+				state = " \xC2\xB7 unavailable";
+			} else if (pinned) {
+				state = " \xC2\xB7 saved";
+			} else if (cached) {
+				state = " \xC2\xB7 cached";
+			}
+			snprintf(detail, sizeof(detail), "%.*s%s", (int)(sizeof(detail) - 16), base, state);
+			lv_obj_t *row = make_row(s->title, detail, i);
+			if (unavailable) {
+				lv_obj_set_style_opa(row, LV_OPA_50, 0);
+			}
 			break;
 		}
 		case JOB_PLAYLISTS: {
@@ -414,6 +442,9 @@ static void *fetch_main(void *arg) {
 
 		const subsonic_song_t *song = &queued_songs[index];
 		bool ok = subsoniccache_fetch(song->id, song->suffix);
+		if (ok && keep_all_offline()) {
+			subsoniccache_pin(song->id);
+		}
 		if (!ok) {
 			const char *why = subsonic_last_error();
 			fprintf(stderr, "subsonic: '%s' did not download: %s\n", song->title, why && why[0] ? why : "?");
@@ -491,11 +522,16 @@ static void do_play(int index) {
 	subsoniccache_set_network_wanted(true);
 
 	const subsonic_song_t *wanted = &results.songs[index];
-	if (!song_is_cached(wanted->id) && !subsoniccache_fetch(wanted->id, wanted->suffix)) {
-		const char *why = subsonic_last_error();
-		snprintf(result_error, sizeof(result_error), "%s", why && why[0] ? why : tr("download_failed"));
-		subsoniccache_set_network_wanted(false);
-		return;
+	if (!song_is_cached(wanted->id)) {
+		if (!subsoniccache_fetch(wanted->id, wanted->suffix)) {
+			const char *why = subsonic_last_error();
+			snprintf(result_error, sizeof(result_error), "%s", why && why[0] ? why : tr("download_failed"));
+			subsoniccache_set_network_wanted(false);
+			return;
+		}
+	}
+	if (keep_all_offline()) {
+		subsoniccache_pin(wanted->id);
 	}
 
 	device_state_play_list(queued_ptr, queued_count, start);
@@ -756,6 +792,10 @@ static void row_clicked_cb(lv_event_t *e) {
 
 	case JOB_SONGS:
 	case JOB_PLAYLIST_SONGS:
+		if (!subsoniccache_has(results.songs[index].id) && !wifi_is_connected()) {
+			gui_notify_popup("Unavailable offline");
+			return;
+		}
 		job.kind = JOB_PLAY;
 		job.index = index;
 		run(&job);
@@ -906,6 +946,62 @@ static void open_account_cb(lv_event_t *e) {
 
 static lv_obj_t *home_container;
 static lv_timer_t *auto_sync_timer;
+static lv_obj_t *cache_limit_value;
+
+static int cache_limit_mb_value(void) {
+	int mb = (int)config_get_int("subsonic", "cache_limit_mb", 1024);
+	if (mb < 64)
+		mb = 64;
+	return mb;
+}
+
+static void update_cache_limit_label(void) {
+	if (!cache_limit_value)
+		return;
+	char buf[32];
+	int mb = cache_limit_mb_value();
+	if (mb >= 1024 && mb % 1024 == 0) {
+		snprintf(buf, sizeof(buf), "%d GB", mb / 1024);
+	} else {
+		snprintf(buf, sizeof(buf), "%d MB", mb);
+	}
+	lv_label_set_text(cache_limit_value, buf);
+}
+
+static void cache_limit_cb(lv_event_t *e) {
+	(void)e;
+	static const int steps[] = {256, 512, 1024, 2048, 4096};
+	int cur = cache_limit_mb_value();
+	int next = steps[0];
+	for (size_t i = 0; i < sizeof(steps) / sizeof(steps[0]); i++) {
+		if (steps[i] == cur) {
+			next = steps[(i + 1) % (sizeof(steps) / sizeof(steps[0]))];
+			break;
+		}
+		if (steps[i] > cur) {
+			next = steps[i];
+			break;
+		}
+	}
+	config_set_int("subsonic", "cache_limit_mb", next);
+	config_save();
+	apply_cache_limit();
+	subsoniccache_prune(subsoniccache_limit());
+	update_cache_limit_label();
+}
+
+static void keep_all_toggle_cb(lv_event_t *e) {
+	lv_obj_t *sw = lv_event_get_target(e);
+	bool on = lv_obj_has_state(sw, LV_STATE_CHECKED);
+	config_set_int("subsonic", "keep_all_offline", on ? 1 : 0);
+	config_save();
+}
+
+static void clear_cache_cb(lv_event_t *e) {
+	(void)e;
+	subsoniccache_clear_on_exit();
+	gui_notify_popup("done");
+}
 
 static void sync_now_cb(lv_event_t *e) {
 	(void)e;
@@ -1038,6 +1134,19 @@ static void rebuild_home(void) {
 		lv_obj_remove_state(auto_sw, LV_STATE_CHECKED);
 	}
 
+	cache_limit_value = NULL;
+	settingsrow_add(home_container, "storage", &cache_limit_value, cache_limit_cb, NULL);
+	update_cache_limit_label();
+
+	lv_obj_t *keep_sw = NULL;
+	settingsrow_toggle(home_container, "download", &keep_sw, keep_all_toggle_cb);
+	if (keep_all_offline()) {
+		lv_obj_add_state(keep_sw, LV_STATE_CHECKED);
+	} else {
+		lv_obj_remove_state(keep_sw, LV_STATE_CHECKED);
+	}
+
+	settingsrow_action(home_container, "delete", clear_cache_cb, NULL);
 	settingsrow_action(home_container, "sign_out", sign_out_cb, NULL);
 }
 
@@ -1045,6 +1154,7 @@ static void home_loaded_cb(lv_event_t *e) {
 	(void)e;
 	// The card may have been inserted or removed since the page was built.
 	subsoniccache_set_root(storage_sd_root());
+	apply_cache_limit();
 	rebuild_home();
 	maybe_start_auto_sync();
 }
@@ -1067,6 +1177,7 @@ void subsonicpage_init(gui_config_t *cfg) {
 
 	subsonic_init();
 	subsoniccache_set_root(storage_sd_root());
+	apply_cache_limit();
 	rebuild_home();
 
 	lv_obj_add_event_cb(subsonic_screen, home_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);

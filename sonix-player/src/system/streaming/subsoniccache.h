@@ -54,8 +54,23 @@ void subsoniccache_set_network_wanted(bool on);
 bool subsoniccache_network_wanted(void);
 
 // Drops the least recently used files until the cache fits in `limit_bytes`.
-// 0 or a limit above what is there does nothing.
+// 0 or a limit above what is there does nothing. Pinned/offline-kept files
+// are not removed by automatic pruning.
 void subsoniccache_prune(unsigned long long limit_bytes);
+
+// Storage limit in bytes for this cache (0 means use the built-in ceiling).
+unsigned long long subsoniccache_limit(void);
+void subsoniccache_set_limit(unsigned long long bytes);
+
+// Pin/unpin a cached song so it is kept for offline use and spared from
+// automatic pruning. Returns false when the song is not cached or pinning
+// cannot be recorded.
+bool subsoniccache_pin(const char *song_id);
+bool subsoniccache_unpin(const char *song_id);
+bool subsoniccache_pinned(const char *song_id);
+
+// Remove a specific cached song (body and sidecars) if present.
+bool subsoniccache_remove(const char *song_id);
 
 // Removes everything the cache owns. Called on shutdown, like the other two.
 void subsoniccache_clear_on_exit(void);

@@ -32,6 +32,7 @@
 #define IDENTITY_SUFFIX ".identity"
 #define PARTIAL_SUFFIX ".incompleto"
 #define TEMP_SUFFIX ".part"
+#define KEEP_SUFFIX ".keep"
 
 #define SUFFIX_MAX 16
 #define PRUNE_MAX_ENTRIES 512
@@ -43,6 +44,8 @@ static char cache_dir[512];
 // everything that changes the directory; ready() then measures once.
 static unsigned long long used_bytes;
 static bool used_valid;
+
+static unsigned long long cache_limit_bytes;
 
 // Written by the UI thread and read by the power loop, both through the lock:
 // "is a download running" and "does the page want the network" are asked while
@@ -154,7 +157,7 @@ bool subsoniccache_ready(void) {
 		used_bytes = measure();
 		used_valid = true;
 	}
-	return used_bytes < SUBSONICCACHE_MAX_BYTES;
+	return used_bytes < subsoniccache_limit();
 }
 
 // The hash that names the file: server, user and song id, separated so that
@@ -198,6 +201,46 @@ static const char *extension_of(const char *suffix) {
 		}
 	}
 	return suffix;
+}
+
+static bool find_song_path(const char *song_id, char *out, size_t size) {
+	if (!cache_dir[0] || !song_id || !song_id[0] || !out || size == 0) {
+		return false;
+	}
+	char hash[MD5_HEX_LEN];
+	if (!song_hash(song_id, hash)) {
+		return false;
+	}
+	DIR *d = opendir(cache_dir);
+	if (!d) {
+		return false;
+	}
+	bool found = false;
+	struct dirent *e;
+	while (!found && (e = readdir(d)) != NULL) {
+		if (!is_song_name(e->d_name) || strncmp(e->d_name, hash, MD5_HEX_LEN - 1) != 0) {
+			continue;
+		}
+		char path[640];
+		if ((size_t)snprintf(path, sizeof(path), "%s/%s", cache_dir, e->d_name) >= sizeof(path)) {
+			continue;
+		}
+		char marker[672];
+		snprintf(marker, sizeof(marker), "%s" PARTIAL_SUFFIX, path);
+		struct stat st;
+		if (stat(marker, &st) == 0) {
+			continue;
+		}
+		if (stat(path, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size == 0) {
+			continue;
+		}
+		if ((size_t)snprintf(out, size, "%s", path) >= size) {
+			continue;
+		}
+		found = true;
+	}
+	closedir(d);
+	return found;
 }
 
 bool subsoniccache_path(const char *song_id, const char *suffix, char *out, size_t size) {
@@ -403,7 +446,7 @@ bool subsoniccache_fetch(const char *song_id, const char *suffix) {
 
 	// Make room before opening the destination: with the ceiling reached the
 	// download would otherwise stop at ENOSPC and leave a marker for nothing.
-	subsoniccache_prune(SUBSONICCACHE_MAX_BYTES);
+	subsoniccache_prune(subsoniccache_limit());
 	if (!subsoniccache_ready()) {
 		fprintf(stderr, "subsoniccache: no room for %s\n", song_id);
 		return false;
@@ -421,6 +464,67 @@ typedef struct {
 	long atime; // last access: what tells which songs are actually listened to
 } entry_t;
 
+unsigned long long subsoniccache_limit(void) { return cache_limit_bytes ? cache_limit_bytes : SUBSONICCACHE_MAX_BYTES; }
+
+void subsoniccache_set_limit(unsigned long long bytes) { cache_limit_bytes = bytes; }
+
+bool subsoniccache_pinned(const char *song_id) {
+	char path[640], keep[672];
+	if (!find_song_path(song_id, path, sizeof(path))) {
+		return false;
+	}
+	snprintf(keep, sizeof(keep), "%s" KEEP_SUFFIX, path);
+	return access(keep, F_OK) == 0;
+}
+
+bool subsoniccache_pin(const char *song_id) {
+	char path[640], keep[672];
+	if (!subsoniccache_has(song_id) || !find_song_path(song_id, path, sizeof(path))) {
+		return false;
+	}
+	snprintf(keep, sizeof(keep), "%s" KEEP_SUFFIX, path);
+	FILE *f = fopen(keep, "w");
+	if (!f) {
+		return false;
+	}
+	bool ok = fputs("1\n", f) >= 0;
+	if (fclose(f) != 0) {
+		ok = false;
+	}
+	return ok;
+}
+
+bool subsoniccache_unpin(const char *song_id) {
+	char path[640], keep[672];
+	if (!find_song_path(song_id, path, sizeof(path))) {
+		return false;
+	}
+	snprintf(keep, sizeof(keep), "%s" KEEP_SUFFIX, path);
+	if (access(keep, F_OK) != 0) {
+		return true;
+	}
+	return unlink(keep) == 0;
+}
+
+bool subsoniccache_remove(const char *song_id) {
+	char path[640];
+	if (!find_song_path(song_id, path, sizeof(path))) {
+		return false;
+	}
+	char sidecar[672];
+	snprintf(sidecar, sizeof(sidecar), "%s" IDENTITY_SUFFIX, path);
+	remove(sidecar);
+	snprintf(sidecar, sizeof(sidecar), "%s" PARTIAL_SUFFIX, path);
+	remove(sidecar);
+	snprintf(sidecar, sizeof(sidecar), "%s" KEEP_SUFFIX, path);
+	remove(sidecar);
+	bool ok = remove(path) == 0;
+	if (ok) {
+		used_valid = false;
+	}
+	return ok;
+}
+
 // Drops the bodies the card has not seen opened for the longest time until the
 // directory fits in `limit_bytes`. Ordered by last access, not creation: an
 // album downloaded a month ago but played yesterday should stay, one downloaded
@@ -429,7 +533,8 @@ typedef struct {
 // Sidecars are never candidates. Deleting an .identity would leave a file
 // nobody could identify, and deleting an .incompleto would let a download in
 // flight pass for a finished one. A body whose marker or .part exists is in
-// flight and is skipped for the same reason.
+// flight and is skipped for the same reason. Pinned (.keep) files are spared
+// from automatic pruning.
 void subsoniccache_prune(unsigned long long limit_bytes) {
 	if (!cache_dir[0] || limit_bytes == 0) {
 		return;
@@ -478,6 +583,10 @@ void subsoniccache_prune(unsigned long long limit_bytes) {
 		if (stat(sidecar, &unused) == 0) {
 			continue;
 		}
+		snprintf(sidecar, sizeof(sidecar), "%s" KEEP_SUFFIX, path);
+		if (stat(sidecar, &unused) == 0) {
+			continue;
+		}
 
 		// A name longer than the entry can carry is not one this module wrote
 		// (the bodies are a hash and an extension), so it is left alone rather
@@ -520,11 +629,15 @@ void subsoniccache_prune(unsigned long long limit_bytes) {
 		// The sidecar goes with its body, or it would outlive the reason it
 		// exists. Its size is counted in `total` too, so it is measured before
 		// the deletion and not after it.
-		char identity[672];
+		char identity[672], keep[672];
 		snprintf(identity, sizeof(identity), "%s" IDENTITY_SUFFIX, path);
+		snprintf(keep, sizeof(keep), "%s" KEEP_SUFFIX, path);
 		struct stat st;
 		unsigned long long freed = entries[i].size;
 		if (stat(identity, &st) == 0 && S_ISREG(st.st_mode)) {
+			freed += (unsigned long long)st.st_size;
+		}
+		if (stat(keep, &st) == 0 && S_ISREG(st.st_mode)) {
 			freed += (unsigned long long)st.st_size;
 		}
 
@@ -532,6 +645,7 @@ void subsoniccache_prune(unsigned long long limit_bytes) {
 			continue;
 		}
 		remove(identity);
+		remove(keep);
 
 		total = total > freed ? total - freed : 0;
 		printf("subsoniccache: removed %s (%llu KB)\n", entries[i].name, entries[i].size / 1024);
