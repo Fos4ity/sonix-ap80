@@ -7373,6 +7373,11 @@ struct library_playlist_writer {
 	sqlite3_stmt *stmt;
 	bool failed;
 	bool owns_transaction;
+	// What end() undoes when there is no transaction to roll back: the table,
+	// if begin() made it, or else the rows from the first this writer put in.
+	char quoted[PLAYLIST_TABLE_MAX];
+	bool created;
+	sqlite3_int64 first_idx;
 };
 
 library_playlist_writer_t *library_playlist_write_begin(const char *name) {
@@ -7388,7 +7393,10 @@ library_playlist_writer_t *library_playlist_write_begin(const char *name) {
 	char sql[PLAYLIST_TABLE_MAX + 160];
 	snprintf(sql, sizeof(sql), "INSERT INTO %s(path,title,artist,seconds,present) VALUES(?,?,?,?,?)", quoted);
 
+	snprintf(writer->quoted, sizeof(writer->quoted), "%s", quoted);
+
 	pthread_mutex_lock(&db_lock);
+	writer->created = db && !playlist_table_exists_locked(name);
 	if (!db || !playlist_create_locked(quoted) || sqlite3_prepare_v2(db, sql, -1, &writer->stmt, NULL) != SQLITE_OK) {
 		pthread_mutex_unlock(&db_lock);
 		free(writer);
@@ -7411,6 +7419,9 @@ bool library_playlist_write_row(library_playlist_writer_t *writer, const library
 	sqlite3_bind_int64(writer->stmt, 4, row->seconds);
 	sqlite3_bind_int(writer->stmt, 5, row->present ? 1 : 0);
 	bool ok = sqlite3_step(writer->stmt) == SQLITE_DONE;
+	if (ok && writer->first_idx == 0) {
+		writer->first_idx = sqlite3_last_insert_rowid(db);
+	}
 	pthread_mutex_unlock(&db_lock);
 
 	if (!ok) {
@@ -7429,10 +7440,19 @@ bool library_playlist_write_end(library_playlist_writer_t *writer, bool keep) {
 	if (writer->owns_transaction) {
 		exec(ok ? "COMMIT" : "ROLLBACK");
 	} else if (!ok) {
-		// Nothing to roll back to, since every row went in on its own. The
-		// half-written playlist is dropped instead, which is what a rollback
-		// would have left behind.
-		ok = false;
+		// Nothing to roll back to, since every row went in on its own. What
+		// this writer added is taken out instead, which is what a rollback
+		// would have left behind: the whole table if it made it, or else its
+		// rows and none of the ones that were there before.
+		char sql[PLAYLIST_TABLE_MAX + 64];
+		if (writer->created) {
+			snprintf(sql, sizeof(sql), "DROP TABLE IF EXISTS %s", writer->quoted);
+			exec(sql);
+		} else if (writer->first_idx > 0) {
+			snprintf(sql, sizeof(sql), "DELETE FROM %s WHERE idx >= %lld", writer->quoted,
+					 (long long)writer->first_idx);
+			exec(sql);
+		}
 	}
 	bump_generation(GEN_PLAYLISTS);
 	pthread_mutex_unlock(&db_lock);
