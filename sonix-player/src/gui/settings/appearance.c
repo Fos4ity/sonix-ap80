@@ -18,8 +18,7 @@
 
 lv_obj_t *appearance_screen;
 
-static lv_obj_t *btn_dark;
-static lv_obj_t *btn_light;
+static lv_obj_t *btn_theme[THEME_PRESET_COUNT];
 static lv_obj_t *btn_clock[4]; // left / centre / right / hidden
 static lv_obj_t *btn_accent[THEME_ACCENT_COUNT]; // the coloured circles
 static lv_obj_t *tint_toggle;
@@ -123,19 +122,13 @@ static void text_size_cb(lv_event_t *e) {
 	refresh_text_size_pills();
 }
 
-// Paints the pair: the active choice is the filled accent button, the other a
-// quiet neutral, like libadwaita's suggested-action beside a regular button.
 static void refresh_buttons(void) {
-	bool dark = theme_is_dark();
-
-	lv_obj_t *on = dark ? btn_dark : btn_light;
-	lv_obj_t *off = dark ? btn_light : btn_dark;
-
-	lv_obj_set_style_bg_color(on, theme()->accent, 0);
-	lv_obj_set_style_text_color(lv_obj_get_child(on, 0), lv_color_white(), 0);
-
-	lv_obj_set_style_bg_color(off, theme()->surface_pressed, 0);
-	lv_obj_set_style_text_color(lv_obj_get_child(off, 0), theme()->text_primary, 0);
+	int chosen = theme_get_preset();
+	for (int i = 0; i < THEME_PRESET_COUNT; i++) {
+		if (btn_theme[i]) {
+			settingsrow_pill_active(btn_theme[i], i == chosen);
+		}
+	}
 }
 
 // The active circle wears a ring in the text colour; the rest sit flat.
@@ -216,62 +209,23 @@ static lv_obj_t *make_clock_choice(lv_obj_t *parent, const char *text, int pos) 
 }
 
 static void pick_cb(lv_event_t *e) {
-	bool dark = (bool)(uintptr_t)lv_event_get_user_data(e);
-	theme_set_dark(dark);
+	if (switcher_back_drag_active()) {
+		return;
+	}
+	int preset = (int)(intptr_t)lv_event_get_user_data(e);
+	theme_set_preset(preset);
 	refresh_buttons();
-}
-
-static lv_obj_t *make_choice(lv_obj_t *parent, const char *text, bool dark) {
-	lv_obj_t *btn = lv_btn_create(parent);
-	lv_obj_set_size(btn, LV_SIZE_CONTENT, 64);
-	lv_obj_set_style_pad_hor(btn, 34, 0);
-	lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0); // Adwaita pill button
-	lv_obj_set_style_shadow_width(btn, 0, 0);
-	lv_obj_set_style_border_width(btn, 0, 0);
-	lv_obj_add_event_cb(btn, pick_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)dark);
-
-	lv_obj_t *label = lv_label_create(btn);
-	lv_label_set_text(label, tr(text));
-	lv_obj_set_style_text_font(label, &font_ui_24, 0);
-	lv_obj_center(label);
-
-	return btn;
 }
 
 void appearance_init(gui_config_t *cfg) {
 	lv_obj_t *container = settingsrow_page(appearance_screen, cfg, "appearance");
 
-	// One tall card: the option's name on top, the two choices under it.
-	lv_obj_t *card = lv_obj_create(container);
-	lv_obj_set_width(card, lv_pct(100));
-	lv_obj_set_height(card, LV_SIZE_CONTENT);
-	lv_obj_add_style(card, &theme_style_card, 0);
-	lv_obj_set_style_radius(card, 12, 0);
-	lv_obj_set_style_border_width(card, 0, 0);
-	lv_obj_set_style_shadow_width(card, 0, 0);
-	lv_obj_set_style_pad_all(card, 20, 0);
-	lv_obj_set_style_pad_gap(card, 18, 0);
-	lv_obj_set_scrollable(card, false);
-	lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
-	lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-
-	lv_obj_t *name = lv_label_create(card);
-	lv_label_set_text(name, tr("appearance_theme"));
-	lv_obj_add_style(name, &theme_style_text, 0);
-	lv_obj_set_style_text_font(name, &font_ui_24, 0);
-
-	lv_obj_t *row = lv_obj_create(card);
-	lv_obj_set_size(row, lv_pct(100), LV_SIZE_CONTENT);
-	lv_obj_set_style_bg_opa(row, 0, 0);
-	lv_obj_set_style_border_width(row, 0, 0);
-	lv_obj_set_style_pad_all(row, 0, 0);
-	lv_obj_set_style_pad_gap(row, 14, 0);
-	lv_obj_set_scrollable(row, false);
-	lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-	lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-	btn_dark = make_choice(row, "appearance_dark", true);
-	btn_light = make_choice(row, "appearance_light", false);
+	// Theme selector: Omarchy palettes (CpUnk, Miasma, Ash, Matte Black, Tokyo Night, Gruvbox) + Light.
+	lv_obj_t *theme_pills;
+	settingsrow_pills(container, "appearance_theme", &theme_pills);
+	for (int i = 0; i < THEME_PRESET_COUNT; i++) {
+		btn_theme[i] = settingsrow_pill(theme_pills, theme_preset_name(i), i, pick_cb);
+	}
 
 	// A second card: where the clock sits in the status bar.
 	lv_obj_t *clock_card = lv_obj_create(container);

@@ -22,37 +22,126 @@ lv_style_t theme_style_switch_checked; // switch indicator, on state
 lv_style_t theme_style_accent_bg;	   // anything that must follow the accent
 lv_style_t theme_style_slider_track;   // a slider's unfilled part
 
-// Omarchy CpUnk palette (from ~/.config/omarchy/themes/cpunk/colors.toml):
-// Steel-and-signal cyberpunk: near-black surfaces (#040303 / #0a0808 / #140f0f),
-// hairline chrome (#7f6e6e / #aaacac), and #F82A2A signal red as the accent.
-static theme_palette_t palette_dark = {
-	.screen_bg = LV_COLOR_MAKE(4, 3, 3),        // #040303 background
-	.surface = LV_COLOR_MAKE(20, 15, 15),       // #140f0f lighter_background
-	.surface_pressed = LV_COLOR_MAKE(46, 28, 28), // pressed dim red-black wash
-	.panel = LV_COLOR_MAKE(10, 8, 8),           // #0a0808 dark_background
-	.cover_bg = LV_COLOR_MAKE(10, 8, 8),        // #0a0808
-	.text_primary = LV_COLOR_MAKE(255, 255, 255), // #ffffff foreground
-	.text_secondary = LV_COLOR_MAKE(127, 110, 110), // #7f6e6e muted
-	.accent = LV_COLOR_MAKE(248, 42, 42),       // #F82A2A signal red
-	.dark = true,
+typedef struct {
+	const char *name;
+	theme_palette_t palette;
+	lv_color_t border;
+} theme_preset_t;
+
+// Authentic Omarchy theme palettes (from colors.toml) + Light mode.
+static const theme_preset_t THEME_PRESETS[THEME_PRESET_COUNT] = {
+	{
+		.name = "CpUnk",
+		.palette = {
+			.screen_bg = LV_COLOR_MAKE(4, 3, 3),            // #040303
+			.surface = LV_COLOR_MAKE(20, 15, 15),           // #140f0f
+			.surface_pressed = LV_COLOR_MAKE(46, 28, 28),   // dim red-black wash
+			.panel = LV_COLOR_MAKE(10, 8, 8),               // #0a0808
+			.cover_bg = LV_COLOR_MAKE(10, 8, 8),            // #0a0808
+			.text_primary = LV_COLOR_MAKE(255, 255, 255),   // #ffffff
+			.text_secondary = LV_COLOR_MAKE(127, 110, 110), // #7f6e6e
+			.accent = LV_COLOR_MAKE(248, 42, 42),           // #F82A2A signal red
+			.dark = true,
+		},
+		.border = LV_COLOR_MAKE(127, 110, 110), // #7f6e6e
+	},
+	{
+		.name = "Miasma",
+		.palette = {
+			.screen_bg = LV_COLOR_MAKE(34, 34, 34),         // #222222
+			.surface = LV_COLOR_MAKE(44, 44, 44),           // #2c2c2c
+			.surface_pressed = LV_COLOR_MAKE(58, 60, 48),   // subtle olive wash
+			.panel = LV_COLOR_MAKE(25, 25, 25),             // #191919
+			.cover_bg = LV_COLOR_MAKE(25, 25, 25),          // #191919
+			.text_primary = LV_COLOR_MAKE(194, 194, 176),   // #c2c2b0
+			.text_secondary = LV_COLOR_MAKE(120, 120, 108), // muted bone
+			.accent = LV_COLOR_MAKE(120, 130, 75),          // #78824b moss olive
+			.dark = true,
+		},
+		.border = LV_COLOR_MAKE(102, 102, 102), // #666666
+	},
+	{
+		.name = "Ash",
+		.palette = {
+			.screen_bg = LV_COLOR_MAKE(18, 18, 18),         // #121212
+			.surface = LV_COLOR_MAKE(33, 33, 33),           // #212121
+			.surface_pressed = LV_COLOR_MAKE(52, 52, 52),   // #343434
+			.panel = LV_COLOR_MAKE(13, 13, 13),             // #0d0d0d
+			.cover_bg = LV_COLOR_MAKE(13, 13, 13),          // #0d0d0d
+			.text_primary = LV_COLOR_MAKE(224, 224, 224),   // #e0e0e0
+			.text_secondary = LV_COLOR_MAKE(154, 154, 154), // #9a9a9a
+			.accent = LV_COLOR_MAKE(138, 138, 138),         // #8a8a8a monochrome steel
+			.dark = true,
+		},
+		.border = LV_COLOR_MAKE(90, 90, 90), // #5a5a5a
+	},
+	{
+		.name = "Matte Black",
+		.palette = {
+			.screen_bg = LV_COLOR_MAKE(18, 18, 18),         // #121212
+			.surface = LV_COLOR_MAKE(30, 30, 30),           // #1e1e1e
+			.surface_pressed = LV_COLOR_MAKE(46, 40, 32),   // subtle amber wash
+			.panel = LV_COLOR_MAKE(13, 13, 13),             // #0d0d0d
+			.cover_bg = LV_COLOR_MAKE(13, 13, 13),          // #0d0d0d
+			.text_primary = LV_COLOR_MAKE(210, 210, 210),   // #d2d2d2
+			.text_secondary = LV_COLOR_MAKE(122, 122, 122), // #7a7a7a
+			.accent = LV_COLOR_MAKE(230, 142, 13),          // #e68e0d amber
+			.dark = true,
+		},
+		.border = LV_COLOR_MAKE(68, 68, 68), // #444444
+	},
+	{
+		.name = "Tokyo Night",
+		.palette = {
+			.screen_bg = LV_COLOR_MAKE(26, 27, 38),         // #1a1b26
+			.surface = LV_COLOR_MAKE(36, 40, 59),           // #24283b
+			.surface_pressed = LV_COLOR_MAKE(52, 59, 88),   // #343b58
+			.panel = LV_COLOR_MAKE(19, 20, 28),             // #13141c
+			.cover_bg = LV_COLOR_MAKE(19, 20, 28),          // #13141c
+			.text_primary = LV_COLOR_MAKE(192, 202, 245),   // #c0caf5
+			.text_secondary = LV_COLOR_MAKE(115, 122, 162), // #737aa2
+			.accent = LV_COLOR_MAKE(122, 162, 247),         // #7aa2f7 blue
+			.dark = true,
+		},
+		.border = LV_COLOR_MAKE(65, 72, 104), // #414868
+	},
+	{
+		.name = "Gruvbox",
+		.palette = {
+			.screen_bg = LV_COLOR_MAKE(40, 40, 40),         // #282828
+			.surface = LV_COLOR_MAKE(60, 56, 54),           // #3c3836
+			.surface_pressed = LV_COLOR_MAKE(80, 73, 69),   // #504945
+			.panel = LV_COLOR_MAKE(30, 30, 30),             // #1e1e1e
+			.cover_bg = LV_COLOR_MAKE(30, 30, 30),          // #1e1e1e
+			.text_primary = LV_COLOR_MAKE(212, 190, 152),   // #d4be98
+			.text_secondary = LV_COLOR_MAKE(146, 131, 116), // #928374
+			.accent = LV_COLOR_MAKE(216, 166, 87),          // #d8a657 warm gold
+			.dark = true,
+		},
+		.border = LV_COLOR_MAKE(102, 92, 84), // #665c54
+	},
+	{
+		.name = "Light",
+		.palette = {
+			.screen_bg = LV_COLOR_MAKE(236, 237, 240),
+			.surface = LV_COLOR_MAKE(255, 255, 255),
+			.surface_pressed = LV_COLOR_MAKE(221, 223, 228),
+			.panel = LV_COLOR_MAKE(255, 255, 255),
+			.cover_bg = LV_COLOR_MAKE(224, 226, 230),
+			.text_primary = LV_COLOR_MAKE(50, 50, 50),
+			.text_secondary = LV_COLOR_MAKE(115, 115, 115),
+			.accent = LV_COLOR_MAKE(53, 132, 228),
+			.dark = false,
+		},
+		.border = LV_COLOR_MAKE(200, 200, 200),
+	},
 };
 
-// Adwaita light: window #fafafa, cards white, pressed = black at 8%%, text
-// black at 80%%. The accent is the same #3584e4 in both variants.
-static theme_palette_t palette_light = {
-	// The window is pushed further from white than stock Adwaita's #fafafa:
-	// on this panel white cards on a #fafafa window are indistinguishable, so
-	// the window is a light grey and the pressed state a step deeper.
-	.screen_bg = LV_COLOR_MAKE(236, 237, 240),
-	.surface = LV_COLOR_MAKE(255, 255, 255),
-	.surface_pressed = LV_COLOR_MAKE(221, 223, 228),
-	.panel = LV_COLOR_MAKE(255, 255, 255),
-	.cover_bg = LV_COLOR_MAKE(224, 226, 230),
-	.text_primary = LV_COLOR_MAKE(50, 50, 50),
-	.text_secondary = LV_COLOR_MAKE(115, 115, 115),
-	.accent = LV_COLOR_MAKE(53, 132, 228),
-	.dark = false,
-};
+static theme_palette_t palette_dark;
+static theme_palette_t palette_light;
+static int preset_index = 0;      // active preset (0..THEME_PRESET_COUNT-1)
+static int last_dark_preset = 0;  // remembered when toggling Light <-> Dark
+static bool custom_accent_override = false;
 
 // Whether the dark preset is the chosen one, kept apart from `active` because
 // with the dynamic tint on `active` points at a derived copy rather than at
@@ -484,7 +573,7 @@ static void apply_palette(void) {
 	lv_style_set_bg_opa(&theme_style_card, (active->dark && wallpaper_ready) ? LV_OPA_80 : LV_OPA_COVER);
 	lv_style_set_text_color(&theme_style_card, active->text_primary);
 	if (active->dark) {
-		lv_style_set_border_color(&theme_style_card, lv_color_make(127, 110, 110)); // #7f6e6e hairline chrome
+		lv_style_set_border_color(&theme_style_card, THEME_PRESETS[preset_index].border);
 		lv_style_set_border_width(&theme_style_card, 1);
 		lv_style_set_border_opa(&theme_style_card, LV_OPA_50);
 	} else {
@@ -493,9 +582,9 @@ static void apply_palette(void) {
 
 	lv_style_set_bg_color(&theme_style_card_pressed, active->surface_pressed);
 	if (active->dark) {
-		lv_style_set_border_color(&theme_style_card_pressed, lv_color_make(170, 172, 172)); // #aaacac active chrome
+		lv_style_set_border_color(&theme_style_card_pressed, active->text_primary);
 		lv_style_set_border_width(&theme_style_card_pressed, 1);
-		lv_style_set_border_opa(&theme_style_card_pressed, LV_OPA_90);
+		lv_style_set_border_opa(&theme_style_card_pressed, LV_OPA_60);
 	} else {
 		lv_style_set_border_width(&theme_style_card_pressed, 0);
 	}
@@ -546,16 +635,32 @@ void theme_init(void) {
 	lv_style_set_bg_opa(&theme_style_slider_track, LV_OPA_40);
 	lv_style_set_radius(&theme_style_slider_track, LV_RADIUS_CIRCLE);
 
-	// Whatever was chosen last time. Dark is the default for a first boot.
-	dark_selected = config_get_bool("ui", "dark_theme", true);
+	// Load saved theme preset (defaults to 0 = CpUnk).
+	preset_index = (int)config_get_int("ui", "theme_preset", 0);
+	if (preset_index < 0 || preset_index >= THEME_PRESET_COUNT) {
+		preset_index = 0;
+	}
+	palette_light = THEME_PRESETS[THEME_PRESET_COUNT - 1].palette;
+	if (THEME_PRESETS[preset_index].palette.dark) {
+		last_dark_preset = preset_index;
+		palette_dark = THEME_PRESETS[preset_index].palette;
+		dark_selected = true;
+	} else {
+		last_dark_preset = 0;
+		palette_dark = THEME_PRESETS[0].palette;
+		dark_selected = false;
+	}
 
-	// The accent as it was left; both palettes carry the same one.
+	// Optional accent override; only applied if the user explicitly picked an accent circle.
 	accent_index = (int)config_get_int("ui", "accent", 0);
 	if (accent_index < 0 || accent_index >= THEME_ACCENT_COUNT) {
 		accent_index = 0;
 	}
-	palette_dark.accent = ACCENT_COLORS[accent_index];
-	palette_light.accent = ACCENT_COLORS[accent_index];
+	custom_accent_override = config_get_bool("ui", "accent_override", false);
+	if (custom_accent_override) {
+		palette_dark.accent = ACCENT_COLORS[accent_index];
+		palette_light.accent = ACCENT_COLORS[accent_index];
+	}
 
 	dynamic_tint = config_get_bool("ui", "dynamic_tint", false);
 
@@ -699,18 +804,44 @@ static void refresh_all(void) {
 	}
 }
 
-void theme_toggle(void) {
-	dark_selected = !dark_selected;
+const char *theme_preset_name(int index) {
+	if (index < 0 || index >= THEME_PRESET_COUNT) {
+		index = 0;
+	}
+	return THEME_PRESETS[index].name;
+}
+
+int theme_get_preset(void) { return preset_index; }
+
+void theme_set_preset(int index) {
+	if (index < 0 || index >= THEME_PRESET_COUNT) {
+		return;
+	}
+	preset_index = index;
+	custom_accent_override = false;
+	if (THEME_PRESETS[index].palette.dark) {
+		last_dark_preset = index;
+		palette_dark = THEME_PRESETS[index].palette;
+		dark_selected = true;
+	} else {
+		palette_light = THEME_PRESETS[index].palette;
+		dark_selected = false;
+	}
 	rebuild_active();
 	apply_palette();
 
+	config_set_int("ui", "theme_preset", preset_index);
 	config_set_bool("ui", "dark_theme", active->dark);
+	config_set_bool("ui", "accent_override", false);
 	config_save();
 
-	// The boot logo follows the theme and the accent; see bootlogo.h.
 	bootlogo_follow(active->dark, accent_index);
-
 	refresh_all();
+}
+
+void theme_toggle(void) {
+	int target = dark_selected ? (THEME_PRESET_COUNT - 1) : last_dark_preset;
+	theme_set_preset(target);
 }
 
 void theme_set_accent(int index) {
@@ -718,12 +849,14 @@ void theme_set_accent(int index) {
 		index = 0;
 	}
 	accent_index = index;
+	custom_accent_override = true;
 	palette_dark.accent = ACCENT_COLORS[index];
 	palette_light.accent = ACCENT_COLORS[index];
 	rebuild_active(); // the tint is drawn from the accent, so it moves with it
 	apply_palette();
 
 	config_set_int("ui", "accent", index);
+	config_set_bool("ui", "accent_override", true);
 	config_save();
 
 	bootlogo_follow(active->dark, accent_index);

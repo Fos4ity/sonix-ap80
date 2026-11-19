@@ -81,6 +81,12 @@ void theme_set_accent(int index);
 // Picks a specific theme rather than flipping; no-op when already active.
 void theme_set_dark(bool dark);
 
+// Named Omarchy theme presets (Settings -> Appearance -> Theme).
+#define THEME_PRESET_COUNT 7
+const char *theme_preset_name(int index);
+int theme_get_preset(void);
+void theme_set_preset(int index);
+
 // The dynamic tint (Appearance > Dynamic tint): the neutral colours --
 // backgrounds, cards, the status bar -- borrow the accent's hue, the way
 // Material You colours a system from one seed. Each colour keeps its brightest
