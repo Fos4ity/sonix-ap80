@@ -90,4 +90,22 @@ void theme_set_dark(bool dark);
 bool theme_dynamic_tint(void);
 void theme_set_dynamic_tint(bool on);
 
+// Menu wallpaper support (480x800 for HiBy R1, rendered at configurable opacity,
+// scale, and X/Y pan offset).
+// Decode + aspect-fill crop/scale on any thread, then apply on GUI thread.
+uint16_t *theme_decode_wallpaper_rgb565(const char *path, int target_w, int target_h,
+										int scale_pct, int pan_x, int pan_y,
+										int *out_w, int *out_h);
+void theme_apply_wallpaper_pixels(uint16_t *pixels, int w, int h, const char *saved_path);
+bool theme_set_wallpaper_file(const char *path, int target_w, int target_h);
+const char *theme_get_wallpaper_path(void);
+const char *theme_get_wallpaper_load_path(void);
+
+int theme_get_wallpaper_opacity(void);
+void theme_set_wallpaper_opacity(int pct);
+int theme_get_wallpaper_scale(void);
+int theme_get_wallpaper_pan_x(void);
+int theme_get_wallpaper_pan_y(void);
+void theme_set_wallpaper_transform(int scale_pct, int pan_x, int pan_y);
+
 #endif // THEME_H

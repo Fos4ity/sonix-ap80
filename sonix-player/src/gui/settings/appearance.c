@@ -7,6 +7,7 @@
 #include "src/gui/fonts/fonts.h"
 #include "src/gui/nowplaying/player.h"
 #include "src/gui/settings/bootlogopage.h"
+#include "src/gui/settings/wallpaperpage.h"
 #include "src/gui/shell/corners.h"
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
@@ -316,6 +317,9 @@ void appearance_init(gui_config_t *cfg) {
 	// The picture shown while the player boots, which follows the theme and
 	// the accent unless one of the user's own is chosen.
 	settingsrow_add(container, "bootlogo", NULL, switch_screen_cb, bootlogopage_screen);
+
+	// Menu background wallpaper picked from files on the device (30% opacity).
+	settingsrow_add(container, "Menu wallpaper", NULL, switch_screen_cb, wallpaperpage_screen);
 
 	// How big the small text on every page is: the secondary lines, notes,
 	// clocks and counters. See fonts.c for which sizes grow and by how much.
