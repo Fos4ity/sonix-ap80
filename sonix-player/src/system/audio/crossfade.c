@@ -2,6 +2,10 @@
 
 #include <math.h>
 
+// pi/2 spelled out: M_PI depends on the toolchain's feature macros, and this
+// file builds for both the host and the MIPS target.
+#define HALF_PI 1.5707963267948966
+
 int crossfade_clamp_seconds(int seconds) {
 	if (seconds < CROSSFADE_MIN_SECONDS) {
 		return CROSSFADE_MIN_SECONDS;
@@ -34,7 +38,7 @@ void crossfade_gains_q15(int phase_q15, int *out_gain, int *in_gain) {
 		phase_q15 = CROSSFADE_ONE_Q15;
 	}
 	double t = (double)phase_q15 / CROSSFADE_ONE_Q15;
-	double angle = t * (M_PI / 2.0);
+	double angle = t * HALF_PI;
 	*out_gain = (int)(cos(angle) * CROSSFADE_ONE_Q15 + 0.5);
 	*in_gain = (int)(sin(angle) * CROSSFADE_ONE_Q15 + 0.5);
 	if (*out_gain < 0) {
