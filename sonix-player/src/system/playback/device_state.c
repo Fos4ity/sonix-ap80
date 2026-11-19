@@ -1392,6 +1392,10 @@ void device_state_read_ahead(double position, double total) {
 	}
 	snprintf(asked, sizeof(asked), "%s", next);
 	readahead_file(next);
+	// Crossfade needs a second decoder on the next track before the overlap
+	// begins. Hand it the same path the pages were warmed for. With crossfade
+	// off, clear any path left over from the previous track.
+	audio_crossfade_prepare_next(audio_get_crossfade() ? next : NULL);
 }
 
 // Re-anchors the queue to the track that is actually loaded. If the two ever

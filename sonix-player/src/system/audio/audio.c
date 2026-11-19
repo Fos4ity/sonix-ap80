@@ -5,6 +5,7 @@
 #include "src/system/decode/growfile.h"
 #include "src/system/decode/sndfile.h"
 #include "src/system/audio/replaygain.h"
+#include "src/system/audio/crossfade.h"
 #include "src/system/audio/speed.h"
 #include "src/system/audio/swvolume.h"
 #include "src/system/audio/eq.h"
@@ -513,6 +514,41 @@ static void fade_apply_s32(int32_t *samples, int count, int gain) {
 		samples[i] = (int32_t)(((int64_t)samples[i] * gain) >> 10);
 	}
 }
+
+// True crossfade. The engine and its decision live in crossfade.c; what is
+// here is the state the playback thread shares with the read-ahead hook.
+//
+// xfade_next_path is written by the hook, read by the playback thread when a
+// track reaches its overlap. xfade_rewind_secs is the amount of the next track
+// already heard in that overlap: audio_play() seeks past it so the next track
+// does not replay the seconds it just spent fading in. Both are under
+// audio_mutex; the second decoder itself is owned by play_decoded_file().
+static volatile bool crossfade_enabled;
+static volatile int crossfade_secs = 6;
+static char xfade_next_path[1024];
+static bool xfade_prepared;
+static double xfade_rewind_secs;
+
+void audio_set_crossfade(bool enabled, int seconds) {
+	crossfade_enabled = enabled;
+	crossfade_secs = crossfade_clamp_seconds(seconds);
+	fprintf(stderr, "audio: crossfade %s (%d s)\n", enabled ? "on" : "off", crossfade_secs);
+}
+
+bool audio_get_crossfade(void) { return crossfade_enabled; }
+
+void audio_crossfade_prepare_next(const char *path) {
+	pthread_mutex_lock(&audio_mutex);
+	if (path && *path) {
+		snprintf(xfade_next_path, sizeof(xfade_next_path), "%s", path);
+		xfade_prepared = true;
+	} else {
+		xfade_next_path[0] = '\0';
+		xfade_prepared = false;
+	}
+	pthread_mutex_unlock(&audio_mutex);
+}
+
 static bool stop_thread = false;
 
 static double seek_target_secs = -1.0;
@@ -3379,6 +3415,18 @@ static void play_decoded_file(const char *filepath, decode_format_t format) {
 	health_t health;
 	health_start(&health);
 
+	// True crossfade: a second decoder reads the next track's head into
+	// xfade_buf while this one plays its tail. Both stay unused until the
+	// playback thread decides, once, at the start of the overlap that the two
+	// streams can be mixed.
+	decoder_t *xfade_dec = NULL;
+	void *xfade_buf = NULL;
+	bool xfade_active = false;
+	bool xfade_decided = false;
+	double xfade_elapsed = 0.0;
+	int xfade_rewind_frames = 0;
+	int xfade_out_gain = 0, xfade_in_gain = 0;
+
 	while (1) {
 		loop_turns++;
 		pthread_mutex_lock(&audio_mutex);
@@ -3632,6 +3680,54 @@ static void play_decoded_file(const char *filepath, decode_format_t format) {
 			}
 		}
 
+		// --- crossfade: decide once, at the start of the overlap ---------------
+		//
+		// The read-ahead hook has handed us the next path. Open a second decoder
+		// and ask crossfade.c whether these two streams can be mixed. If they
+		// cannot, xfade_decided stops us asking again every buffer: gapless and
+		// the sequential fade carry on exactly as before.
+		if (!xfade_decided && crossfade_enabled && gapless_enabled && !passthrough &&
+			!output_is_bluetooth() && total_frames > 0 && sample_rate > 0) {
+			double reached = (double)bytes_played / frame_bytes;
+			double remaining = (double)((int64_t)total_frames - (int64_t)reached) / sample_rate;
+			if (remaining <= (double)crossfade_secs) {
+				xfade_decided = true;
+				char next[1024];
+				pthread_mutex_lock(&audio_mutex);
+				bool have_next = xfade_prepared && xfade_next_path[0] &&
+								 strcmp(xfade_next_path, filepath) != 0;
+				if (have_next) {
+					snprintf(next, sizeof(next), "%s", xfade_next_path);
+				}
+				pthread_mutex_unlock(&audio_mutex);
+				if (have_next) {
+					decoder_t *candidate = decoder_open(next, decode_detect_format(next));
+					if (candidate) {
+						crossfade_config_t cfg = {true, true, crossfade_secs};
+						crossfade_stream_t outgoing = {sample_rate, source_bits, channels, dsd_multiple > 0, false};
+						crossfade_stream_t incoming = {decoder_sample_rate(candidate), decoder_source_bits(candidate),
+													   decoder_channels(candidate),
+													   decoder_dsd_multiple(candidate) > 0 || decoder_passthrough(candidate),
+													   false};
+						int candidate_out_bits = incoming.bits > 16 ? 32 : 16;
+						if (crossfade_should_apply(&cfg, &outgoing, &incoming) && candidate_out_bits == out_bits) {
+							xfade_buf = malloc(chunk_frames * frame_bytes);
+							if (xfade_buf) {
+								xfade_dec = candidate;
+								xfade_active = true;
+								fprintf(stderr, "audio[%ld]: crossfade: overlapping '%s' with '%s' for %d s\n", log_ms(),
+										filepath, next, crossfade_secs);
+							} else {
+								decoder_close(candidate);
+							}
+						} else {
+							decoder_close(candidate);
+						}
+					}
+				}
+			}
+		}
+
 		// --- the reserve of a track that is still downloading ----------------
 		//
 		// A streamed track plays while it downloads. Ahead of the play position
@@ -3799,6 +3895,14 @@ static void play_decoded_file(const char *filepath, decode_format_t format) {
 			track_completed = natural_end;
 			pthread_mutex_unlock(&audio_mutex);
 			played_to_the_end = natural_end;
+			if (xfade_active && natural_end) {
+				// The head of the next track went out with this one's tail. The
+				// next audio_play() of that path skips exactly that much.
+				pthread_mutex_lock(&audio_mutex);
+				xfade_rewind_secs = (double)xfade_rewind_frames / sample_rate;
+				xfade_prepared = false;
+				pthread_mutex_unlock(&audio_mutex);
+			}
 			if (natural_end && completion_hook) {
 				completion_hook();
 			}
@@ -3811,7 +3915,9 @@ static void play_decoded_file(const char *filepath, decode_format_t format) {
 		}
 
 		// The fade is a gain, so it is one more thing a DoP stream cannot have.
-		if (fade_enabled && !passthrough && !pure_now()) {
+		// A track being crossfaded uses the equal-power envelopes instead: the
+		// two effects never ramp the same boundary twice.
+		if (fade_enabled && !xfade_active && !passthrough && !pure_now()) {
 			int gain = fade_gain_q10((double)bytes_played / bytes_per_sec, (double)total_frames / sample_rate);
 			int samples = (int)frames_read * channels;
 			if (out_bits == 32) {
@@ -3830,6 +3936,41 @@ static void play_decoded_file(const char *filepath, decode_format_t format) {
 			} else {
 				swvolume_apply_s16((short *)buffer, samples);
 			}
+		}
+
+		// Crossfade: read the same span from the next track, cross the two arms
+		// with equal-power gains and write the mix in place of the outgoing
+		// buffer. Formats were matched when the overlap opened, so one outgoing
+		// frame lines up with one incoming frame. The incoming head is decoded
+		// fresh here; its own user effects are not run, which keeps the stateful
+		// ones (crossfeed, speed) tied to the single track that owns the output.
+		if (xfade_active && frames_read > 0) {
+			uint64_t in_frames = out_bits == 32
+									 ? decoder_read_pcm_frames_s32(xfade_dec, frames_read, (int32_t *)xfade_buf)
+									 : decoder_read_pcm_frames_s16(xfade_dec, frames_read, (short *)xfade_buf);
+			int phase = crossfade_phase_q15(xfade_elapsed, (double)crossfade_secs);
+			crossfade_gains_q15(phase, &xfade_out_gain, &xfade_in_gain);
+			int out_samples = (int)frames_read * channels;
+			int in_samples = (int)in_frames * channels;
+			int mix_samples = out_samples < in_samples ? out_samples : in_samples;
+			if (out_bits == 32) {
+				crossfade_mix_s32((int32_t *)buffer, (int32_t *)buffer, (int32_t *)xfade_buf, mix_samples, xfade_out_gain,
+								  xfade_in_gain);
+				// Any outgoing tail past the incoming head keeps its fade-out only.
+				if (out_samples > mix_samples) {
+					crossfade_mix_s32((int32_t *)buffer + mix_samples, (int32_t *)buffer + mix_samples,
+									  (int32_t *)buffer + mix_samples, out_samples - mix_samples, xfade_out_gain, 0);
+				}
+			} else {
+				crossfade_mix_s16((short *)buffer, (short *)buffer, (short *)xfade_buf, mix_samples, xfade_out_gain,
+								  xfade_in_gain);
+				if (out_samples > mix_samples) {
+					crossfade_mix_s16((short *)buffer + mix_samples, (short *)buffer + mix_samples,
+									  (short *)buffer + mix_samples, out_samples - mix_samples, xfade_out_gain, 0);
+				}
+			}
+			xfade_elapsed += (double)frames_read / sample_rate;
+			xfade_rewind_frames += (int)in_frames;
 		}
 
 		health_lap(&health, STAGE_EFFECTS);
@@ -3942,6 +4083,10 @@ static void play_decoded_file(const char *filepath, decode_format_t format) {
 	if (!keep_open) {
 		set_dac_dop(0);
 	}
+	if (xfade_dec) {
+		decoder_close(xfade_dec);
+	}
+	free(xfade_buf);
 	free(buffer);
 	speed_close(stretch);
 	decoder_close(dec);
@@ -4152,6 +4297,18 @@ int audio_play(const char *filepath) {
 	stream_bitrate_kbps = 0;
 	stream_lossy = false;
 	stream_codec[0] = '\0';
+	// If this track is the one just faded in during the last track's overlap,
+	// its first seconds already went out with that mix. Start past them. Any
+	// other path drops the pending rewind: a manual play is from the top.
+	if (xfade_rewind_secs > 0.0 && xfade_next_path[0] && strcmp(xfade_next_path, filepath) == 0) {
+		seek_request = true;
+		seek_target_secs = xfade_rewind_secs;
+		fprintf(stderr, "audio[%ld]: crossfade: resuming '%s' at %.1f s already heard in the overlap\n", log_ms(), filepath,
+				xfade_rewind_secs);
+	}
+	xfade_rewind_secs = 0.0;
+	xfade_next_path[0] = '\0';
+	xfade_prepared = false;
 	track_completed = false; // fresh playback; any prior completion is consumed
 	pthread_cond_signal(&audio_cond);
 	pthread_mutex_unlock(&audio_mutex);
@@ -4396,6 +4553,8 @@ void audio_stop(void) {
 	seek_request = false;
 	seek_target_secs = -1.0;
 	track_completed = false; // deliberate stop is not a natural completion
+	xfade_rewind_secs = 0.0;
+	xfade_prepared = false;
 	pthread_mutex_unlock(&audio_mutex);
 	playback_wake();
 }

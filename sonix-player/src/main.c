@@ -2219,6 +2219,9 @@ int main(int argc, char **argv) {
 	// Gapless playback, before anything can start: the engine reads this at
 	// the end of every track.
 	audio_set_gapless(config_get_int("audio", "gapless", 0) != 0);
+	// True crossfade, off by default. It builds on gapless and only overlaps
+	// streams the decoder path can mix (see audio.h and crossfade.c).
+	audio_set_crossfade(config_get_bool("audio", "crossfade", false), (int)config_get_int("audio", "crossfade_seconds", 6));
 	clock_init();
 	adb_apply_saved_state();
 	// The buttons on the headset cable: the kernel module starts disabled and

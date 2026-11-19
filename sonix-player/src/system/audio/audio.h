@@ -128,6 +128,23 @@ bool audio_get_bit_perfect(void);
 // 1..12.
 void audio_set_fade(bool enabled, int seconds);
 
+// Crossfade: a real overlap. A second decoder reads the head of the next track
+// while the current one plays its tail; the two arms cross with equal-power
+// gains. It needs gapless playback to hold the PCM across the boundary, and it
+// only runs where the two streams can be mixed: same sample rate, bit depth
+// and channel count, neither DSD (DoP markers) nor Bluetooth. Otherwise the
+// engine falls back to gapless and, when that is on, the sequential fade.
+// Crossfade takes precedence over the sequential fade for a track it handles;
+// the two never apply to the same boundary. `seconds` is clamped to 1..12.
+void audio_set_crossfade(bool enabled, int seconds);
+bool audio_get_crossfade(void);
+
+// Hand the next track's path to the crossfade engine before it is needed. The
+// read-ahead hook calls this in the last seconds of a track; the playback
+// thread opens a second decoder for that path when it reaches the overlap.
+// Cheap to call, and safe to repeat for the same path. Passing NULL clears it.
+void audio_crossfade_prepare_next(const char *path);
+
 void audio_resume();
 
 void audio_stop();
