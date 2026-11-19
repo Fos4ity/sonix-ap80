@@ -1438,11 +1438,8 @@ static void cover_accent_cb(lv_event_t *e) {
 // ---------------------------------------------------------------------------
 
 static lv_obj_t *layout_standard_pill;
-static lv_obj_t *layout_alternative_pill;
-static lv_obj_t *layout_studio_pill;
 static lv_obj_t *layout_compact_pill;
 static lv_obj_t *layout_carousel_pill;
-static lv_obj_t *layout_vinyl_pill;
 
 static void layout_refresh(void) {
 	if (!layout_standard_pill) {
@@ -1450,11 +1447,8 @@ static void layout_refresh(void) {
 	}
 	player_layout_t chosen = player_layout_get();
 	settingsrow_pill_active(layout_standard_pill, chosen == PLAYER_LAYOUT_STANDARD);
-	settingsrow_pill_active(layout_alternative_pill, chosen == PLAYER_LAYOUT_ALTERNATIVE);
-	settingsrow_pill_active(layout_studio_pill, chosen == PLAYER_LAYOUT_STUDIO);
 	settingsrow_pill_active(layout_compact_pill, chosen == PLAYER_LAYOUT_COMPACT);
 	settingsrow_pill_active(layout_carousel_pill, chosen == PLAYER_LAYOUT_CAROUSEL);
-	settingsrow_pill_active(layout_vinyl_pill, chosen == PLAYER_LAYOUT_VINYL);
 }
 
 static void layout_pick_cb(lv_event_t *e) {
@@ -1571,16 +1565,10 @@ static void build_nowplaying_page(gui_config_t *cfg) {
 	settingsrow_pills(container, "musicsettings_player_layout", &layout_pills);
 	layout_standard_pill =
 		settingsrow_pill(layout_pills, "musicsettings_layout_standard", PLAYER_LAYOUT_STANDARD, layout_pick_cb);
-	layout_alternative_pill =
-		settingsrow_pill(layout_pills, "musicsettings_layout_alternative", PLAYER_LAYOUT_ALTERNATIVE, layout_pick_cb);
-	layout_studio_pill =
-		settingsrow_pill(layout_pills, "musicsettings_layout_studio", PLAYER_LAYOUT_STUDIO, layout_pick_cb);
 	layout_compact_pill =
 		settingsrow_pill(layout_pills, "Square", PLAYER_LAYOUT_COMPACT, layout_pick_cb);
 	layout_carousel_pill =
 		settingsrow_pill(layout_pills, "Carousel", PLAYER_LAYOUT_CAROUSEL, layout_pick_cb);
-	layout_vinyl_pill =
-		settingsrow_pill(layout_pills, "Vinyl", PLAYER_LAYOUT_VINYL, layout_pick_cb);
 
 	layout_refresh();
 	theme_register_refresh(layout_refresh);

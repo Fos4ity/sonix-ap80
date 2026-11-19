@@ -27,14 +27,41 @@ static lv_obj_t *battery_percent_toggle;
 static lv_obj_t *statusbar_always_toggle;
 static lv_obj_t *rounded_corners_toggle;
 static lv_obj_t *text_size_pill[2]; // normal / large
-static lv_obj_t *player_layout_pill[6];
+static lv_obj_t *font_family_pill[FONTS_FAMILY_COUNT];
+static lv_obj_t *player_layout_pill[5];
+
+static void refresh_font_family_pills(void) {
+	int chosen = fonts_get_family();
+	for (int i = 0; i < FONTS_FAMILY_COUNT; i++) {
+		if (font_family_pill[i]) {
+			settingsrow_pill_active(font_family_pill[i], i == chosen);
+		}
+	}
+}
+
+static void font_family_pick_cb(lv_event_t *e) {
+	if (switcher_back_drag_active()) {
+		return;
+	}
+	int family = (int)(intptr_t)lv_event_get_user_data(e);
+	if (!fonts_set_family(family)) {
+		return;
+	}
+	config_set_int("ui", "font_family", family);
+	config_save();
+	refresh_font_family_pills();
+}
 
 static void refresh_player_layout_pills(void) {
 	player_layout_t chosen = player_layout_get();
-	for (int i = 0; i < 6; i++) {
-		if (player_layout_pill[i]) {
-			settingsrow_pill_active(player_layout_pill[i], (int)chosen == i);
-		}
+	if (player_layout_pill[PLAYER_LAYOUT_STANDARD]) {
+		settingsrow_pill_active(player_layout_pill[PLAYER_LAYOUT_STANDARD], chosen == PLAYER_LAYOUT_STANDARD);
+	}
+	if (player_layout_pill[PLAYER_LAYOUT_COMPACT]) {
+		settingsrow_pill_active(player_layout_pill[PLAYER_LAYOUT_COMPACT], chosen == PLAYER_LAYOUT_COMPACT);
+	}
+	if (player_layout_pill[PLAYER_LAYOUT_CAROUSEL]) {
+		settingsrow_pill_active(player_layout_pill[PLAYER_LAYOUT_CAROUSEL], chosen == PLAYER_LAYOUT_CAROUSEL);
 	}
 }
 
@@ -339,21 +366,22 @@ void appearance_init(gui_config_t *cfg) {
 	// Menu background wallpaper picked from files on the device (30% opacity).
 	settingsrow_add(container, "Menu wallpaper", NULL, switch_screen_cb, wallpaperpage_screen);
 
-	// Now Playing screen style (same setting as Settings > Music > Now Playing).
+	// Now Playing screen style (Standard, Square, Carousel).
 	lv_obj_t *layout_pills;
 	settingsrow_pills(container, "musicsettings_player_layout", &layout_pills);
 	player_layout_pill[PLAYER_LAYOUT_STANDARD] =
 		settingsrow_pill(layout_pills, "musicsettings_layout_standard", PLAYER_LAYOUT_STANDARD, player_layout_pick_cb);
-	player_layout_pill[PLAYER_LAYOUT_ALTERNATIVE] = settingsrow_pill(
-		layout_pills, "musicsettings_layout_alternative", PLAYER_LAYOUT_ALTERNATIVE, player_layout_pick_cb);
-	player_layout_pill[PLAYER_LAYOUT_STUDIO] =
-		settingsrow_pill(layout_pills, "musicsettings_layout_studio", PLAYER_LAYOUT_STUDIO, player_layout_pick_cb);
 	player_layout_pill[PLAYER_LAYOUT_COMPACT] =
 		settingsrow_pill(layout_pills, "Square", PLAYER_LAYOUT_COMPACT, player_layout_pick_cb);
 	player_layout_pill[PLAYER_LAYOUT_CAROUSEL] =
 		settingsrow_pill(layout_pills, "Carousel", PLAYER_LAYOUT_CAROUSEL, player_layout_pick_cb);
-	player_layout_pill[PLAYER_LAYOUT_VINYL] =
-		settingsrow_pill(layout_pills, "Vinyl", PLAYER_LAYOUT_VINYL, player_layout_pick_cb);
+
+	// UI font family (Default, JetBrains, Victor, Bookerly) — switches live.
+	lv_obj_t *font_pills;
+	settingsrow_pills(container, "UI font", &font_pills);
+	for (int i = 0; i < FONTS_FAMILY_COUNT; i++) {
+		font_family_pill[i] = settingsrow_pill(font_pills, fonts_family_name(i), i, font_family_pick_cb);
+	}
 
 	// How big the small text on every page is: the secondary lines, notes,
 	// clocks and counters. See fonts.c for which sizes grow and by how much.
@@ -394,9 +422,11 @@ void appearance_init(gui_config_t *cfg) {
 	refresh_clock_buttons();
 	refresh_accent_buttons();
 	refresh_text_size_pills();
+	refresh_font_family_pills();
 	refresh_player_layout_pills();
 	theme_register_refresh(refresh_buttons);
 	theme_register_refresh(refresh_text_size_pills);
+	theme_register_refresh(refresh_font_family_pills);
 	theme_register_refresh(refresh_clock_buttons);
 	theme_register_refresh(refresh_accent_buttons);
 	theme_register_refresh(refresh_player_layout_pills);

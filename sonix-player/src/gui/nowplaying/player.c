@@ -322,12 +322,11 @@ static bool layout_alt_now;		// and whether the current source can use it
 static bool layout_studio_now;	// likewise for the third arrangement
 static bool layout_compact_now;	// centered smaller square cover
 static bool layout_carousel_now; // centered cover + faded prev/next side covers
-static bool layout_vinyl_now;	// circular spinning vinyl record
 // The shape of the track and the sleeve's colour: up with the alternative
 // layout, and kept when the words are shown over it.
 static bool layout_wave_now;
 
-// Custom art layout widgets (Square, Carousel, Vinyl) — children of cover_panel.
+// Custom art layout widgets (Square, Carousel) — children of cover_panel.
 static lv_obj_t *art_frame;
 static lv_obj_t *carousel_prev_frame;
 static lv_obj_t *carousel_prev_img;
@@ -338,13 +337,6 @@ static lv_obj_t *carousel_next_note;
 static cover_image_t carousel_prev_cover;
 static cover_image_t carousel_next_cover;
 static uint32_t carousel_gen;
-
-static lv_obj_t *vinyl_disc;
-static lv_obj_t *vinyl_groove;
-static lv_obj_t *vinyl_label_ring;
-static lv_obj_t *vinyl_hole;
-static lv_timer_t *vinyl_spin_timer;
-static int32_t vinyl_angle;
 
 static void carousel_refresh_sides(void);
 static void apply_custom_art_layout(void);
@@ -3002,29 +2994,16 @@ static void carousel_refresh_sides(void) {
 	pthread_detach(thread);
 }
 
-static void vinyl_spin_cb(lv_timer_t *t) {
-	(void)t;
-	if (!layout_vinyl_now || !cover_img || lv_obj_has_flag(cover_img, LV_OBJ_FLAG_HIDDEN)) {
-		return;
-	}
-	if (lv_screen_active() != player_screen || audio_get_status() != AUDIO_STATUS_PLAYING) {
-		return;
-	}
-	vinyl_angle = (vinyl_angle + 12) % 3600;
-	lv_image_set_rotation(cover_img, vinyl_angle);
-}
-
 static void apply_custom_art_layout(void) {
-	if (!cover_panel || !cover_img || !art_frame || !vinyl_disc) {
+	if (!cover_panel || !cover_img || !art_frame) {
 		return;
 	}
-	bool custom = layout_compact_now || layout_carousel_now || layout_vinyl_now;
+	bool custom = layout_compact_now || layout_carousel_now;
 
 	// Restore default full-bleed cover_panel state first.
 	lv_obj_set_hidden(art_frame, true);
 	lv_obj_set_hidden(carousel_prev_frame, true);
 	lv_obj_set_hidden(carousel_next_frame, true);
-	lv_obj_set_hidden(vinyl_disc, true);
 
 	if (!custom) {
 		lv_obj_set_style_bg_opa(cover_panel, LV_OPA_COVER, 0);
@@ -3037,70 +3016,39 @@ static void apply_custom_art_layout(void) {
 			lv_obj_set_parent(cover_placeholder_icon, cover_panel);
 			lv_obj_center(cover_placeholder_icon);
 		}
-		if (vinyl_spin_timer) {
-			lv_timer_pause(vinyl_spin_timer);
-		}
 		return;
 	}
 
 	// Transparent cover_panel so the themed dark screen + Omarchy wallpaper shows behind it.
 	lv_obj_set_style_bg_opa(cover_panel, LV_OPA_TRANSP, 0);
 
-	if (layout_compact_now || layout_carousel_now) {
-		int box = layout_carousel_now ? 280 : 300;
-		int top_y = layout_carousel_now ? 116 : 106;
-		lv_obj_set_size(art_frame, box, box);
-		lv_obj_align(art_frame, LV_ALIGN_TOP_MID, 0, top_y);
-		lv_obj_set_style_bg_color(art_frame, theme()->surface, 0);
-		lv_obj_set_style_border_color(art_frame,
-									  layout_carousel_now ? lv_color_make(170, 172, 172) : lv_color_make(127, 110, 110),
-									  0);
-		lv_obj_set_hidden(art_frame, false);
+	int box = layout_carousel_now ? 280 : 300;
+	int top_y = layout_carousel_now ? 116 : 106;
+	lv_obj_set_size(art_frame, box, box);
+	lv_obj_align(art_frame, LV_ALIGN_TOP_MID, 0, top_y);
+	lv_obj_set_style_bg_color(art_frame, theme()->surface, 0);
+	lv_obj_set_style_border_color(art_frame,
+								  layout_carousel_now ? lv_color_make(170, 172, 172) : lv_color_make(127, 110, 110),
+								  0);
+	lv_obj_set_hidden(art_frame, false);
 
-		lv_obj_set_parent(cover_img, art_frame);
-		uint32_t scale = cover_box_w > 0 ? (uint32_t)((box * 256 + cover_box_w / 2) / cover_box_w) : LV_SCALE_NONE;
-		lv_image_set_scale(cover_img, scale);
-		lv_image_set_rotation(cover_img, 0);
-		lv_obj_center(cover_img);
-		if (cover_placeholder_icon) {
-			lv_obj_set_parent(cover_placeholder_icon, art_frame);
-			lv_obj_center(cover_placeholder_icon);
-		}
-		if (vinyl_spin_timer) {
-			lv_timer_pause(vinyl_spin_timer);
-		}
+	lv_obj_set_parent(cover_img, art_frame);
+	uint32_t scale = cover_box_w > 0 ? (uint32_t)((box * 256 + cover_box_w / 2) / cover_box_w) : LV_SCALE_NONE;
+	lv_image_set_scale(cover_img, scale);
+	lv_image_set_rotation(cover_img, 0);
+	lv_obj_center(cover_img);
+	if (cover_placeholder_icon) {
+		lv_obj_set_parent(cover_placeholder_icon, art_frame);
+		lv_obj_center(cover_placeholder_icon);
+	}
 
-		if (layout_carousel_now) {
-			lv_obj_set_style_bg_color(carousel_prev_frame, theme()->surface, 0);
-			lv_obj_set_style_bg_color(carousel_next_frame, theme()->surface, 0);
-			lv_obj_set_hidden(carousel_prev_frame, false);
-			lv_obj_set_hidden(carousel_next_frame, false);
-			lv_obj_move_foreground(art_frame);
-			carousel_refresh_sides();
-		}
-	} else if (layout_vinyl_now) {
-		lv_obj_set_style_bg_color(vinyl_disc, lv_color_make(10, 8, 8), 0);
-		lv_obj_set_style_border_color(vinyl_label_ring, theme()->accent, 0);
-		lv_obj_set_hidden(vinyl_disc, false);
-
-		lv_obj_set_parent(cover_img, vinyl_disc);
-		int inner = 276;
-		uint32_t scale = cover_box_w > 0 ? (uint32_t)((inner * 256 + cover_box_w / 2) / cover_box_w) : LV_SCALE_NONE;
-		lv_image_set_scale(cover_img, scale);
-		lv_image_set_pivot(cover_img, cover_box_w / 2, cover_box_h / 2);
-		lv_image_set_rotation(cover_img, vinyl_angle);
-		lv_obj_center(cover_img);
-		if (cover_placeholder_icon) {
-			lv_obj_set_parent(cover_placeholder_icon, vinyl_disc);
-			lv_obj_center(cover_placeholder_icon);
-		}
-		// Keep vinyl groove + center spindle ring above the album art.
-		lv_obj_move_foreground(vinyl_groove);
-		lv_obj_move_foreground(vinyl_label_ring);
-		lv_obj_move_foreground(vinyl_hole);
-		if (vinyl_spin_timer) {
-			lv_timer_resume(vinyl_spin_timer);
-		}
+	if (layout_carousel_now) {
+		lv_obj_set_style_bg_color(carousel_prev_frame, theme()->surface, 0);
+		lv_obj_set_style_bg_color(carousel_next_frame, theme()->surface, 0);
+		lv_obj_set_hidden(carousel_prev_frame, false);
+		lv_obj_set_hidden(carousel_next_frame, false);
+		lv_obj_move_foreground(art_frame);
+		carousel_refresh_sides();
 	}
 }
 
@@ -3244,15 +3192,14 @@ static void update_layout(const device_state_t *state) {
 	// a file, a cached Qobuz or Tidal track, a podcast, a book, a station.
 	bool local = playing_local_file(state);
 	bool lyrics = lyrics_wanted && local;
-	bool studio = layout_choice == PLAYER_LAYOUT_STUDIO;
-	bool wave = layout_choice == PLAYER_LAYOUT_ALTERNATIVE && local;
-	bool alt = wave;
+	bool studio = false;
+	bool wave = false;
+	bool alt = false;
 	bool compact = layout_choice == PLAYER_LAYOUT_COMPACT;
 	bool carousel = layout_choice == PLAYER_LAYOUT_CAROUSEL;
-	bool vinyl = layout_choice == PLAYER_LAYOUT_VINYL;
 
 	if (studio == layout_studio_now && alt == layout_alt_now && wave == layout_wave_now &&
-		compact == layout_compact_now && carousel == layout_carousel_now && vinyl == layout_vinyl_now &&
+		compact == layout_compact_now && carousel == layout_carousel_now &&
 		lyrics == lyrics_allowed && alt_title_pill) {
 		return;
 	}
@@ -3261,7 +3208,6 @@ static void update_layout(const device_state_t *state) {
 	layout_wave_now = wave;
 	layout_compact_now = compact;
 	layout_carousel_now = carousel;
-	layout_vinyl_now = vinyl;
 	lyrics_allowed = lyrics;
 	// Up only with words for this very file; while they are still being read,
 	// as they were, so a track change does not take the page down and up again.
@@ -5872,59 +5818,6 @@ void player_init(gui_config_t *cfg) {
 	lv_obj_center(carousel_next_img);
 	lv_obj_set_hidden(carousel_next_img, true);
 
-	// Vinyl spinning circular record
-	vinyl_disc = lv_obj_create(cover_panel);
-	lv_obj_remove_style_all(vinyl_disc);
-	lv_obj_set_size(vinyl_disc, 310, 310);
-	lv_obj_align(vinyl_disc, LV_ALIGN_TOP_MID, 0, 100);
-	lv_obj_set_style_bg_color(vinyl_disc, lv_color_make(10, 8, 8), 0);
-	lv_obj_set_style_bg_opa(vinyl_disc, LV_OPA_COVER, 0);
-	lv_obj_set_style_radius(vinyl_disc, LV_RADIUS_CIRCLE, 0);
-	lv_obj_set_style_border_width(vinyl_disc, 2, 0);
-	lv_obj_set_style_border_color(vinyl_disc, lv_color_make(127, 110, 110), 0);
-	lv_obj_set_style_border_opa(vinyl_disc, LV_OPA_80, 0);
-	lv_obj_set_style_clip_corner(vinyl_disc, true, 0);
-	lv_obj_set_scrollable(vinyl_disc, false);
-	lv_obj_set_clickable(vinyl_disc, false);
-	lv_obj_set_hidden(vinyl_disc, true);
-
-	vinyl_groove = lv_obj_create(vinyl_disc);
-	lv_obj_remove_style_all(vinyl_groove);
-	lv_obj_set_size(vinyl_groove, 210, 210);
-	lv_obj_center(vinyl_groove);
-	lv_obj_set_style_radius(vinyl_groove, LV_RADIUS_CIRCLE, 0);
-	lv_obj_set_style_bg_opa(vinyl_groove, LV_OPA_TRANSP, 0);
-	lv_obj_set_style_border_width(vinyl_groove, 1, 0);
-	lv_obj_set_style_border_color(vinyl_groove, lv_color_white(), 0);
-	lv_obj_set_style_border_opa(vinyl_groove, LV_OPA_20, 0);
-	lv_obj_set_clickable(vinyl_groove, false);
-
-	vinyl_label_ring = lv_obj_create(vinyl_disc);
-	lv_obj_remove_style_all(vinyl_label_ring);
-	lv_obj_set_size(vinyl_label_ring, 60, 60);
-	lv_obj_center(vinyl_label_ring);
-	lv_obj_set_style_radius(vinyl_label_ring, LV_RADIUS_CIRCLE, 0);
-	lv_obj_set_style_bg_color(vinyl_label_ring, lv_color_make(10, 8, 8), 0);
-	lv_obj_set_style_bg_opa(vinyl_label_ring, LV_OPA_COVER, 0);
-	lv_obj_set_style_border_width(vinyl_label_ring, 3, 0);
-	lv_obj_set_style_border_color(vinyl_label_ring, theme()->accent, 0);
-	lv_obj_set_style_border_opa(vinyl_label_ring, LV_OPA_COVER, 0);
-	lv_obj_set_clickable(vinyl_label_ring, false);
-
-	vinyl_hole = lv_obj_create(vinyl_disc);
-	lv_obj_remove_style_all(vinyl_hole);
-	lv_obj_set_size(vinyl_hole, 16, 16);
-	lv_obj_center(vinyl_hole);
-	lv_obj_set_style_radius(vinyl_hole, LV_RADIUS_CIRCLE, 0);
-	lv_obj_set_style_bg_color(vinyl_hole, lv_color_make(4, 3, 3), 0);
-	lv_obj_set_style_bg_opa(vinyl_hole, LV_OPA_COVER, 0);
-	lv_obj_set_style_border_width(vinyl_hole, 1, 0);
-	lv_obj_set_style_border_color(vinyl_hole, lv_color_make(170, 172, 172), 0);
-	lv_obj_set_clickable(vinyl_hole, false);
-
-	vinyl_spin_timer = lv_timer_create(vinyl_spin_cb, 50, NULL);
-	lv_timer_pause(vinyl_spin_timer);
-
 	// ---------------------------------------------------------------------
 	// Studio: the blurred sleeve behind the whole screen, and everything else
 	// laid out over it.
@@ -6047,15 +5940,14 @@ void player_init(gui_config_t *cfg) {
 	// Whichever arrangement was left selected, now that every widget it moves
 	// exists.
 	int saved = (int)config_get_int("screen", "player_layout_alt", 0);
-	layout_choice = (saved >= (int)PLAYER_LAYOUT_STANDARD && saved <= (int)PLAYER_LAYOUT_VINYL)
-						? (player_layout_t)saved
-						: PLAYER_LAYOUT_STANDARD;
+	layout_choice = (saved == (int)PLAYER_LAYOUT_COMPACT)	 ? PLAYER_LAYOUT_COMPACT
+					: (saved == (int)PLAYER_LAYOUT_CAROUSEL) ? PLAYER_LAYOUT_CAROUSEL
+															 : PLAYER_LAYOUT_STANDARD;
 	cover_accent = config_get_bool("screen", "cover_accent", false);
 	layout_alt_now = false; // apply_layout() below puts the standard one up first
 	layout_studio_now = false;
 	layout_compact_now = (layout_choice == PLAYER_LAYOUT_COMPACT);
 	layout_carousel_now = (layout_choice == PLAYER_LAYOUT_CAROUSEL);
-	layout_vinyl_now = (layout_choice == PLAYER_LAYOUT_VINYL);
 	apply_layout();
 
 	theme_register_refresh(player_refresh_theme);

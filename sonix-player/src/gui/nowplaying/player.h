@@ -60,7 +60,6 @@ typedef enum {
 	PLAYER_LAYOUT_STUDIO = 2,
 	PLAYER_LAYOUT_COMPACT = 3,
 	PLAYER_LAYOUT_CAROUSEL = 4,
-	PLAYER_LAYOUT_VINYL = 5,
 } player_layout_t;
 
 player_layout_t player_layout_get(void);

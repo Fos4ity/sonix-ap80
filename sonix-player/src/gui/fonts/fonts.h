@@ -67,6 +67,17 @@ bool fonts_init(void);
 #define FONTS_TEXT_NORMAL 0
 #define FONTS_TEXT_LARGE 1
 
+// Settings -> Appearance -> UI font, stored as [ui] font_family.
+#define FONTS_FAMILY_DEFAULT 0
+#define FONTS_FAMILY_JETBRAINS 1
+#define FONTS_FAMILY_VICTOR 2
+#define FONTS_FAMILY_BOOKERLY 3
+#define FONTS_FAMILY_COUNT 4
+
+int fonts_get_family(void);
+const char *fonts_family_name(int family);
+bool fonts_set_family(int family);
+
 // Whether the small sizes are drawn larger (see fonts.c).
 bool fonts_large_text(void);
 
