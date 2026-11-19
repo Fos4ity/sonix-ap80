@@ -27,6 +27,24 @@ static lv_obj_t *battery_percent_toggle;
 static lv_obj_t *statusbar_always_toggle;
 static lv_obj_t *rounded_corners_toggle;
 static lv_obj_t *text_size_pill[2]; // normal / large
+static lv_obj_t *player_layout_pill[6];
+
+static void refresh_player_layout_pills(void) {
+	player_layout_t chosen = player_layout_get();
+	for (int i = 0; i < 6; i++) {
+		if (player_layout_pill[i]) {
+			settingsrow_pill_active(player_layout_pill[i], (int)chosen == i);
+		}
+	}
+}
+
+static void player_layout_pick_cb(lv_event_t *e) {
+	if (switcher_back_drag_active()) {
+		return;
+	}
+	player_layout_set((player_layout_t)(intptr_t)lv_event_get_user_data(e));
+	refresh_player_layout_pills();
+}
 // The status bar draws the battery either way; this setting is only about the
 // number beside it, and is on by default.
 static void battery_percent_cb(lv_event_t *e) {
@@ -321,6 +339,22 @@ void appearance_init(gui_config_t *cfg) {
 	// Menu background wallpaper picked from files on the device (30% opacity).
 	settingsrow_add(container, "Menu wallpaper", NULL, switch_screen_cb, wallpaperpage_screen);
 
+	// Now Playing screen style (same setting as Settings > Music > Now Playing).
+	lv_obj_t *layout_pills;
+	settingsrow_pills(container, "musicsettings_player_layout", &layout_pills);
+	player_layout_pill[PLAYER_LAYOUT_STANDARD] =
+		settingsrow_pill(layout_pills, "musicsettings_layout_standard", PLAYER_LAYOUT_STANDARD, player_layout_pick_cb);
+	player_layout_pill[PLAYER_LAYOUT_ALTERNATIVE] = settingsrow_pill(
+		layout_pills, "musicsettings_layout_alternative", PLAYER_LAYOUT_ALTERNATIVE, player_layout_pick_cb);
+	player_layout_pill[PLAYER_LAYOUT_STUDIO] =
+		settingsrow_pill(layout_pills, "musicsettings_layout_studio", PLAYER_LAYOUT_STUDIO, player_layout_pick_cb);
+	player_layout_pill[PLAYER_LAYOUT_COMPACT] =
+		settingsrow_pill(layout_pills, "Square", PLAYER_LAYOUT_COMPACT, player_layout_pick_cb);
+	player_layout_pill[PLAYER_LAYOUT_CAROUSEL] =
+		settingsrow_pill(layout_pills, "Carousel", PLAYER_LAYOUT_CAROUSEL, player_layout_pick_cb);
+	player_layout_pill[PLAYER_LAYOUT_VINYL] =
+		settingsrow_pill(layout_pills, "Vinyl", PLAYER_LAYOUT_VINYL, player_layout_pick_cb);
+
 	// How big the small text on every page is: the secondary lines, notes,
 	// clocks and counters. See fonts.c for which sizes grow and by how much.
 	lv_obj_t *text_size_pills;
@@ -360,8 +394,10 @@ void appearance_init(gui_config_t *cfg) {
 	refresh_clock_buttons();
 	refresh_accent_buttons();
 	refresh_text_size_pills();
+	refresh_player_layout_pills();
 	theme_register_refresh(refresh_buttons);
 	theme_register_refresh(refresh_text_size_pills);
 	theme_register_refresh(refresh_clock_buttons);
 	theme_register_refresh(refresh_accent_buttons);
+	theme_register_refresh(refresh_player_layout_pills);
 }
