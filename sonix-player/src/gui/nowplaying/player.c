@@ -341,6 +341,32 @@ static uint32_t carousel_gen;
 static void carousel_refresh_sides(void);
 static void apply_custom_art_layout(void);
 
+// Fast art-only fade-out / fade-in on track switch.
+#define COVER_FADE_OUT_MS 100
+#define COVER_FADE_IN_MS 140
+static bool cover_fade_pending;
+static char cover_fade_path[512];
+
+static void cover_opa_anim_cb(void *var, int32_t v) {
+	lv_obj_set_style_opa((lv_obj_t *)var, (lv_opa_t)v, 0);
+}
+
+static void cover_fade_in(lv_obj_t *obj) {
+	if (!obj) {
+		return;
+	}
+	lv_anim_delete(obj, cover_opa_anim_cb);
+	lv_obj_set_style_opa(obj, LV_OPA_TRANSP, 0);
+	lv_anim_t a;
+	lv_anim_init(&a);
+	lv_anim_set_var(&a, obj);
+	lv_anim_set_exec_cb(&a, cover_opa_anim_cb);
+	lv_anim_set_values(&a, LV_OPA_TRANSP, LV_OPA_COVER);
+	lv_anim_set_duration(&a, COVER_FADE_IN_MS);
+	lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+	lv_anim_start(&a);
+}
+
 static uint32_t album_tone; // the sleeve's colour, 0 when there is no sleeve
 // The setting that has the Standard and Studio arrangements wear the sleeve's
 // colour as their accent too, as Waveform always does.
@@ -2933,6 +2959,7 @@ static void carousel_job_done(void *user) {
 			lv_image_set_src(carousel_prev_img, &carousel_prev_cover.dsc);
 			lv_obj_set_hidden(carousel_prev_img, false);
 			lv_obj_set_hidden(carousel_prev_note, true);
+			cover_fade_in(carousel_prev_img);
 		} else {
 			lv_obj_set_hidden(carousel_prev_img, true);
 			lv_obj_set_hidden(carousel_prev_note, false);
@@ -2943,6 +2970,7 @@ static void carousel_job_done(void *user) {
 			lv_image_set_src(carousel_next_img, &carousel_next_cover.dsc);
 			lv_obj_set_hidden(carousel_next_img, false);
 			lv_obj_set_hidden(carousel_next_note, true);
+			cover_fade_in(carousel_next_img);
 		} else {
 			lv_obj_set_hidden(carousel_next_img, true);
 			lv_obj_set_hidden(carousel_next_note, false);
@@ -3497,6 +3525,58 @@ static void reload_cover(const char *filepath) {
 // and only an answer that differs from what is on screen costs anything. When
 // it does differ the old cover stays up for the one poll that takes, which
 // still reads better than a placeholder in the gap.
+static void cover_fade_out_done_cb(lv_anim_t *a) {
+	(void)a;
+	if (!cover_fade_pending) {
+		return;
+	}
+	cover_fade_pending = false;
+	reload_cover(cover_fade_path);
+}
+
+static void reload_cover_with_fade(const char *filepath) {
+	if (!cover_img || !current_cover.pixels || lv_screen_active() != player_screen ||
+		lv_obj_is_hidden(cover_img)) {
+		cover_fade_pending = false;
+		reload_cover(filepath);
+		return;
+	}
+	snprintf(cover_fade_path, sizeof(cover_fade_path), "%s", filepath ? filepath : "");
+	cover_fade_pending = true;
+	lv_anim_delete(cover_img, cover_opa_anim_cb);
+	lv_anim_t a;
+	lv_anim_init(&a);
+	lv_anim_set_var(&a, cover_img);
+	lv_anim_set_exec_cb(&a, cover_opa_anim_cb);
+	lv_anim_set_values(&a, lv_obj_get_style_opa(cover_img, 0), LV_OPA_TRANSP);
+	lv_anim_set_duration(&a, COVER_FADE_OUT_MS);
+	lv_anim_set_path_cb(&a, lv_anim_path_ease_in);
+	lv_anim_set_completed_cb(&a, cover_fade_out_done_cb);
+	lv_anim_start(&a);
+}
+
+static void cover_same_pulse_done_cb(lv_anim_t *a) {
+	(void)a;
+	cover_fade_in(cover_img);
+}
+
+static void cover_pulse_same_art(void) {
+	if (!cover_img || !current_cover.pixels || lv_screen_active() != player_screen ||
+		lv_obj_is_hidden(cover_img)) {
+		return;
+	}
+	lv_anim_delete(cover_img, cover_opa_anim_cb);
+	lv_anim_t a;
+	lv_anim_init(&a);
+	lv_anim_set_var(&a, cover_img);
+	lv_anim_set_exec_cb(&a, cover_opa_anim_cb);
+	lv_anim_set_values(&a, lv_obj_get_style_opa(cover_img, 0), LV_OPA_TRANSP);
+	lv_anim_set_duration(&a, COVER_FADE_OUT_MS);
+	lv_anim_set_path_cb(&a, lv_anim_path_ease_in);
+	lv_anim_set_completed_cb(&a, cover_same_pulse_done_cb);
+	lv_anim_start(&a);
+}
+
 static void refresh_cover(const char *filepath) {
 	if (!cover_img)
 		return;
@@ -3513,7 +3593,7 @@ static void refresh_cover(const char *filepath) {
 
 	cover_id_state = COVER_ID_IDLE;
 	cover_incoming_id = 0;
-	reload_cover(filepath);
+	reload_cover_with_fade(filepath);
 }
 
 // The answer to whichever question was asked, picked up on the progress poll.
@@ -3536,16 +3616,17 @@ static void apply_cover_id_result(void) {
 
 	cover_id_state = COVER_ID_IDLE;
 
-	// The same picture: the cover, the backdrop, the sleeve colour and the
-	// chrome all stay exactly as they are. This is the whole point.
+	// The same picture: keep the decoded pixels, and give a quick art-only
+	// fade-out/fade-in pulse so the track switch still feels tactile.
 	if (id != 0 && id == cover_shown_id) {
+		cover_pulse_same_art();
 		return;
 	}
 
 	// Different, and its id is already known: the decode does not have to be
 	// asked what it produced.
 	cover_incoming_id = id;
-	reload_cover(cover_shown_path);
+	reload_cover_with_fade(cover_shown_path);
 }
 
 // Picks up the worker's finished artwork, if any. Runs on the UI thread from
@@ -3585,6 +3666,11 @@ static void apply_cover_result(void) {
 		lv_obj_center(cover_img);
 
 		cover_show(true);
+		if (lv_screen_active() == player_screen) {
+			cover_fade_in(cover_img);
+		} else {
+			lv_obj_set_style_opa(cover_img, LV_OPA_COVER, 0);
+		}
 
 		if (new_backdrop.pixels) {
 			current_backdrop = new_backdrop;
