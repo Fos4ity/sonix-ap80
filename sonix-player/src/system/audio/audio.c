@@ -3686,7 +3686,7 @@ static void play_decoded_file(const char *filepath, decode_format_t format) {
 		// and ask crossfade.c whether these two streams can be mixed. If they
 		// cannot, xfade_decided stops us asking again every buffer: gapless and
 		// the sequential fade carry on exactly as before.
-		if (!xfade_decided && crossfade_enabled && gapless_enabled && !passthrough &&
+		if (!xfade_decided && crossfade_enabled && gapless_enabled && !passthrough && !pure_now() &&
 			!output_is_bluetooth() && total_frames > 0 && sample_rate > 0) {
 			double reached = (double)bytes_played / frame_bytes;
 			double remaining = (double)((int64_t)total_frames - (int64_t)reached) / sample_rate;
@@ -3944,7 +3944,7 @@ static void play_decoded_file(const char *filepath, decode_format_t format) {
 		// frame lines up with one incoming frame. The incoming head is decoded
 		// fresh here; its own user effects are not run, which keeps the stateful
 		// ones (crossfeed, speed) tied to the single track that owns the output.
-		if (xfade_active && frames_read > 0) {
+		if (xfade_active && frames_read > 0 && !pure_now()) {
 			uint64_t in_frames = out_bits == 32
 									 ? decoder_read_pcm_frames_s32(xfade_dec, frames_read, (int32_t *)xfade_buf)
 									 : decoder_read_pcm_frames_s16(xfade_dec, frames_read, (short *)xfade_buf);
