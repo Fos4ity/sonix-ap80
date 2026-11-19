@@ -49,8 +49,9 @@ This is everything Sonix Player can do today, on both the **R1** and the **R3 Pr
 - **Play by folder** - when a folder ends, playback goes on with the next folder.
 - **Add to queue** - as the next track or at the end.
 - **Queue** - reorder it, select tracks in it, and see the **history** of what you played today, yesterday and before.
-- **Gapless** - no silence between tracks of the same album, also over Bluetooth.
-- **Fade** - the end of a track fades into the next one, from 1 to 12 seconds.
+- **Gapless** - no silence between tracks of the same album, also over Bluetooth. Tracks must share sample rate, bit depth and channel count.
+- **Crossfade** - overlap the last seconds of one track with the first seconds of the next, from 1 to 12 seconds. Two equal-power envelopes cross in the overlap, so the level stays even. The setting lives in Music settings > Playback options. It builds on gapless: turning crossfade on turns gapless on, and turning gapless off turns crossfade off. Both tracks must share sample rate, bit depth and channel count. DSD is excluded because DoP markers cannot be mixed, and Bluetooth streams are excluded because the A2DP link cannot mix two tracks. Either falls back to gapless. The control centre has no crossfade toggle; its Fade button still drives the sequential fade.
+- **Fade** - the sequential version of the effect, from 1 to 10 seconds: the end of a track ramps down to silence and the start of the next ramps up. Crossfade takes precedence at a boundary it handles, so the two never ramp the same track end twice. With crossfade off, Fade works as before, with or without gapless.
 - **ReplayGain** - off, by track or by album, read from the tags.
 - **Remember track** - the queue and the position are still there after a restart. You can also open Now Playing straight away at startup.
 - **Sleep timer** - set a time and the playback pauses by itself when it runs out. There is one for music, one for audiobooks and one for podcasts.

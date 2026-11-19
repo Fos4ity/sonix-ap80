@@ -125,9 +125,83 @@ void musicsettings_set_gapless_enabled(bool enabled) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// True crossfade: overlap the tail of a track with the head of the next. The
+// engine lives in audio.c and crossfade.c. It reuses the gapless PCM hold, so
+// enabling it also enables gapless, and turning gapless off turns it off. DSD
+// and Bluetooth streams cannot be mixed and fall back to the old behaviour.
+// ---------------------------------------------------------------------------
+
+static lv_obj_t *crossfade_switch;
+static lv_obj_t *crossfade_card, *crossfade_value, *crossfade_slider;
+
+#define XFADE_MIN_SECONDS 1
+#define XFADE_MAX_SECONDS 12
+#define XFADE_STEPS (XFADE_MAX_SECONDS - XFADE_MIN_SECONDS + 1)
+
+static int crossfade_seconds_setting(void) {
+	int v = (int)config_get_int("audio", "crossfade_seconds", 6);
+	if (v < XFADE_MIN_SECONDS) {
+		v = XFADE_MIN_SECONDS;
+	}
+	if (v > XFADE_MAX_SECONDS) {
+		v = XFADE_MAX_SECONDS;
+	}
+	return v;
+}
+
+static void crossfade_apply_setting(void) {
+	audio_set_crossfade(config_get_bool("audio", "crossfade", false), crossfade_seconds_setting());
+}
+
+static void crossfade_refresh_labels(void) {
+	if (!crossfade_switch || !crossfade_value || !crossfade_card) {
+		return;
+	}
+	lv_label_set_text_fmt(crossfade_value, "%d s", crossfade_seconds_setting());
+	bool on = config_get_bool("audio", "crossfade", false);
+	if (on) {
+		lv_obj_add_state(crossfade_switch, LV_STATE_CHECKED);
+	} else {
+		lv_obj_remove_state(crossfade_switch, LV_STATE_CHECKED);
+	}
+	settingsrow_toggle_slider_expanded(crossfade_card, on);
+}
+
+static void crossfade_toggle_cb(lv_event_t *e) {
+	(void)e;
+	bool on = lv_obj_has_state(crossfade_switch, LV_STATE_CHECKED);
+	// No gapless hold means no overlap, so switch it on with crossfade.
+	if (on && !musicsettings_gapless_enabled()) {
+		musicsettings_set_gapless_enabled(true);
+	}
+	config_set_bool("audio", "crossfade", on);
+	config_save();
+	crossfade_apply_setting();
+	crossfade_refresh_labels();
+}
+
+static void crossfade_slider_cb(lv_event_t *e) {
+	(void)e;
+	int seconds = XFADE_MIN_SECONDS + (int)lv_slider_get_value(crossfade_slider);
+	config_set_int("audio", "crossfade_seconds", seconds);
+	config_save();
+	crossfade_apply_setting();
+	lv_label_set_text_fmt(crossfade_value, "%d s", seconds);
+}
+
 static void gapless_toggle_cb(lv_event_t *e) {
 	(void)e;
-	musicsettings_set_gapless_enabled(lv_obj_has_state(gapless_switch, LV_STATE_CHECKED));
+	bool enabled = lv_obj_has_state(gapless_switch, LV_STATE_CHECKED);
+	musicsettings_set_gapless_enabled(enabled);
+	// Crossfade cannot overlap without the hold. Turn it off too, so the
+	// switch does not promise an effect the engine will not produce.
+	if (!enabled && config_get_bool("audio", "crossfade", false)) {
+		config_set_bool("audio", "crossfade", false);
+		config_save();
+		crossfade_apply_setting();
+		crossfade_refresh_labels();
+	}
 }
 
 static void dre_toggle_cb(lv_event_t *e) {
@@ -308,6 +382,21 @@ static void build_fade_page(gui_config_t *cfg) {
 		lv_obj_add_state(gapless_switch, LV_STATE_CHECKED);
 	}
 
+	// True crossfade, off by default. Duration runs to 12 seconds, one step
+	// per second. The row collapses when the switch is off, like the fade row.
+	crossfade_card = settingsrow_toggle_slider(container, "musicsettings_true_crossfade", XFADE_STEPS, &crossfade_switch,
+												&crossfade_value, &crossfade_slider, crossfade_toggle_cb,
+												crossfade_slider_cb);
+	lv_slider_set_value(crossfade_slider, crossfade_seconds_setting() - XFADE_MIN_SECONDS, LV_ANIM_OFF);
+	{
+		lv_obj_t *note = lv_label_create(container);
+		lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
+		lv_obj_set_width(note, lv_pct(100));
+		lv_obj_add_style(note, &theme_style_text_dim, 0);
+		lv_obj_set_style_text_font(note, &font_ui_22, 0);
+		lv_label_set_text(note, tr("musicsettings_true_crossfade_note"));
+	}
+
 	fade_card = settingsrow_toggle_slider(container, "fade", FADE_STEPS, &fade_switch, &fade_value,
 										  &fade_slider, fade_toggle_cb, fade_slider_cb);
 	lv_slider_set_value(fade_slider, fade_seconds_setting() - FADE_MIN_SECONDS, LV_ANIM_OFF);
@@ -320,6 +409,7 @@ static void build_fade_page(gui_config_t *cfg) {
 	lv_label_set_text(note, tr("musicsettings_fade_note"));
 
 	fade_refresh_labels();
+	crossfade_refresh_labels();
 	switcher_attach_back_gesture(fade_screen);
 }
 
