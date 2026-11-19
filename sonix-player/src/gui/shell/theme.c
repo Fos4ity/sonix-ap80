@@ -26,6 +26,7 @@ typedef struct {
 	const char *name;
 	theme_palette_t palette;
 	lv_color_t border;
+	const char *wallpaper; // relative to SONIX_RESOURCE_DIR "/gui/", or NULL
 } theme_preset_t;
 
 // Authentic Omarchy theme palettes (from colors.toml) + Light mode.
@@ -44,6 +45,7 @@ static const theme_preset_t THEME_PRESETS[THEME_PRESET_COUNT] = {
 			.dark = true,
 		},
 		.border = LV_COLOR_MAKE(127, 110, 110), // #7f6e6e
+		.wallpaper = SONIX_RESOURCE_DIR "/gui/wallpaper-cpunk.png",
 	},
 	{
 		.name = "Miasma",
@@ -59,6 +61,7 @@ static const theme_preset_t THEME_PRESETS[THEME_PRESET_COUNT] = {
 			.dark = true,
 		},
 		.border = LV_COLOR_MAKE(102, 102, 102), // #666666
+		.wallpaper = SONIX_RESOURCE_DIR "/gui/wallpaper-miasma.png",
 	},
 	{
 		.name = "Ash",
@@ -74,6 +77,7 @@ static const theme_preset_t THEME_PRESETS[THEME_PRESET_COUNT] = {
 			.dark = true,
 		},
 		.border = LV_COLOR_MAKE(90, 90, 90), // #5a5a5a
+		.wallpaper = SONIX_RESOURCE_DIR "/gui/wallpaper-ash.png",
 	},
 	{
 		.name = "Matte Black",
@@ -89,6 +93,7 @@ static const theme_preset_t THEME_PRESETS[THEME_PRESET_COUNT] = {
 			.dark = true,
 		},
 		.border = LV_COLOR_MAKE(68, 68, 68), // #444444
+		.wallpaper = SONIX_RESOURCE_DIR "/gui/wallpaper-matte-black.png",
 	},
 	{
 		.name = "Tokyo Night",
@@ -104,6 +109,7 @@ static const theme_preset_t THEME_PRESETS[THEME_PRESET_COUNT] = {
 			.dark = true,
 		},
 		.border = LV_COLOR_MAKE(65, 72, 104), // #414868
+		.wallpaper = SONIX_RESOURCE_DIR "/gui/wallpaper-tokyo-night.png",
 	},
 	{
 		.name = "Gruvbox",
@@ -119,6 +125,7 @@ static const theme_preset_t THEME_PRESETS[THEME_PRESET_COUNT] = {
 			.dark = true,
 		},
 		.border = LV_COLOR_MAKE(102, 92, 84), // #665c54
+		.wallpaper = SONIX_RESOURCE_DIR "/gui/wallpaper-gruvbox.png",
 	},
 	{
 		.name = "Light",
@@ -134,6 +141,7 @@ static const theme_preset_t THEME_PRESETS[THEME_PRESET_COUNT] = {
 			.dark = false,
 		},
 		.border = LV_COLOR_MAKE(200, 200, 200),
+		.wallpaper = NULL,
 	},
 };
 
@@ -430,6 +438,11 @@ void theme_apply_wallpaper_pixels(uint16_t *pixels, int w, int h, const char *sa
 	}
 }
 
+static const char *preset_default_wallpaper(void) {
+	const char *wp = THEME_PRESETS[preset_index].wallpaper;
+	return wp ? wp : (SONIX_RESOURCE_DIR "/gui/wallpaper.png");
+}
+
 bool theme_set_wallpaper_file(const char *path, int target_w, int target_h) {
 	if (target_w <= 0) target_w = 480;
 	if (target_h <= 0) target_h = 800;
@@ -439,7 +452,7 @@ bool theme_set_wallpaper_file(const char *path, int target_w, int target_h) {
 		return true;
 	}
 
-	const char *load_path = (path && path[0]) ? path : (SONIX_RESOURCE_DIR "/gui/wallpaper.png");
+	const char *load_path = (path && path[0]) ? path : preset_default_wallpaper();
 	int w = 0, h = 0;
 	uint16_t *px = theme_decode_wallpaper_rgb565(load_path, target_w, target_h,
 												 wallpaper_scale_pct, wallpaper_pan_x, wallpaper_pan_y,
@@ -457,7 +470,7 @@ const char *theme_get_wallpaper_load_path(void) {
 	if (strcmp(wallpaper_saved_path, "none") == 0) {
 		return NULL;
 	}
-	return wallpaper_saved_path[0] ? wallpaper_saved_path : (SONIX_RESOURCE_DIR "/gui/wallpaper.png");
+	return wallpaper_saved_path[0] ? wallpaper_saved_path : preset_default_wallpaper();
 }
 
 int theme_get_wallpaper_opacity(void) { return wallpaper_opacity_pct; }
@@ -529,14 +542,14 @@ static void wallpaper_load(void) {
 		return;
 	}
 
-	const char *load_path = (chosen && chosen[0]) ? chosen : (SONIX_RESOURCE_DIR "/gui/wallpaper.png");
+	const char *load_path = (chosen && chosen[0]) ? chosen : preset_default_wallpaper();
 	int w = 0, h = 0;
 	uint16_t *px = theme_decode_wallpaper_rgb565(load_path, 480, 800,
 												 wallpaper_scale_pct, wallpaper_pan_x, wallpaper_pan_y,
 												 &w, &h);
 	if (!px && chosen && chosen[0]) {
-		// Fall back to default bundled wallpaper if saved file is missing.
-		px = theme_decode_wallpaper_rgb565(SONIX_RESOURCE_DIR "/gui/wallpaper.png", 480, 800,
+		// Fall back to preset wallpaper if saved file is missing.
+		px = theme_decode_wallpaper_rgb565(preset_default_wallpaper(), 480, 800,
 										   wallpaper_scale_pct, wallpaper_pan_x, wallpaper_pan_y,
 										   &w, &h);
 	}
@@ -828,6 +841,28 @@ void theme_set_preset(int index) {
 		dark_selected = false;
 	}
 	rebuild_active();
+	// If using the theme-default wallpaper (not a custom file or "none"), swap
+	// to this theme's bundled 480x800 wallpaper automatically.
+	if (!wallpaper_saved_path[0] && THEME_PRESETS[index].wallpaper) {
+		int w = 0, h = 0;
+		uint16_t *px = theme_decode_wallpaper_rgb565(THEME_PRESETS[index].wallpaper, 480, 800,
+													 wallpaper_scale_pct, wallpaper_pan_x, wallpaper_pan_y,
+													 &w, &h);
+		if (px) {
+			lv_style_set_bg_image_src(&theme_style_screen, NULL);
+			free(wallpaper_pixels);
+			wallpaper_pixels = px;
+			memset(&wallpaper_dsc, 0, sizeof(wallpaper_dsc));
+			wallpaper_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+			wallpaper_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
+			wallpaper_dsc.header.w = (uint32_t)w;
+			wallpaper_dsc.header.h = (uint32_t)h;
+			wallpaper_dsc.header.stride = (uint32_t)w * 2;
+			wallpaper_dsc.data_size = (uint32_t)((size_t)w * (size_t)h * sizeof(uint16_t));
+			wallpaper_dsc.data = (const uint8_t *)wallpaper_pixels;
+			wallpaper_ready = true;
+		}
+	}
 	apply_palette();
 
 	config_set_int("ui", "theme_preset", preset_index);

@@ -460,7 +460,7 @@ void wallpaperpage_init(gui_config_t *cfg) {
 	// --- Source image ---
 	settingsrow_heading(container, "Image");
 
-	lv_obj_t *default_row = settingsrow_action(container, "Default (cpunk)", default_cb, NULL);
+	lv_obj_t *default_row = settingsrow_action(container, "Default (matches theme)", default_cb, NULL);
 	default_check = add_check(default_row);
 
 	lv_obj_t *none_row = settingsrow_action(container, "None", none_cb, NULL);
