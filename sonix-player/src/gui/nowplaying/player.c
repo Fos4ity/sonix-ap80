@@ -3055,10 +3055,8 @@ static void apply_custom_art_layout(void) {
 	int top_y = layout_carousel_now ? 116 : 106;
 	lv_obj_set_size(art_frame, box, box);
 	lv_obj_align(art_frame, LV_ALIGN_TOP_MID, 0, top_y);
-	lv_obj_set_style_bg_color(art_frame, theme()->surface, 0);
-	lv_obj_set_style_border_color(art_frame,
-								  layout_carousel_now ? lv_color_make(170, 172, 172) : lv_color_make(127, 110, 110),
-								  0);
+	lv_obj_set_style_bg_opa(art_frame, LV_OPA_TRANSP, 0);
+	lv_obj_set_style_border_width(art_frame, 0, 0);
 	lv_obj_set_hidden(art_frame, false);
 
 	lv_obj_set_parent(cover_img, art_frame);
@@ -5852,12 +5850,9 @@ void player_init(gui_config_t *cfg) {
 	lv_obj_remove_style_all(art_frame);
 	lv_obj_set_size(art_frame, 300, 300);
 	lv_obj_align(art_frame, LV_ALIGN_TOP_MID, 0, 106);
-	lv_obj_set_style_bg_color(art_frame, theme()->surface, 0);
-	lv_obj_set_style_bg_opa(art_frame, LV_OPA_COVER, 0);
+	lv_obj_set_style_bg_opa(art_frame, LV_OPA_TRANSP, 0);
 	lv_obj_set_style_radius(art_frame, 14, 0);
-	lv_obj_set_style_border_width(art_frame, 1, 0);
-	lv_obj_set_style_border_color(art_frame, lv_color_make(127, 110, 110), 0);
-	lv_obj_set_style_border_opa(art_frame, LV_OPA_80, 0);
+	lv_obj_set_style_border_width(art_frame, 0, 0);
 	lv_obj_set_style_clip_corner(art_frame, true, 0);
 	lv_obj_set_scrollable(art_frame, false);
 	lv_obj_set_clickable(art_frame, false);
