@@ -29,7 +29,7 @@ typedef struct {
 	int sample_rate; // Hz
 	int bits;		 // source depth: 16, 24 or 32
 	int channels;
-	bool dsd;		 // DoP markers cannot be mixed
+	bool dsd;		// DoP markers cannot be mixed
 	bool bluetooth; // a2dp link, not a mixable local PCM stream
 } crossfade_stream_t;
 
@@ -50,9 +50,7 @@ bool crossfade_should_apply(const crossfade_config_t *cfg, const crossfade_strea
 
 // Blend two interleaved buffers into `dst`: dst = out*out_gain + in*in_gain,
 // with both gains in Q15. `samples` counts individual samples, not frames.
-void crossfade_mix_s16(short *dst, const short *out, const short *in, int samples, int out_gain_q15,
-					   int in_gain_q15);
-void crossfade_mix_s32(int32_t *dst, const int32_t *out, const int32_t *in, int samples, int out_gain_q15,
-					   int in_gain_q15);
+void crossfade_mix_s16(short *dst, const short *out, const short *in, int samples, int out_gain_q15, int in_gain_q15);
+void crossfade_mix_s32(int32_t *dst, const int32_t *out, const int32_t *in, int samples, int out_gain_q15, int in_gain_q15);
 
 #endif // CROSSFADE_H

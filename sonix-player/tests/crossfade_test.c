@@ -25,9 +25,7 @@ static void check(bool ok, const char *what) {
 	}
 }
 
-static bool near(int got, int want, int tolerance) {
-	return abs(got - want) <= tolerance;
-}
+static bool near(int got, int want, int tolerance) { return abs(got - want) <= tolerance; }
 
 static crossfade_config_t good_config(void) {
 	crossfade_config_t cfg = {true, true, 6};
@@ -130,8 +128,7 @@ static void test_mix(void) {
 	crossfade_mix_s32(dst_s32, out_s32, in_s32, 2, 0, 32768);
 	check(dst_s32[0] == 0 && dst_s32[1] == 0, "S32 mix applies the incoming arm");
 
-	check(crossfade_clamp_seconds(0) == 1 && crossfade_clamp_seconds(99) == 12 && crossfade_clamp_seconds(6) == 6,
-		  "duration clamps into 1..12 seconds");
+	check(crossfade_clamp_seconds(0) == 1 && crossfade_clamp_seconds(99) == 12 && crossfade_clamp_seconds(6) == 6, "duration clamps into 1..12 seconds");
 }
 
 int main(void) {

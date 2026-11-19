@@ -82,8 +82,7 @@ void crossfade_mix_s16(short *dst, const short *out, const short *in, int sample
 	}
 }
 
-void crossfade_mix_s32(int32_t *dst, const int32_t *out, const int32_t *in, int samples, int out_gain_q15,
-					   int in_gain_q15) {
+void crossfade_mix_s32(int32_t *dst, const int32_t *out, const int32_t *in, int samples, int out_gain_q15, int in_gain_q15) {
 	for (int i = 0; i < samples; i++) {
 		long long v = ((long long)out[i] * out_gain_q15 + (long long)in[i] * in_gain_q15) >> 15;
 		if (v > 2147483647LL) {
