@@ -341,14 +341,15 @@ static uint32_t carousel_gen;
 static void carousel_refresh_sides(void);
 static void apply_custom_art_layout(void);
 
-// Fast art-only fade-out / fade-in on track switch.
-#define COVER_FADE_OUT_MS 100
-#define COVER_FADE_IN_MS 140
+// Smooth art-only fade-out / fade-in on track switch (~1.2s total).
+#define COVER_FADE_OUT_MS 500
+#define COVER_FADE_IN_MS 700
 static bool cover_fade_pending;
+static bool cover_fade_hide_placeholder;
 static char cover_fade_path[512];
 
 static void cover_opa_anim_cb(void *var, int32_t v) {
-	lv_obj_set_style_opa((lv_obj_t *)var, (lv_opa_t)v, 0);
+	lv_obj_set_style_image_opa((lv_obj_t *)var, (lv_opa_t)v, 0);
 }
 
 static void cover_fade_in(lv_obj_t *obj) {
@@ -356,14 +357,14 @@ static void cover_fade_in(lv_obj_t *obj) {
 		return;
 	}
 	lv_anim_delete(obj, cover_opa_anim_cb);
-	lv_obj_set_style_opa(obj, LV_OPA_TRANSP, 0);
+	lv_obj_set_style_image_opa(obj, LV_OPA_TRANSP, 0);
 	lv_anim_t a;
 	lv_anim_init(&a);
 	lv_anim_set_var(&a, obj);
 	lv_anim_set_exec_cb(&a, cover_opa_anim_cb);
 	lv_anim_set_values(&a, LV_OPA_TRANSP, LV_OPA_COVER);
 	lv_anim_set_duration(&a, COVER_FADE_IN_MS);
-	lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+	lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
 	lv_anim_start(&a);
 }
 
@@ -3531,13 +3532,18 @@ static void cover_fade_out_done_cb(lv_anim_t *a) {
 		return;
 	}
 	cover_fade_pending = false;
+	cover_fade_hide_placeholder = true;
 	reload_cover(cover_fade_path);
+	if (cover_placeholder_icon && cover_request_outstanding) {
+		lv_obj_set_hidden(cover_placeholder_icon, true);
+	}
 }
 
 static void reload_cover_with_fade(const char *filepath) {
 	if (!cover_img || !current_cover.pixels || lv_screen_active() != player_screen ||
 		lv_obj_is_hidden(cover_img)) {
 		cover_fade_pending = false;
+		cover_fade_hide_placeholder = false;
 		reload_cover(filepath);
 		return;
 	}
@@ -3548,9 +3554,9 @@ static void reload_cover_with_fade(const char *filepath) {
 	lv_anim_init(&a);
 	lv_anim_set_var(&a, cover_img);
 	lv_anim_set_exec_cb(&a, cover_opa_anim_cb);
-	lv_anim_set_values(&a, lv_obj_get_style_opa(cover_img, 0), LV_OPA_TRANSP);
+	lv_anim_set_values(&a, lv_obj_get_style_image_opa(cover_img, 0), LV_OPA_TRANSP);
 	lv_anim_set_duration(&a, COVER_FADE_OUT_MS);
-	lv_anim_set_path_cb(&a, lv_anim_path_ease_in);
+	lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
 	lv_anim_set_completed_cb(&a, cover_fade_out_done_cb);
 	lv_anim_start(&a);
 }
@@ -3570,9 +3576,9 @@ static void cover_pulse_same_art(void) {
 	lv_anim_init(&a);
 	lv_anim_set_var(&a, cover_img);
 	lv_anim_set_exec_cb(&a, cover_opa_anim_cb);
-	lv_anim_set_values(&a, lv_obj_get_style_opa(cover_img, 0), LV_OPA_TRANSP);
+	lv_anim_set_values(&a, lv_obj_get_style_image_opa(cover_img, 0), LV_OPA_TRANSP);
 	lv_anim_set_duration(&a, COVER_FADE_OUT_MS);
-	lv_anim_set_path_cb(&a, lv_anim_path_ease_in);
+	lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
 	lv_anim_set_completed_cb(&a, cover_same_pulse_done_cb);
 	lv_anim_start(&a);
 }
@@ -3665,11 +3671,12 @@ static void apply_cover_result(void) {
 		lv_obj_set_size(cover_img, current_cover.dsc.header.w, current_cover.dsc.header.h);
 		lv_obj_center(cover_img);
 
+		cover_fade_hide_placeholder = false;
 		cover_show(true);
 		if (lv_screen_active() == player_screen) {
 			cover_fade_in(cover_img);
 		} else {
-			lv_obj_set_style_opa(cover_img, LV_OPA_COVER, 0);
+			lv_obj_set_style_image_opa(cover_img, LV_OPA_COVER, 0);
 		}
 
 		if (new_backdrop.pixels) {
@@ -3706,6 +3713,10 @@ static void apply_cover_result(void) {
 	if (!has_cover) {
 		cover_shown_id = 0; // nothing to compare the next track against
 		lyrics_bg_forget(); // no picture, nothing to blur
+		if (cover_fade_hide_placeholder) {
+			cover_fade_hide_placeholder = false;
+			cover_show(false);
+		}
 	}
 	bar_over_player_update();
 	if (lyrics_progress > 0) {
