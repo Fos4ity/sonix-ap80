@@ -3540,7 +3540,7 @@ static void cover_fade_out_done_cb(lv_anim_t *a) {
 }
 
 static void reload_cover_with_fade(const char *filepath) {
-	if (!cover_img || !current_cover.pixels || lv_screen_active() != player_screen ||
+	if (!cover_img || !current_cover.pixels || !sheet_open ||
 		lv_obj_is_hidden(cover_img)) {
 		cover_fade_pending = false;
 		cover_fade_hide_placeholder = false;
@@ -3567,7 +3567,7 @@ static void cover_same_pulse_done_cb(lv_anim_t *a) {
 }
 
 static void cover_pulse_same_art(void) {
-	if (!cover_img || !current_cover.pixels || lv_screen_active() != player_screen ||
+	if (!cover_img || !current_cover.pixels || !sheet_open ||
 		lv_obj_is_hidden(cover_img)) {
 		return;
 	}
@@ -3673,7 +3673,7 @@ static void apply_cover_result(void) {
 
 		cover_fade_hide_placeholder = false;
 		cover_show(true);
-		if (lv_screen_active() == player_screen) {
+		if (sheet_open) {
 			cover_fade_in(cover_img);
 		} else {
 			lv_obj_set_style_image_opa(cover_img, LV_OPA_COVER, 0);
