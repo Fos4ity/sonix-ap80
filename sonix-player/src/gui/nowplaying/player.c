@@ -4658,6 +4658,32 @@ static void next_btn_event_cb(lv_event_t *e) {
 	player_screen_next();
 }
 
+static void cover_double_tap_cb(lv_event_t *e) {
+	static uint32_t last_tap_ms;
+	static bool has_tap;
+
+	if (player_sheet_drag_active() || lyrics_swiped || lyrics_now) {
+		has_tap = false;
+		return;
+	}
+
+	lv_obj_t *target = lv_event_get_target(e);
+	if (target == carousel_prev_frame || target == carousel_next_frame) {
+		has_tap = false;
+		return;
+	}
+
+	uint32_t now = lv_tick_get();
+	if (has_tap && lv_tick_elaps(last_tap_ms) <= 350) {
+		has_tap = false;
+		player_screen_next();
+		return;
+	}
+
+	has_tap = true;
+	last_tap_ms = now;
+}
+
 // --- hardware transport keys ---
 //
 // They do exactly what the on-screen buttons do, whichever page is showing:
@@ -5881,6 +5907,7 @@ void player_init(gui_config_t *cfg) {
 	cover_panel = lv_obj_create(player_screen);
 	// Dragging the artwork to the right pushes the player back off screen.
 	player_sheet_attach_drag(cover_panel, false);
+	lv_obj_add_event_cb(cover_panel, cover_double_tap_cb, LV_EVENT_CLICKED, NULL);
 	// Studio stretches the panel down over the top of the controls, where the
 	// taller shape of the track can reach: presses there go to the slider.
 	lv_obj_set_adv_hittest(cover_panel, true);
