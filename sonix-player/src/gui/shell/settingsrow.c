@@ -372,6 +372,10 @@ static lv_obj_t *make_slider(lv_obj_t *card, int steps, lv_event_cb_t cb) {
 	lv_obj_set_style_shadow_color(slider, lv_color_black(), LV_PART_KNOB);
 	lv_obj_set_style_shadow_offset_y(slider, 1, LV_PART_KNOB);
 
+	// A slim trough is a hard touch target; let the finger land comfortably around
+	// the track without reaching into the toggle switch or neighbouring cards.
+	lv_obj_set_ext_click_area(slider, 32);
+
 	if (cb) {
 		lv_obj_add_event_cb(slider, cb, LV_EVENT_VALUE_CHANGED, NULL);
 	}
@@ -554,7 +558,6 @@ lv_obj_t *settingsrow_toggle_slider(lv_obj_t *parent, const char *name, int step
 
 	lv_obj_t *slider = make_slider(card, steps, slider_cb);
 	lv_obj_align(slider, LV_ALIGN_BOTTOM_MID, 0, -10);
-	lv_obj_set_ext_click_area(slider, 20);
 
 	// Step marks as on the plain slider card; without them the control stops
 	// reading as a slider with a handful of positions. They go in a

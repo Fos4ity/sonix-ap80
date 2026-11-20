@@ -561,7 +561,7 @@ void metronomepage_init(gui_config_t *cfg) {
 	lv_obj_set_style_shadow_opa(slider, LV_OPA_30, LV_PART_KNOB);
 	lv_obj_set_style_shadow_color(slider, lv_color_black(), LV_PART_KNOB);
 	lv_obj_set_style_shadow_offset_y(slider, 1, LV_PART_KNOB);
-	lv_obj_set_ext_click_area(slider, 20);
+	lv_obj_set_ext_click_area(slider, 28);
 	lv_obj_add_event_cb(slider, slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
 	// Tap, start and stop, the bar.

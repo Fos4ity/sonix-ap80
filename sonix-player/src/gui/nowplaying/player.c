@@ -5724,6 +5724,7 @@ void player_init(gui_config_t *cfg) {
 	lv_obj_set_style_shadow_opa(progress_slider, LV_OPA_40, LV_PART_KNOB);
 	lv_obj_set_style_shadow_color(progress_slider, lv_color_black(), LV_PART_KNOB);
 	lv_obj_set_style_shadow_offset_y(progress_slider, 1, LV_PART_KNOB);
+	lv_obj_set_ext_click_area(progress_slider, 24);
 
 	lv_obj_add_event_cb(progress_slider, progress_slider_event_cb, LV_EVENT_ALL, NULL);
 

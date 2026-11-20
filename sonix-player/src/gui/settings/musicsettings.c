@@ -922,7 +922,7 @@ static void build_mseb_page(gui_config_t *cfg) {
 		lv_obj_set_adv_hittest(slider, true);
 		// The knob is 24 px across, and with ADV_HITTEST the extended click area
 		// belongs to the knob alone rather than padding the whole track.
-		lv_obj_set_ext_click_area(slider, 18);
+		lv_obj_set_ext_click_area(slider, 28);
 		lv_obj_add_event_cb(slider, mseb_slider_cb, LV_EVENT_VALUE_CHANGED, (void *)(intptr_t)i);
 		lv_obj_add_event_cb(slider, mseb_released_cb, LV_EVENT_RELEASED, NULL);
 

@@ -286,7 +286,7 @@ static void build_screen_page(gui_config_t *cfg) {
 
 	// A slim trough is a hard touch target; let the finger land anywhere in
 	// the card's lower half.
-	lv_obj_set_ext_click_area(brightness_slider, 24);
+	lv_obj_set_ext_click_area(brightness_slider, 32);
 
 	lv_obj_add_event_cb(brightness_slider, brightness_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
 	lv_obj_add_event_cb(brightness_slider, brightness_released_cb, LV_EVENT_RELEASED, NULL);
