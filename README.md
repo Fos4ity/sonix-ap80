@@ -5,17 +5,26 @@
 > 
 > Huge thanks for Jepl4r/M4ttia for being the one to start this project!
 
-A replacement player for the **HiBy R3 Pro II** and the **HiBy R1**, written on
-LVGL.
+A replacement player for the **HiBy R3 Pro II** and the **HiBy R1**, written on LVGL.
 
-Everything it can do is in **[FEATURES.md](FEATURES.md)**.
+### Why install the Omarchy R1 Edition?
+
+This fork turns the HiBy R1 into a much more responsive, personal, and deeply customizable pocket music player while keeping the entire multi-language experience intact:
+
+- **Tailored for the R1 touchscreen:** All UI sliders (settings, EQ/PEQ, MSEB knobs, Quick Panel brightness, Metronome, and the Now Playing scrub bar) have enlarged touch targets so they are effortless to grab with a thumb.
+- **Rich visual customization without wasting flash:** Pick from 7 curated Omarchy themes (`CpUnk`, `Miasma`, `Ash`, `Matte Black`, `Tokyo Night`, `Gruvbox`, `Light`), fine-tune any accent colour with a live **Custom hue** slider, and style your menus (card surface, corner radius, borders, clock position) and Now Playing screen (`Standard`, `Square`, or `Carousel` layouts with smooth album-art fades).
+- **Zero-bloat SD card personalization:** Drop your own `.png`/`.jpg` wallpapers anywhere on the microSD card (or theme-matched wallpapers in `.local/wallpapers/`), and place custom `.ttf`/`.otf` UI fonts (`jetbrains.ttf`, `victor.ttf`, `custom.ttf`, etc.) in `.local/fonts/` on your microSD card — giving you unlimited fonts and wallpapers without filling the R1's internal flash.
+- **Quick gestures & full language support:** Configure double-tap on the Now Playing cover art (`Next`, `Play/Pause`, `Favourite`, or `Off`), and enjoy all 12 UI languages and non-Latin script fonts out of the box.
+
+Everything the base player can do is in **[FEATURES.md](FEATURES.md)**.
 
 ## Omarchy Fork Changes (HiBy R1)
 
 - **Download latest R1 firmware:** **[`r1.upt` (Latest Release)](https://github.com/Xkalin1990/sonix-player-r1-omarchy/releases/latest/download/r1.upt)** — see all releases on the **[Releases page](https://github.com/Xkalin1990/sonix-player-r1-omarchy/releases/latest)**.
-- **Omarchy themes & UI customization:** Added Omarchy theme presets (`CpUnk`, `Miasma`, `Ash`, `Matte Black`, `Tokyo Night`, `Gruvbox`, `Light`) along with **Menu Style** and **Player Style** settings pages (`Standard`, `Square`, and `Carousel` Now Playing layouts, plus album art fade transitions).
+- **Omarchy themes, custom hue & UI customization:** Added Omarchy theme presets (`CpUnk`, `Miasma`, `Ash`, `Matte Black`, `Tokyo Night`, `Gruvbox`, `Light`), a live **Custom hue** accent slider, **Menu & bar style** (card surface, corners, borders, clock position), and **Player style** (`Standard`, `Square`, and `Carousel` Now Playing layouts, backdrop/border options, and album art fade transitions).
+- **SD-card fonts & theme wallpapers:** `fonts.c` and `theme.c` load `jetbrains*.ttf`, `victor*.ttf`, `Bookerly*.ttf`, or `custom.ttf`/`custom.otf` from `<SD>/.local/fonts/` and theme-matched wallpapers from `<SD>/.local/wallpapers/` (e.g. `wallpaper-cpunk.png` or `cpunk.jpg`) at zero flash cost, alongside the microSD wallpaper browser in **Menu wallpaper**.
 - **Larger slider touch targets:** Expanded touch hit areas across settings, Now Playing progress bar, MSEB knobs, Quick Panel brightness, and Metronome sliders so they are easier to grab on the touchscreen.
-- **Double-tap to skip:** Double-tapping the album art on the Now Playing screen skips to the next track.
+- **Configurable cover double-tap:** Double-tapping the album art on the Now Playing screen can be set in **Player style** to **Next**, **Play/Pause**, **Fav**, or **Off**.
 - **Slimmed R1 flash image:** Removed `wallpaper*.png`, extra font faces (`jetbrains*.ttf`, `victor*.ttf`), and optional bold CJK fallback fonts (`japanese-bold.otf`, `korean-bold.otf` — `fonts.c` falls back to the regular faces) from `sonix-packer/assets/R1/usr/resource/sonix/` while keeping all language fonts so `rootfs.squashfs` fits within the HiBy R1 flash partition size.
 
 ## Install

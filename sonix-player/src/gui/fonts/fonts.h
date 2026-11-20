@@ -72,8 +72,11 @@ bool fonts_init(void);
 #define FONTS_FAMILY_JETBRAINS 1
 #define FONTS_FAMILY_VICTOR 2
 #define FONTS_FAMILY_BOOKERLY 3
-#define FONTS_FAMILY_COUNT 4
+#define FONTS_FAMILY_CUSTOM 4
+#define FONTS_FAMILY_COUNT 5
 
+void fonts_set_card_root(const char *sd_root);
+bool fonts_family_available(int family);
 int fonts_get_family(void);
 const char *fonts_family_name(int family);
 bool fonts_set_family(int family);

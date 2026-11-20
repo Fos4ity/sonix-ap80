@@ -98,6 +98,16 @@ void player_show_format_set(bool show);
 bool player_show_queue_pos_get(void);
 void player_show_queue_pos_set(bool show);
 
+typedef enum {
+	PLAYER_DOUBLE_TAP_NEXT = 0,       // next track (default)
+	PLAYER_DOUBLE_TAP_PLAY_PAUSE = 1, // toggle play/pause
+	PLAYER_DOUBLE_TAP_FAVOURITE = 2,  // toggle favourite
+	PLAYER_DOUBLE_TAP_OFF = 3,        // disabled
+} player_double_tap_action_t;
+
+player_double_tap_action_t player_double_tap_get(void);
+void player_double_tap_set(player_double_tap_action_t action);
+
 // The output the music was going to has just been unplugged -- a jack pulled
 // out, a USB-C DAC removed, headphones that walked out of range. Pauses, so
 // that taking the headphones off does not cost three tracks of an album, and

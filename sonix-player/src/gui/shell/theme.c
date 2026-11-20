@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 lv_style_t theme_style_screen;
 lv_style_t theme_style_panel;
@@ -152,6 +153,9 @@ static theme_palette_t palette_light;
 static int preset_index = 0;      // active preset (0..THEME_PRESET_COUNT-1)
 static int last_dark_preset = 0;  // remembered when toggling Light <-> Dark
 static bool custom_accent_override = false;
+static int custom_hue = -1; // 0..359 when custom hue slider is active, -1 otherwise
+static char sd_wallpaper_dir[448];
+static char sd_wallpaper_buf[512];
 
 // Whether the dark preset is the chosen one, kept apart from `active` because
 // with the dynamic tint on `active` points at a derived copy rather than at
@@ -190,6 +194,26 @@ lv_color_t theme_accent_preset(int index) {
 
 int theme_get_accent(void) { return accent_index; }
 bool theme_has_custom_accent(void) { return custom_accent_override; }
+int theme_get_custom_accent_hue(void) { return custom_hue; }
+bool theme_has_custom_hue(void) { return custom_accent_override && custom_hue >= 0; }
+
+static lv_color_t color_from_hue(int hue) {
+	int h = ((hue % 360) + 360) % 360;
+	int sector = h / 60;
+	int rem = (h % 60) * 255 / 60;
+	int hi = 245;
+	int lo = 37;
+	int rise = lo + ((hi - lo) * rem) / 255;
+	int fall = hi - ((hi - lo) * rem) / 255;
+	switch (sector) {
+	case 0: return lv_color_make(hi, rise, lo);
+	case 1: return lv_color_make(fall, hi, lo);
+	case 2: return lv_color_make(lo, hi, rise);
+	case 3: return lv_color_make(lo, fall, hi);
+	case 4: return lv_color_make(rise, lo, hi);
+	default: return lv_color_make(hi, lo, fall);
+	}
+}
 
 // Callers asking to be called back after a theme or accent change. The list
 // grows on demand and has no fixed limit: a dropped registration shows up only
@@ -500,7 +524,24 @@ void theme_apply_wallpaper_pixels(uint16_t *pixels, int w, int h, const char *sa
 	refresh_all();
 }
 
+static const char *preset_slug(int idx) {
+	static const char *const SLUGS[THEME_PRESET_COUNT] = {
+		"cpunk", "miasma", "ash", "matte-black", "tokyo-night", "gruvbox", "light",
+	};
+	return (idx >= 0 && idx < THEME_PRESET_COUNT) ? SLUGS[idx] : "cpunk";
+}
+
 static const char *preset_default_wallpaper(void) {
+	if (sd_wallpaper_dir[0]) {
+		const char *slug = preset_slug(preset_index);
+		static const char *const PATS[4] = {"%s/wallpaper-%s.png", "%s/wallpaper-%s.jpg", "%s/%s.png", "%s/%s.jpg"};
+		for (int i = 0; i < 4; i++) {
+			int n = snprintf(sd_wallpaper_buf, sizeof(sd_wallpaper_buf), PATS[i], sd_wallpaper_dir, slug);
+			if (n > 0 && (size_t)n < sizeof(sd_wallpaper_buf) && access(sd_wallpaper_buf, R_OK) == 0) {
+				return sd_wallpaper_buf;
+			}
+		}
+	}
 	const char *wp = THEME_PRESETS[preset_index].wallpaper;
 	return wp ? wp : (SONIX_RESOURCE_DIR "/gui/wallpaper.png");
 }
@@ -749,9 +790,11 @@ void theme_init(void) {
 		accent_index = 0;
 	}
 	custom_accent_override = config_get_bool("ui", "accent_override", false);
+	custom_hue = (int)config_get_int("ui", "accent_hue", -1);
 	if (custom_accent_override) {
-		palette_dark.accent = ACCENT_COLORS[accent_index];
-		palette_light.accent = ACCENT_COLORS[accent_index];
+		lv_color_t ac = (custom_hue >= 0 && custom_hue < 360) ? color_from_hue(custom_hue) : ACCENT_COLORS[accent_index];
+		palette_dark.accent = ac;
+		palette_light.accent = ac;
 	}
 
 	dynamic_tint = config_get_bool("ui", "dynamic_tint", false);
@@ -971,6 +1014,7 @@ void theme_set_preset(int index) {
 	preset_index = index;
 	preset_wp_seq++;
 	custom_accent_override = false;
+	custom_hue = -1;
 	if (THEME_PRESETS[index].palette.dark) {
 		last_dark_preset = index;
 		palette_dark = THEME_PRESETS[index].palette;
@@ -982,14 +1026,15 @@ void theme_set_preset(int index) {
 	rebuild_active();
 
 	// If using the theme-default wallpaper (not a custom file or "none"), swap
-	// to this theme's bundled 480x800 wallpaper asynchronously so the UI
-	// responds immediately without blocking on PNG decode.
+	// to this theme's 480x800 wallpaper (from SD .local/wallpapers or flash)
+	// asynchronously so the UI responds immediately without blocking on PNG decode.
 	bool async_wp_queued = false;
-	if (!wallpaper_saved_path[0] && THEME_PRESETS[index].wallpaper) {
+	const char *default_wp = preset_default_wallpaper();
+	if (!wallpaper_saved_path[0] && default_wp) {
 		preset_wp_job_t *job = calloc(1, sizeof(*job));
 		if (job) {
 			job->seq = preset_wp_seq;
-			snprintf(job->path, sizeof(job->path), "%s", THEME_PRESETS[index].wallpaper);
+			snprintf(job->path, sizeof(job->path), "%s", default_wp);
 			job->scale_pct = wallpaper_scale_pct;
 			job->pan_x = wallpaper_pan_x;
 			job->pan_y = wallpaper_pan_y;
@@ -1010,6 +1055,7 @@ void theme_set_preset(int index) {
 	config_set_int("ui", "theme_preset", preset_index);
 	config_set_bool("ui", "dark_theme", active->dark);
 	config_set_bool("ui", "accent_override", false);
+	config_set_int("ui", "accent_hue", -1);
 	config_save();
 
 	bootlogo_follow(active->dark, accent_index);
@@ -1027,6 +1073,7 @@ void theme_set_accent(int index) {
 	}
 	accent_index = index;
 	custom_accent_override = true;
+	custom_hue = -1;
 	palette_dark.accent = ACCENT_COLORS[index];
 	palette_light.accent = ACCENT_COLORS[index];
 	rebuild_active(); // the tint is drawn from the accent, so it moves with it
@@ -1037,11 +1084,40 @@ void theme_set_accent(int index) {
 
 	config_set_int("ui", "accent", index);
 	config_set_bool("ui", "accent_override", true);
+	config_set_int("ui", "accent_hue", -1);
 	config_save();
 
 	bootlogo_follow(active->dark, accent_index);
 
 	refresh_all();
+}
+
+void theme_set_custom_accent_hue(int hue) {
+	hue = ((hue % 360) + 360) % 360;
+	custom_hue = hue;
+	custom_accent_override = true;
+	lv_color_t ac = color_from_hue(hue);
+	palette_dark.accent = ac;
+	palette_light.accent = ac;
+	rebuild_active();
+	if (dynamic_tint) {
+		rebuild_wallpaper_blended();
+	}
+	apply_palette();
+
+	config_set_bool("ui", "accent_override", true);
+	config_set_int("ui", "accent_hue", hue);
+	config_save();
+
+	refresh_all();
+}
+
+void theme_set_card_root(const char *sd_root) {
+	if (sd_root && sd_root[0]) {
+		snprintf(sd_wallpaper_dir, sizeof(sd_wallpaper_dir), "%s/.local/wallpapers", sd_root);
+	} else {
+		sd_wallpaper_dir[0] = '\0';
+	}
 }
 
 bool theme_dynamic_tint(void) { return dynamic_tint; }

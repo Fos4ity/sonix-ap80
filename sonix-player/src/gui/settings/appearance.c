@@ -12,6 +12,7 @@
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
 #include "src/gui/shell/theme.h"
+#include "src/gui/shell/toast.h"
 #include "src/system/core/config.h"
 #include "src/system/core/lang.h"
 
@@ -19,6 +20,7 @@ lv_obj_t *appearance_screen;
 
 static lv_obj_t *btn_theme[THEME_PRESET_COUNT];
 static lv_obj_t *btn_accent[THEME_ACCENT_COUNT]; // the coloured circles
+static lv_obj_t *hue_slider;
 static lv_obj_t *tint_toggle;
 static lv_obj_t *text_size_pill[2]; // normal / large
 static lv_obj_t *font_family_pill[FONTS_FAMILY_COUNT];
@@ -37,6 +39,10 @@ static void font_family_pick_cb(lv_event_t *e) {
 		return;
 	}
 	int family = (int)(intptr_t)lv_event_get_user_data(e);
+	if (!fonts_family_available(family)) {
+		toast_plain("Put font in .local/fonts on SD");
+		return;
+	}
 	if (!fonts_set_family(family)) {
 		return;
 	}
@@ -86,13 +92,14 @@ static void refresh_buttons(void) {
 // override is active; otherwise all circles sit flat (preset's own accent).
 static void refresh_accent_buttons(void) {
 	bool has_override = theme_has_custom_accent();
+	bool has_hue = theme_has_custom_hue();
 	int active_accent = theme_get_accent();
 	for (int i = 0; i < THEME_ACCENT_COUNT; i++) {
 		if (!btn_accent[i]) {
 			continue;
 		}
 		lv_obj_set_style_bg_color(btn_accent[i], theme_accent_preset(i), 0);
-		if (has_override && i == active_accent) {
+		if (has_override && !has_hue && i == active_accent) {
 			lv_obj_set_style_border_width(btn_accent[i], 3, 0);
 			lv_obj_set_style_border_color(btn_accent[i], theme()->text_primary, 0);
 			lv_obj_set_style_border_opa(btn_accent[i], LV_OPA_COVER, 0);
@@ -100,9 +107,28 @@ static void refresh_accent_buttons(void) {
 			lv_obj_set_style_border_width(btn_accent[i], 0, 0);
 		}
 	}
+	if (hue_slider) {
+		int h = theme_get_custom_accent_hue();
+		if (h >= 0) {
+			lv_slider_set_value(hue_slider, h, LV_ANIM_OFF);
+		}
+		theme_apply_slider_knob(hue_slider);
+	}
+}
+
+static void hue_slider_cb(lv_event_t *e) {
+	(void)e;
+	if (!hue_slider) {
+		return;
+	}
+	theme_set_custom_accent_hue((int)lv_slider_get_value(hue_slider));
+	refresh_accent_buttons();
 }
 
 static void accent_pick_cb(lv_event_t *e) {
+	if (switcher_back_drag_active()) {
+		return;
+	}
 	int index = (int)(intptr_t)lv_event_get_user_data(e);
 	theme_set_accent(index);
 	refresh_accent_buttons();
@@ -170,6 +196,25 @@ void appearance_init(gui_config_t *cfg) {
 	for (int i = 0; i < THEME_ACCENT_COUNT; i++) {
 		btn_accent[i] = make_accent_circle(accent_row, i);
 	}
+
+	lv_obj_t *hue_label = lv_label_create(accent_card);
+	lv_label_set_text(hue_label, "Custom hue");
+	lv_obj_add_style(hue_label, &theme_style_text_dim, 0);
+	lv_obj_set_style_text_font(hue_label, &font_ui_20, 0);
+
+	hue_slider = lv_slider_create(accent_card);
+	lv_obj_set_width(hue_slider, lv_pct(100));
+	lv_obj_set_height(hue_slider, 10);
+	lv_slider_set_range(hue_slider, 0, 359);
+	lv_obj_add_style(hue_slider, &theme_style_slider_track, LV_PART_MAIN);
+	lv_obj_set_style_radius(hue_slider, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
+	lv_obj_add_style(hue_slider, &theme_style_accent_bg, LV_PART_INDICATOR);
+	lv_obj_set_style_radius(hue_slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
+	lv_obj_set_style_bg_color(hue_slider, lv_color_white(), LV_PART_KNOB);
+	theme_apply_slider_knob(hue_slider);
+	lv_obj_set_style_pad_all(hue_slider, 8, LV_PART_KNOB);
+	lv_obj_set_ext_click_area(hue_slider, 28);
+	lv_obj_add_event_cb(hue_slider, hue_slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
 	// Straight under the accent, because it is what the tint is made from: the
 	// same hue carried across the backgrounds, the cards and the status bar.

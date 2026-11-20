@@ -51,6 +51,27 @@ static const char *const FONT_BOOKERLY_FILES[] = {
 	FONT_DIR "/ebook/Bookerly-Regular.ttf", FONT_DIR_FALLBACK "/ebook/Bookerly-Regular.ttf", NULL};
 static const char *const FONT_BOOKERLY_BOLD_FILES[] = {
 	FONT_DIR "/ebook/Bookerly-Bold.ttf", FONT_DIR_FALLBACK "/ebook/Bookerly-Bold.ttf", NULL};
+static const char *const FONT_CUSTOM_FILES[] = {NULL};
+
+static char sd_font_dir[512];
+static char sd_reg_paths[FONTS_FAMILY_COUNT][576];
+static char sd_bold_paths[FONTS_FAMILY_COUNT][576];
+
+static const char *const SD_REG_NAMES[FONTS_FAMILY_COUNT][3] = {
+	{"default.ttf", "default.otf", NULL},
+	{"jetbrains.ttf", "jetbrains.otf", NULL},
+	{"victor.ttf", "victor.otf", NULL},
+	{"Bookerly-Regular.ttf", "Bookerly-Regular.otf", NULL},
+	{"custom.ttf", "custom.otf", NULL},
+};
+
+static const char *const SD_BOLD_NAMES[FONTS_FAMILY_COUNT][3] = {
+	{"bold.ttf", "bold.otf", NULL},
+	{"jetbrains-bold.ttf", "jetbrains-bold.otf", NULL},
+	{"victor-bold.ttf", "victor-bold.otf", NULL},
+	{"Bookerly-Bold.ttf", "Bookerly-Bold.otf", NULL},
+	{"custom-bold.ttf", "custom-bold.otf", NULL},
+};
 
 typedef struct {
 	const char *name;
@@ -65,6 +86,7 @@ static font_family_t font_families[FONTS_FAMILY_COUNT] = {
 	{"JetBrains", FONT_JETBRAINS_FILES, FONT_JETBRAINS_BOLD_FILES, NULL, NULL},
 	{"Victor", FONT_VICTOR_FILES, FONT_VICTOR_BOLD_FILES, NULL, NULL},
 	{"Bookerly", FONT_BOOKERLY_FILES, FONT_BOOKERLY_BOLD_FILES, NULL, NULL},
+	{"Custom (SD)", FONT_CUSTOM_FILES, FONT_CUSTOM_FILES, NULL, NULL},
 };
 static int current_family = FONTS_FAMILY_DEFAULT;
 
@@ -363,11 +385,65 @@ static bool build_set(int family, bool large) {
 	return true;
 }
 
-bool fonts_init(void) {
-	for (int f = 0; f < FONTS_FAMILY_COUNT; f++) {
-		font_families[f].regular = first_present(font_families[f].regular_candidates);
-		font_families[f].bold = first_present(font_families[f].bold_candidates);
+static const char *find_sd_face(const char *const *names, char *out, size_t out_sz) {
+	if (!sd_font_dir[0] || !names) {
+		return NULL;
 	}
+	for (int i = 0; names[i]; i++) {
+		int n = snprintf(out, out_sz, "%s/%s", sd_font_dir, names[i]);
+		if (n > 0 && (size_t)n < out_sz && access(out, R_OK) == 0) {
+			return out;
+		}
+	}
+	return NULL;
+}
+
+static void resolve_families(void) {
+	for (int f = 0; f < FONTS_FAMILY_COUNT; f++) {
+		const char *reg = find_sd_face(SD_REG_NAMES[f], sd_reg_paths[f], sizeof(sd_reg_paths[f]));
+		const char *bld = find_sd_face(SD_BOLD_NAMES[f], sd_bold_paths[f], sizeof(sd_bold_paths[f]));
+		font_families[f].regular = reg ? reg : first_present(font_families[f].regular_candidates);
+		font_families[f].bold = bld ? bld : first_present(font_families[f].bold_candidates);
+	}
+}
+
+static bool apply_font_set(int family, bool large);
+
+void fonts_set_card_root(const char *sd_root) {
+	if (sd_root && sd_root[0]) {
+		snprintf(sd_font_dir, sizeof(sd_font_dir), "%s/.local/fonts", sd_root);
+	} else {
+		sd_font_dir[0] = '\0';
+	}
+	const char *old_reg[FONTS_FAMILY_COUNT];
+	const char *old_bold[FONTS_FAMILY_COUNT];
+	for (int f = 0; f < FONTS_FAMILY_COUNT; f++) {
+		old_reg[f] = font_families[f].regular;
+		old_bold[f] = font_families[f].bold;
+	}
+	resolve_families();
+	for (int f = 0; f < FONTS_FAMILY_COUNT; f++) {
+		if (font_families[f].regular != old_reg[f] || font_families[f].bold != old_bold[f]) {
+			set_built[f][0] = false;
+			set_built[f][1] = false;
+		}
+	}
+	int wanted = (int)config_get_int("ui", "font_family", FONTS_FAMILY_DEFAULT);
+	if (wanted >= 0 && wanted < FONTS_FAMILY_COUNT && fonts_family_available(wanted)) {
+		if (wanted != current_family) {
+			fonts_set_family(wanted);
+		} else if (!set_built[current_family][large_text]) {
+			apply_font_set(current_family, large_text);
+		}
+	}
+}
+
+bool fonts_family_available(int family) {
+	return family >= 0 && family < FONTS_FAMILY_COUNT && font_families[family].regular != NULL;
+}
+
+bool fonts_init(void) {
+	resolve_families();
 	regular_file = font_families[FONTS_FAMILY_DEFAULT].regular;
 	bold_file = font_families[FONTS_FAMILY_DEFAULT].bold;
 	for (size_t i = 0; i < SCRIPT_COUNT; i++) {

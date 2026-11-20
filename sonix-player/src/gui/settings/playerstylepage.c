@@ -13,6 +13,7 @@ static lv_obj_t *layout_pill[3];
 static lv_obj_t *backdrop_pill[3];
 static lv_obj_t *radius_pill[4];
 static lv_obj_t *border_pill[3];
+static lv_obj_t *dtap_pill[4];
 static lv_obj_t *cover_accent_toggle;
 static lv_obj_t *format_toggle;
 static lv_obj_t *queue_pos_toggle;
@@ -38,6 +39,11 @@ static void refresh_pills(void) {
 	player_art_border_t ab = player_art_border_get();
 	for (int i = 0; i < 3; i++) {
 		settingsrow_pill_active(border_pill[i], (int)ab == i);
+	}
+
+	player_double_tap_action_t dt = player_double_tap_get();
+	for (int i = 0; i < 4; i++) {
+		settingsrow_pill_active(dtap_pill[i], (int)dt == i);
 	}
 }
 
@@ -65,6 +71,12 @@ static void radius_cb(lv_event_t *e) {
 static void border_cb(lv_event_t *e) {
 	if (switcher_back_drag_active()) return;
 	player_art_border_set((player_art_border_t)(intptr_t)lv_event_get_user_data(e));
+	refresh_pills();
+}
+
+static void dtap_cb(lv_event_t *e) {
+	if (switcher_back_drag_active()) return;
+	player_double_tap_set((player_double_tap_action_t)(intptr_t)lv_event_get_user_data(e));
 	refresh_pills();
 }
 
@@ -125,6 +137,13 @@ void playerstylepage_init(gui_config_t *cfg) {
 	if (player_show_queue_pos_get()) {
 		lv_obj_add_state(queue_pos_toggle, LV_STATE_CHECKED);
 	}
+
+	lv_obj_t *dtap_pills;
+	settingsrow_pills(container, "Cover double-tap", &dtap_pills);
+	dtap_pill[0] = settingsrow_pill(dtap_pills, "Next", PLAYER_DOUBLE_TAP_NEXT, dtap_cb);
+	dtap_pill[1] = settingsrow_pill(dtap_pills, "Play/Pause", PLAYER_DOUBLE_TAP_PLAY_PAUSE, dtap_cb);
+	dtap_pill[2] = settingsrow_pill(dtap_pills, "Fav", PLAYER_DOUBLE_TAP_FAVOURITE, dtap_cb);
+	dtap_pill[3] = settingsrow_pill(dtap_pills, "Off", PLAYER_DOUBLE_TAP_OFF, dtap_cb);
 
 	refresh_pills();
 	theme_register_refresh(refresh_pills);

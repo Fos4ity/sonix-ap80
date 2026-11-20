@@ -4676,7 +4676,22 @@ static void cover_double_tap_cb(lv_event_t *e) {
 	uint32_t now = lv_tick_get();
 	if (has_tap && lv_tick_elaps(last_tap_ms) <= 350) {
 		has_tap = false;
-		player_screen_next();
+		switch (player_double_tap_get()) {
+		case PLAYER_DOUBLE_TAP_NEXT:
+			player_screen_next();
+			break;
+		case PLAYER_DOUBLE_TAP_PLAY_PAUSE:
+			player_key_play_pause();
+			break;
+		case PLAYER_DOUBLE_TAP_FAVOURITE:
+			if (!audiobook_mode) {
+				fav_btn_event_cb(NULL);
+			}
+			break;
+		case PLAYER_DOUBLE_TAP_OFF:
+		default:
+			break;
+		}
 		return;
 	}
 
@@ -5089,6 +5104,22 @@ void player_show_queue_pos_set(bool show) {
 	config_set_bool("screen", "player_show_queue_pos", show);
 	config_save();
 	apply_player_visual_style();
+}
+
+player_double_tap_action_t player_double_tap_get(void) {
+	int v = (int)config_get_int("screen", "player_double_tap", PLAYER_DOUBLE_TAP_NEXT);
+	if (v < PLAYER_DOUBLE_TAP_NEXT || v > PLAYER_DOUBLE_TAP_OFF) {
+		return PLAYER_DOUBLE_TAP_NEXT;
+	}
+	return (player_double_tap_action_t)v;
+}
+
+void player_double_tap_set(player_double_tap_action_t action) {
+	if (action < PLAYER_DOUBLE_TAP_NEXT || action > PLAYER_DOUBLE_TAP_OFF) {
+		action = PLAYER_DOUBLE_TAP_NEXT;
+	}
+	config_set_int("screen", "player_double_tap", (int)action);
+	config_save();
 }
 
 void player_output_unplugged(const char *what) {

@@ -20,6 +20,7 @@
 #include "src/system/audio/waveform.h"
 #include "src/gui/fonts/fonts.h"
 #include "src/gui/shell/gui.h"
+#include "src/gui/shell/theme.h"
 #include "src/gui/nowplaying/player.h"
 #include "src/gui/settings/powersettings.h"
 #include "src/gui/settings/settings.h"
@@ -2103,6 +2104,8 @@ int main(int argc, char **argv) {
 	// browsing a library only ever decodes each cover once -- the same trick
 	// the stock player uses with its own .hiby/.../cache folder.
 	cover_set_cache_dir(gui_cfg.sd_root_path);
+	fonts_set_card_root(gui_cfg.sd_root_path);
+	theme_set_card_root(gui_cfg.sd_root_path);
 
 	// The shapes of tracks, for the player's alternative layout. The worker
 	// sleeps until a page asks for one, so starting it costs a thread and
