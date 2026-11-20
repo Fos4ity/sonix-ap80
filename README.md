@@ -12,16 +12,17 @@ Everything it can do is in **[FEATURES.md](FEATURES.md)**.
 
 ## Omarchy Fork Changes (HiBy R1)
 
+- **Download latest R1 firmware:** **[`r1.upt` (Latest Release)](https://github.com/Xkalin1990/sonix-player-r1-omarchy/releases/latest/download/r1.upt)** — see all releases on the **[Releases page](https://github.com/Xkalin1990/sonix-player-r1-omarchy/releases/latest)**.
 - **Omarchy themes & UI customization:** Added Omarchy theme presets (`CpUnk`, `Miasma`, `Ash`, `Matte Black`, `Tokyo Night`, `Gruvbox`, `Light`) along with **Menu Style** and **Player Style** settings pages (`Standard`, `Square`, and `Carousel` Now Playing layouts, plus album art fade transitions).
+- **Larger slider touch targets:** Expanded touch hit areas across settings, Now Playing progress bar, MSEB knobs, Quick Panel brightness, and Metronome sliders so they are easier to grab on the touchscreen.
 - **Double-tap to skip:** Double-tapping the album art on the Now Playing screen skips to the next track.
 - **Slimmed R1 flash image:** Removed `wallpaper*.png`, extra font faces (`jetbrains*.ttf`, `victor*.ttf`), and optional bold CJK fallback fonts (`japanese-bold.otf`, `korean-bold.otf` — `fonts.c` falls back to the regular faces) from `sonix-packer/assets/R1/usr/resource/sonix/` while keeping all language fonts so `rootfs.squashfs` fits within the HiBy R1 flash partition size.
 
 ## Install
 
-1. Download the firmware for your player from the
-   **[latest release](https://github.com/Tartarus6/sonix-player/releases/latest)**:
-   `r3proii.upt` for the R3 Pro II, `r1.upt` for the R1. **Never the other
-   one**: the update does not check which player it is given.
+1. Download **`r1.upt`** for the HiBy R1 from the
+   **[latest release](https://github.com/Xkalin1990/sonix-player-r1-omarchy/releases/latest)**
+   (direct download: **[r1.upt](https://github.com/Xkalin1990/sonix-player-r1-omarchy/releases/latest/download/r1.upt)**). **Never flash a firmware for another player**: the update does not check which player it is given.
 2. Charge the player **above 30%**.
 3. Copy the `.upt` file to the **root of the microSD card** and put the card
    in the player.
