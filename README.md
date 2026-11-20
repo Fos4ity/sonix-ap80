@@ -12,7 +12,7 @@ Everything it can do is in **[FEATURES.md](FEATURES.md)**.
 
 ## Omarchy Fork Changes (HiBy R1)
 
-- **Omarchy themes & UI customization:** Added Omarchy theme presets (`CpUnk`, `Miasma`, `Ash`, `Matte Black`, `Tokyo Night`, `Gruvbox`, `Light`) along with **Menu Style** and **Player Style** settings pages (`Standard`, `Square`, `Carousel`, and spinning `Vinyl` Now Playing layouts, plus album art fade transitions).
+- **Omarchy themes & UI customization:** Added Omarchy theme presets (`CpUnk`, `Miasma`, `Ash`, `Matte Black`, `Tokyo Night`, `Gruvbox`, `Light`) along with **Menu Style** and **Player Style** settings pages (`Standard`, `Square`, and `Carousel` Now Playing layouts, plus album art fade transitions).
 - **Double-tap to skip:** Double-tapping the album art on the Now Playing screen skips to the next track.
 - **Slimmed R1 flash image:** Removed `wallpaper*.png`, extra font faces (`jetbrains*.ttf`, `victor*.ttf`), and non-English fallback fonts (`japanese*`, `korean*`, `arabic*`, `thai*`) from `sonix-packer/assets/R1/usr/resource/sonix/` so `rootfs.squashfs` stays within the HiBy R1 flash partition size (~38 MB).
 
