@@ -28,12 +28,12 @@
 #define ROW_HEIGHT 100
 
 // A toggle card that also carries a slider, at its open height.
-#define TOGGLE_SLIDER_OPEN_H 180
+#define TOGGLE_SLIDER_OPEN_H 192
 
 // Stepped slider: a thin round track with a small mark on each intermediate
 // value. Slightly thicker than Adwaita's own trough: on a 480 px panel held at
 // arm's length, 6 px is a hairline with no room for the step marks.
-#define SLIDER_TRACK_HEIGHT 10
+#define SLIDER_TRACK_HEIGHT 14
 #define SLIDER_TICK_WIDTH 3
 // Marks sit inside the track, so they are shorter than it and centred on it.
 #define SLIDER_TICK_HEIGHT 6
@@ -323,7 +323,7 @@ static lv_obj_t *make_card(lv_obj_t *parent, const char *name, lv_obj_t **value_
 // Every stepped slider this file has built, so a theme change can repaint
 // their knob rings: the ring colour depends on the theme, and these pages are
 // built once at startup.
-#define SETTINGSROW_MAX_SLIDERS 16
+#define SETTINGSROW_MAX_SLIDERS 32
 static lv_obj_t *built_sliders[SETTINGSROW_MAX_SLIDERS];
 static int built_slider_count;
 
@@ -366,7 +366,7 @@ static lv_obj_t *make_slider(lv_obj_t *card, int steps, lv_event_cb_t cb) {
 		}
 		built_sliders[built_slider_count++] = slider;
 	}
-	lv_obj_set_style_pad_all(slider, 8, LV_PART_KNOB);
+	lv_obj_set_style_pad_all(slider, 10, LV_PART_KNOB);
 	lv_obj_set_style_shadow_width(slider, 8, LV_PART_KNOB);
 	lv_obj_set_style_shadow_opa(slider, LV_OPA_30, LV_PART_KNOB);
 	lv_obj_set_style_shadow_color(slider, lv_color_black(), LV_PART_KNOB);
@@ -374,7 +374,7 @@ static lv_obj_t *make_slider(lv_obj_t *card, int steps, lv_event_cb_t cb) {
 
 	// A slim trough is a hard touch target; let the finger land comfortably around
 	// the track without reaching into the toggle switch or neighbouring cards.
-	lv_obj_set_ext_click_area(slider, 32);
+	lv_obj_set_ext_click_area(slider, 34);
 
 	if (cb) {
 		lv_obj_add_event_cb(slider, cb, LV_EVENT_VALUE_CHANGED, NULL);
@@ -418,10 +418,12 @@ lv_obj_t *settingsrow_slider(lv_obj_t *parent, const char *name, int steps, lv_o
 
 	lv_obj_update_layout(card);
 	make_ticks(card, slider, steps, lv_obj_get_y(slider) + (SLIDER_TRACK_HEIGHT - SLIDER_TICK_HEIGHT) / 2);
+	lv_obj_move_foreground(slider);
 
 	if (slider_out) {
 		*slider_out = slider;
 	}
+	lv_obj_move_foreground(slider);
 	return card;
 }
 
@@ -557,7 +559,7 @@ lv_obj_t *settingsrow_toggle_slider(lv_obj_t *parent, const char *name, int step
 	lv_obj_align(value, LV_ALIGN_TOP_LEFT, 0, 42);
 
 	lv_obj_t *slider = make_slider(card, steps, slider_cb);
-	lv_obj_align(slider, LV_ALIGN_BOTTOM_MID, 0, -10);
+	lv_obj_align(slider, LV_ALIGN_BOTTOM_MID, 0, -16);
 
 	// Step marks as on the plain slider card; without them the control stops
 	// reading as a slider with a handful of positions. They go in a
@@ -612,6 +614,7 @@ lv_obj_t *settingsrow_toggle_slider(lv_obj_t *parent, const char *name, int step
 	if (slider_out) {
 		*slider_out = slider;
 	}
+	lv_obj_move_foreground(slider);
 	return card;
 }
 

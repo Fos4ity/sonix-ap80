@@ -1,49 +1,48 @@
-﻿# Sonix Player
+﻿# SonixOS HUE
 
 > [!Note]
-> THIS IS THE SUCCESSOR TO M4ttia's SONIX REPO
-> 
-> Huge thanks for Jepl4r/M4ttia for being the one to start this project!
+> Based on Sonix Player (the successor to M4ttia's SONIX repo). Huge thanks to Jepl4r/M4ttia and Tartarus6 for building the foundation!
 
-A replacement player for the **HiBy R3 Pro II** and the **HiBy R1**, written on LVGL.
+A custom LVGL-powered OS and music player for the **HiBy R1** (and **HiBy R3 Pro II**).
 
-### Why install the Omarchy R1 Edition?
+### Why install SonixOS HUE?
 
-This fork turns the HiBy R1 into a much more responsive, personal, and deeply customizable pocket music player while keeping the entire multi-language experience intact:
+SonixOS HUE turns the HiBy R1 into a much more responsive, personal, and deeply customizable pocket music player while keeping the entire multi-language experience intact:
 
-- **Tailored for the R1 touchscreen:** All UI sliders (settings, EQ/PEQ, MSEB knobs, Quick Panel brightness, Metronome, and the Now Playing scrub bar) have enlarged touch targets so they are effortless to grab with a thumb.
-- **Rich visual customization without wasting flash:** Pick from 7 curated Omarchy themes (`CpUnk`, `Miasma`, `Ash`, `Matte Black`, `Tokyo Night`, `Gruvbox`, `Light`), fine-tune any accent colour with a live **Custom hue** slider, and style your menus (card surface, corner radius, borders, clock position) and Now Playing screen (`Standard`, `Square`, or `Carousel` layouts with smooth album-art fades).
-- **Zero-bloat SD card personalization:** Drop your own `.png`/`.jpg` wallpapers anywhere on the microSD card (or theme-matched wallpapers in `.local/wallpapers/`), and place custom `.ttf`/`.otf` UI fonts (`jetbrains.ttf`, `victor.ttf`, `custom.ttf`, etc.) in `.local/fonts/` on your microSD card — giving you unlimited fonts and wallpapers without filling the R1's internal flash.
-- **Quick gestures & full language support:** Configure double-tap on the Now Playing cover art (`Next`, `Play/Pause`, `Favourite`, or `Off`), and enjoy all 12 UI languages and non-Latin script fonts out of the box.
+- **Tailored for the R1 touchscreen:** All UI sliders (settings, Appearance hue & saturation, EQ/PEQ, MSEB knobs, Quick Panel pull-down brightness, Metronome, and the Now Playing scrub bar) have enlarged touch targets and thicker tracks/knobs so they are effortless to grab and adjust with a thumb.
+- **Live Hue & Saturation theming without wasting flash:** Pick from 7 curated open-source themes (`CpUnk`, `Miasma`, `Ash`, `Matte Black`, `Tokyo Night`, `Gruvbox`, `Light`), fine-tune any accent colour live with **Custom hue** and **Custom saturation** sliders, and style your menus (card surface, corner radius, borders, clock position) and Now Playing screen (`Standard`, `Square`, or `Carousel` layouts with smooth album-art fades).
+- **Zero-bloat microSD personalization:** Pick any `.ttf` or `.otf` UI font straight from your microSD card via **Appearance → UI font**, and pick `.png`/`.jpg` wallpapers anywhere on your microSD card (or theme-matched wallpapers in `.local/wallpapers/`) — unlimited fonts and wallpapers without filling the R1's internal flash.
+- **Custom SonixOS HUE boot splash, quick gestures & full language support:** Boots with the dedicated SonixOS HUE splash screen, lets you configure double-tap on the Now Playing cover art (`Next`, `Play/Pause`, `Favourite`, or `Off`), and keeps all 12 UI languages and non-Latin script fonts out of the box.
 
 Everything the base player can do is in **[FEATURES.md](FEATURES.md)**.
 
-## Omarchy Fork Changes (HiBy R1)
+## SonixOS HUE Changes (HiBy R1)
 
-- **Download latest R1 firmware:** **[`r1.upt` (Latest Release)](https://github.com/Xkalin1990/sonix-player-r1-omarchy/releases/latest/download/r1.upt)** — see all releases on the **[Releases page](https://github.com/Xkalin1990/sonix-player-r1-omarchy/releases/latest)**.
-- **Omarchy themes, custom hue & UI customization:** Added Omarchy theme presets (`CpUnk`, `Miasma`, `Ash`, `Matte Black`, `Tokyo Night`, `Gruvbox`, `Light`), a live **Custom hue** accent slider, **Menu & bar style** (card surface, corners, borders, clock position), and **Player style** (`Standard`, `Square`, and `Carousel` Now Playing layouts, backdrop/border options, and album art fade transitions).
-- **SD-card fonts & theme wallpapers:** `fonts.c` and `theme.c` load `jetbrains*.ttf`, `victor*.ttf`, `Bookerly*.ttf`, or `custom.ttf`/`custom.otf` from `<SD>/.local/fonts/` and theme-matched wallpapers from `<SD>/.local/wallpapers/` (e.g. `wallpaper-cpunk.png` or `cpunk.jpg`) at zero flash cost, alongside the microSD wallpaper browser in **Menu wallpaper**.
-- **Larger slider touch targets:** Expanded touch hit areas across settings, Now Playing progress bar, MSEB knobs, Quick Panel brightness, and Metronome sliders so they are easier to grab on the touchscreen.
+- **Download latest R1 firmware:** **[`r1.upt` (Latest Release)](https://github.com/Xkalin1990/SonixOS-HUE/releases/latest/download/r1.upt)** — see all releases on the **[Releases page](https://github.com/Xkalin1990/SonixOS-HUE/releases/latest)**.
+- **Open-source themes, live Hue & Saturation sliders & UI customization:** Included theme presets (`CpUnk`, `Miasma`, `Ash`, `Matte Black`, `Tokyo Night`, `Gruvbox`, `Light`), live **Custom hue** and **Custom saturation** accent sliders, **Menu & bar style** (card surface, corners, borders, clock position), and **Player style** (`Standard`, `Square`, and `Carousel` Now Playing layouts, backdrop/border options, and album art fade transitions).
+- **SD-card-only UI font picker & wallpaper browser:** Browse and select any `.ttf`/`.otf` font directly from your microSD card in **Appearance → UI font** (or reset to **Default**), and load wallpapers from anywhere on the microSD card or theme-matched files in `<SD>/.local/wallpapers/` at zero flash cost.
+- **Proper touchscreen slider targets:** Enlarged tracks, knobs, parent touch wrappers, and hit areas across all settings menus, Appearance sliders, Now Playing progress bar, MSEB knobs, Quick Panel pull-down brightness bar, volume overlay, and Metronome.
+- **SonixOS HUE default boot splash:** Replaced the stock multi-theme boot logos with the 480×800 SonixOS HUE splash screen (while keeping custom boot logo support in **Appearance → Boot logo**).
 - **Configurable cover double-tap:** Double-tapping the album art on the Now Playing screen can be set in **Player style** to **Next**, **Play/Pause**, **Fav**, or **Off**.
-- **Slimmed R1 flash image:** Removed `wallpaper*.png`, extra font faces (`jetbrains*.ttf`, `victor*.ttf`), and optional bold CJK fallback fonts (`japanese-bold.otf`, `korean-bold.otf` — `fonts.c` falls back to the regular faces) from `sonix-packer/assets/R1/usr/resource/sonix/` while keeping all language fonts so `rootfs.squashfs` fits within the HiBy R1 flash partition size.
+- **Slimmed R1 flash image:** Keeps all 12 UI languages and non-Latin script fallbacks while trimming redundant flash assets so `rootfs.squashfs` fits comfortably within the HiBy R1 flash partition size.
 
 ## Install
 
 1. Download **`r1.upt`** for the HiBy R1 from the
-   **[latest release](https://github.com/Xkalin1990/sonix-player-r1-omarchy/releases/latest)**
-   (direct download: **[r1.upt](https://github.com/Xkalin1990/sonix-player-r1-omarchy/releases/latest/download/r1.upt)**). **Never flash a firmware for another player**: the update does not check which player it is given.
+   **[latest release](https://github.com/Xkalin1990/SonixOS-HUE/releases/latest)**
+   (direct download: **[r1.upt](https://github.com/Xkalin1990/SonixOS-HUE/releases/latest/download/r1.upt)**). **Never flash a firmware for another player**: the update does not check which player it is given.
 2. Charge the player **above 30%**.
 3. Copy the `.upt` file to the **root of the microSD card** and put the card
    in the player.
 4. Start the update:
    - **from the stock firmware** - use its firmware update from the microSD
      card.
-   - **from Sonix Player** - Settings > System > Update firmware > From SD
+   - **from SonixOS HUE / Sonix Player** - Settings > System > Update firmware > From SD
      card.
 5. Let it flash: it says "Upgrading...", then "Succeeded", and reboots by
    itself.
 
-Once Sonix Player is installed, later versions can be installed straight from
+Once SonixOS HUE is installed, later versions can be installed straight from
 the player: Settings > System > Update firmware > Via internet downloads the
 right file from the latest release by itself.
 

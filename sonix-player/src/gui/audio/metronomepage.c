@@ -548,24 +548,25 @@ void metronomepage_init(gui_config_t *cfg) {
 
 	slider = lv_slider_create(page);
 	lv_obj_set_width(slider, lv_pct(92));
-	lv_obj_set_height(slider, 8);
-	lv_obj_set_style_margin_top(slider, 22, 0);
+	lv_obj_set_height(slider, 14);
+	lv_obj_set_style_margin_top(slider, 24, 0);
 	lv_slider_set_range(slider, METRONOME_BPM_MIN, METRONOME_BPM_MAX);
 	lv_obj_add_style(slider, &theme_style_slider_track, LV_PART_MAIN);
 	lv_obj_set_style_radius(slider, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
 	lv_obj_add_style(slider, &theme_style_accent_bg, LV_PART_INDICATOR);
 	lv_obj_set_style_radius(slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
 	lv_obj_set_style_bg_color(slider, lv_color_white(), LV_PART_KNOB);
-	lv_obj_set_style_pad_all(slider, 8, LV_PART_KNOB);
+	lv_obj_set_style_pad_all(slider, 10, LV_PART_KNOB);
 	lv_obj_set_style_shadow_width(slider, 8, LV_PART_KNOB);
 	lv_obj_set_style_shadow_opa(slider, LV_OPA_30, LV_PART_KNOB);
 	lv_obj_set_style_shadow_color(slider, lv_color_black(), LV_PART_KNOB);
 	lv_obj_set_style_shadow_offset_y(slider, 1, LV_PART_KNOB);
-	lv_obj_set_ext_click_area(slider, 28);
+	lv_obj_set_ext_click_area(slider, 34);
 	lv_obj_add_event_cb(slider, slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
 	// Tap, start and stop, the bar.
 	lv_obj_t *bottom = plain_row(page);
+	lv_obj_set_clickable(bottom, false);
 	lv_obj_set_flex_align(bottom, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 	lv_obj_set_style_margin_top(bottom, 24, 0);
 	pill_btns[0] = pill_button(bottom, tr("metronome_tap"), &pill_labels[0]);

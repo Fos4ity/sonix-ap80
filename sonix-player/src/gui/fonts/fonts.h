@@ -67,19 +67,12 @@ bool fonts_init(void);
 #define FONTS_TEXT_NORMAL 0
 #define FONTS_TEXT_LARGE 1
 
-// Settings -> Appearance -> UI font, stored as [ui] font_family.
-#define FONTS_FAMILY_DEFAULT 0
-#define FONTS_FAMILY_JETBRAINS 1
-#define FONTS_FAMILY_VICTOR 2
-#define FONTS_FAMILY_BOOKERLY 3
-#define FONTS_FAMILY_CUSTOM 4
-#define FONTS_FAMILY_COUNT 5
-
+// Settings -> Appearance -> UI font: built-in default, or a .ttf/.otf font
+// file picked from the microSD card (stored as [ui] font_path).
 void fonts_set_card_root(const char *sd_root);
-bool fonts_family_available(int family);
-int fonts_get_family(void);
-const char *fonts_family_name(int family);
-bool fonts_set_family(int family);
+void fonts_update_card_root_only(const char *sd_root);
+const char *fonts_get_custom_file(void);
+bool fonts_set_custom_file(const char *path);
 
 // Whether the small sizes are drawn larger (see fonts.c).
 bool fonts_large_text(void);

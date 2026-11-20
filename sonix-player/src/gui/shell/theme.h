@@ -79,7 +79,11 @@ int theme_get_accent(void);
 bool theme_has_custom_accent(void);
 void theme_set_accent(int index);
 void theme_set_custom_accent_hue(int hue);
+void theme_set_custom_accent_saturation(int sat);
+void theme_commit_custom_accent(void);
 int theme_get_custom_accent_hue(void);
+int theme_get_custom_accent_saturation(void);
+void theme_get_active_accent_hs(int *out_hue, int *out_sat);
 bool theme_has_custom_hue(void);
 
 void theme_set_card_root(const char *sd_root);
@@ -87,7 +91,7 @@ void theme_set_card_root(const char *sd_root);
 // Picks a specific theme rather than flipping; no-op when already active.
 void theme_set_dark(bool dark);
 
-// Named Omarchy theme presets (Settings -> Appearance -> Theme).
+// Named theme presets (Settings -> Appearance -> Theme).
 #define THEME_PRESET_COUNT 7
 const char *theme_preset_name(int index);
 int theme_get_preset(void);

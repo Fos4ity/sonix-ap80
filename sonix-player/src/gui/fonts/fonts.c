@@ -2,9 +2,12 @@
 
 #include "src/system/core/respath.h"
 
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "lvgl/lvgl.h"
@@ -12,6 +15,7 @@
 
 #include "src/system/core/config.h"
 #include "src/system/core/lang.h"
+#include "src/system/core/utils.h"
 
 // All text is drawn through LVGL's FreeType binding, from the faces the
 // firmware ships in FONT_DIR. One FT_Face per file serves however many sizes
@@ -43,52 +47,12 @@
 
 static const char *const FONT_DEFAULT_FILES[] = FACE_FILES("default");
 static const char *const FONT_BOLD_FILES[] = FACE_FILES("bold");
-static const char *const FONT_JETBRAINS_FILES[] = FACE_FILES("jetbrains");
-static const char *const FONT_JETBRAINS_BOLD_FILES[] = FACE_FILES("jetbrains-bold");
-static const char *const FONT_VICTOR_FILES[] = FACE_FILES("victor");
-static const char *const FONT_VICTOR_BOLD_FILES[] = FACE_FILES("victor-bold");
-static const char *const FONT_BOOKERLY_FILES[] = {
-	FONT_DIR "/ebook/Bookerly-Regular.ttf", FONT_DIR_FALLBACK "/ebook/Bookerly-Regular.ttf", NULL};
-static const char *const FONT_BOOKERLY_BOLD_FILES[] = {
-	FONT_DIR "/ebook/Bookerly-Bold.ttf", FONT_DIR_FALLBACK "/ebook/Bookerly-Bold.ttf", NULL};
-static const char *const FONT_CUSTOM_FILES[] = {NULL};
 
-static char sd_font_dir[512];
-static char sd_reg_paths[FONTS_FAMILY_COUNT][576];
-static char sd_bold_paths[FONTS_FAMILY_COUNT][576];
-
-static const char *const SD_REG_NAMES[FONTS_FAMILY_COUNT][3] = {
-	{"default.ttf", "default.otf", NULL},
-	{"jetbrains.ttf", "jetbrains.otf", NULL},
-	{"victor.ttf", "victor.otf", NULL},
-	{"Bookerly-Regular.ttf", "Bookerly-Regular.otf", NULL},
-	{"custom.ttf", "custom.otf", NULL},
-};
-
-static const char *const SD_BOLD_NAMES[FONTS_FAMILY_COUNT][3] = {
-	{"bold.ttf", "bold.otf", NULL},
-	{"jetbrains-bold.ttf", "jetbrains-bold.otf", NULL},
-	{"victor-bold.ttf", "victor-bold.otf", NULL},
-	{"Bookerly-Bold.ttf", "Bookerly-Bold.otf", NULL},
-	{"custom-bold.ttf", "custom-bold.otf", NULL},
-};
-
-typedef struct {
-	const char *name;
-	const char *const *regular_candidates;
-	const char *const *bold_candidates;
-	const char *regular;
-	const char *bold;
-} font_family_t;
-
-static font_family_t font_families[FONTS_FAMILY_COUNT] = {
-	{"Default", FONT_DEFAULT_FILES, FONT_BOLD_FILES, NULL, NULL},
-	{"JetBrains", FONT_JETBRAINS_FILES, FONT_JETBRAINS_BOLD_FILES, NULL, NULL},
-	{"Victor", FONT_VICTOR_FILES, FONT_VICTOR_BOLD_FILES, NULL, NULL},
-	{"Bookerly", FONT_BOOKERLY_FILES, FONT_BOOKERLY_BOLD_FILES, NULL, NULL},
-	{"Custom (SD)", FONT_CUSTOM_FILES, FONT_CUSTOM_FILES, NULL, NULL},
-};
-static int current_family = FONTS_FAMILY_DEFAULT;
+static const char *default_regular_file;
+static const char *default_bold_file;
+static char sd_root_dir[PATH_MAX];
+static char custom_font_path[PATH_MAX];
+static int current_slot = 0; // 0 = built-in default, 1 = custom SD font
 
 // The scripts MiSans has no letters for, one face each, chained behind the
 // main face so they only answer for what it lacks. The bold file is optional:
@@ -205,21 +169,32 @@ static int drawn_size(int size, bool large) {
 
 bool fonts_large_text(void) { return large_text; }
 
-// Cached sets per [family][large], each built the first time it is needed.
-static lv_font_t sets[FONTS_FAMILY_COUNT][2][UI_FONT_COUNT];
-static bool set_built[FONTS_FAMILY_COUNT][2];
+// Cached sets per [slot][large]: slot 0 = built-in default, slot 1 = custom SD font.
+static lv_font_t sets[2][2][UI_FONT_COUNT];
+static lv_font_t *custom_chain_heads[2][UI_FONT_COUNT];
+static bool set_built[2][2];
+
+static void delete_chain(lv_font_t *head) {
+	while (head) {
+		lv_font_t *next = (lv_font_t *)head->fallback;
+		lv_freetype_font_delete(head);
+		head = next;
+	}
+}
+
+static void delete_custom_heads(lv_font_t *heads[UI_FONT_COUNT]) {
+	for (size_t i = 0; i < UI_FONT_COUNT; i++) {
+		if (heads[i]) {
+			delete_chain(heads[i]);
+			heads[i] = NULL;
+		}
+	}
+}
 
 static const char *regular_file;
 static const char *bold_file;
 
-int fonts_get_family(void) { return current_family; }
-
-const char *fonts_family_name(int family) {
-	if (family < 0 || family >= FONTS_FAMILY_COUNT) {
-		family = FONTS_FAMILY_DEFAULT;
-	}
-	return font_families[family].name;
-}
+const char *fonts_get_custom_file(void) { return custom_font_path; }
 
 static lv_font_t *open_face(const char *path, int size) {
 	if (access(path, R_OK) != 0) {
@@ -354,128 +329,123 @@ static lv_font_t *open_chain(const ui_font_t *ui, int size) {
 	return head;
 }
 
-// Fills sets[family][large]. The heap fonts FreeType creates are kept on purpose:
-// their dsc is what the copies draw through.
-static bool build_set(int family, bool large) {
-	if (family < 0 || family >= FONTS_FAMILY_COUNT) {
-		family = FONTS_FAMILY_DEFAULT;
-	}
-	if (set_built[family][large]) {
-		return true;
-	}
-	regular_file = font_families[family].regular ? font_families[family].regular : font_families[0].regular;
-	bold_file = font_families[family].bold ? font_families[family].bold : font_families[family].regular;
-	if (!bold_file) {
-		bold_file = font_families[0].bold;
-	}
+// Builds a font set for `reg_path`/`bld_path` into `out_sets` and records
+// newly allocated FreeType chain heads in `out_heads` (NULL for shared entries).
+// On failure, cleans up all partial allocations in `out_heads` and returns false.
+static bool build_set_into(int slot, bool large, const char *reg_path, const char *bld_path,
+						   lv_font_t out_sets[UI_FONT_COUNT], lv_font_t *out_heads[UI_FONT_COUNT]) {
+	memset(out_heads, 0, sizeof(lv_font_t *) * UI_FONT_COUNT);
+	regular_file = reg_path;
+	bold_file = bld_path;
 	for (size_t i = 0; i < UI_FONT_COUNT; i++) {
 		const ui_font_t *ui = &ui_fonts[i];
 		int size = drawn_size(ui->size, large);
-		if (size == ui->size && set_built[family][!large] && drawn_size(ui->size, !large) == size) {
-			sets[family][large][i] = sets[family][!large][i];
+		// Slot 0 (built-in default) is never deleted, so it can safely share
+		// unchanged sizes between normal and large text. Slot 1 (custom SD font)
+		// owns independent chains per [large] so deletion never aliases.
+		if (slot == 0 && size == ui->size && set_built[0][!large] && drawn_size(ui->size, !large) == size) {
+			out_sets[i] = sets[0][!large][i];
 			continue;
 		}
 		lv_font_t *head = open_chain(ui, size);
 		if (!head) {
+			delete_custom_heads(out_heads);
 			return false;
 		}
-		sets[family][large][i] = *head;
+		out_sets[i] = *head;
+		out_heads[i] = head;
 	}
-	set_built[family][large] = true;
 	return true;
 }
 
-static const char *find_sd_face(const char *const *names, char *out, size_t out_sz) {
-	if (!sd_font_dir[0] || !names) {
-		return NULL;
+// Fills sets[slot][large].
+static bool build_set(int slot, bool large) {
+	if (slot < 0 || slot > 1) {
+		slot = 0;
 	}
-	for (int i = 0; names[i]; i++) {
-		int n = snprintf(out, out_sz, "%s/%s", sd_font_dir, names[i]);
-		if (n > 0 && (size_t)n < out_sz && access(out, R_OK) == 0) {
-			return out;
+	if (set_built[slot][large]) {
+		return true;
+	}
+	const char *reg = (slot == 1 && custom_font_path[0]) ? custom_font_path : default_regular_file;
+	const char *bld = (slot == 1 && custom_font_path[0]) ? NULL : default_bold_file;
+	if (slot == 1 && !custom_font_path[0]) {
+		slot = 0;
+	}
+	lv_font_t tmp[UI_FONT_COUNT];
+	lv_font_t *heads[UI_FONT_COUNT];
+	if (!build_set_into(slot, large, reg, bld, tmp, heads)) {
+		return false;
+	}
+	memcpy(sets[slot][large], tmp, sizeof(tmp));
+	if (slot == 1) {
+		memcpy(custom_chain_heads[large], heads, sizeof(heads));
+	}
+	set_built[slot][large] = true;
+	return true;
+}
+
+static bool is_valid_sd_font(const char *path) {
+	if (!sd_root_dir[0] || !path || !path[0]) {
+		return false;
+	}
+	if (!has_extension(path, ".ttf") && !has_extension(path, ".otf")) {
+		return false;
+	}
+	char canon_root[PATH_MAX];
+	char canon_path[PATH_MAX];
+	if (!realpath(sd_root_dir, canon_root) || !realpath(path, canon_path)) {
+		return false;
+	}
+	size_t root_len = strlen(canon_root);
+	while (root_len > 1 && canon_root[root_len - 1] == '/') {
+		root_len--;
+	}
+	if (strncmp(canon_path, canon_root, root_len) != 0) {
+		return false;
+	}
+	if (root_len == 1 && canon_root[0] == '/') {
+		if (canon_path[0] != '/') {
+			return false;
 		}
+	} else if (canon_path[root_len] != '/') {
+		return false;
 	}
-	return NULL;
+	struct stat st;
+	if (stat(canon_path, &st) != 0 || !S_ISREG(st.st_mode)) {
+		return false;
+	}
+	return access(canon_path, R_OK) == 0;
 }
 
-static void resolve_families(void) {
-	for (int f = 0; f < FONTS_FAMILY_COUNT; f++) {
-		const char *reg = find_sd_face(SD_REG_NAMES[f], sd_reg_paths[f], sizeof(sd_reg_paths[f]));
-		const char *bld = find_sd_face(SD_BOLD_NAMES[f], sd_bold_paths[f], sizeof(sd_bold_paths[f]));
-		font_families[f].regular = reg ? reg : first_present(font_families[f].regular_candidates);
-		font_families[f].bold = bld ? bld : first_present(font_families[f].bold_candidates);
+static bool apply_font_set(int slot, bool large);
+static bool set_custom_file_internal(const char *path, bool save);
+static void update_summary(void);
+
+void fonts_update_card_root_only(const char *sd_root) {
+	if (sd_root && sd_root[0]) {
+		snprintf(sd_root_dir, sizeof(sd_root_dir), "%s", sd_root);
+	} else {
+		sd_root_dir[0] = '\0';
 	}
 }
-
-static bool apply_font_set(int family, bool large);
 
 void fonts_set_card_root(const char *sd_root) {
-	if (sd_root && sd_root[0]) {
-		snprintf(sd_font_dir, sizeof(sd_font_dir), "%s/.local/fonts", sd_root);
-	} else {
-		sd_font_dir[0] = '\0';
-	}
-	const char *old_reg[FONTS_FAMILY_COUNT];
-	const char *old_bold[FONTS_FAMILY_COUNT];
-	for (int f = 0; f < FONTS_FAMILY_COUNT; f++) {
-		old_reg[f] = font_families[f].regular;
-		old_bold[f] = font_families[f].bold;
-	}
-	resolve_families();
-	for (int f = 0; f < FONTS_FAMILY_COUNT; f++) {
-		if (font_families[f].regular != old_reg[f] || font_families[f].bold != old_bold[f]) {
-			set_built[f][0] = false;
-			set_built[f][1] = false;
-		}
-	}
-	int wanted = (int)config_get_int("ui", "font_family", FONTS_FAMILY_DEFAULT);
-	if (wanted >= 0 && wanted < FONTS_FAMILY_COUNT && fonts_family_available(wanted)) {
-		if (wanted != current_family) {
-			fonts_set_family(wanted);
-		} else if (!set_built[current_family][large_text]) {
-			apply_font_set(current_family, large_text);
-		}
+	fonts_update_card_root_only(sd_root);
+	const char *saved = config_get("ui", "font_path", "");
+	if (saved && saved[0] && is_valid_sd_font(saved)) {
+		set_custom_file_internal(saved, false);
 	}
 }
 
-bool fonts_family_available(int family) {
-	return family >= 0 && family < FONTS_FAMILY_COUNT && font_families[family].regular != NULL;
-}
-
-bool fonts_init(void) {
-	resolve_families();
-	regular_file = font_families[FONTS_FAMILY_DEFAULT].regular;
-	bold_file = font_families[FONTS_FAMILY_DEFAULT].bold;
-	for (size_t i = 0; i < SCRIPT_COUNT; i++) {
-		scripts[i].regular = first_present(scripts[i].regular_files);
-		scripts[i].bold = first_present(scripts[i].bold_files);
+static void update_summary(void) {
+	const char *reg = (current_slot == 1 && custom_font_path[0]) ? custom_font_path : default_regular_file;
+	const char *bld = (current_slot == 1 && custom_font_path[0]) ? NULL : default_bold_file;
+	if (!reg) {
+		summary[0] = '\0';
+		return;
 	}
-	japanese.regular = first_present(japanese.regular_files);
-	japanese.bold = first_present(japanese.bold_files);
-	japanese_ui = strcmp(lang_current(), FONTS_JAPANESE_LANGUAGE) == 0;
-
-	if (!regular_file) {
-		fprintf(stderr, "fonts: no default.ttf or default.otf in %s or %s\n", FONT_DIR, FONT_DIR_FALLBACK);
-		return false;
-	}
-
-	current_family = (int)config_get_int("ui", "font_family", FONTS_FAMILY_DEFAULT);
-	if (current_family < 0 || current_family >= FONTS_FAMILY_COUNT || !font_families[current_family].regular) {
-		current_family = FONTS_FAMILY_DEFAULT;
-	}
-	large_text = config_get_int("ui", "text_size", FONTS_TEXT_NORMAL) == FONTS_TEXT_LARGE;
-	if (!build_set(current_family, large_text)) {
-		return false;
-	}
-	// Fill the static objects the interface points at.
-	for (size_t i = 0; i < UI_FONT_COUNT; i++) {
-		*ui_fonts[i].font = sets[current_family][large_text][i];
-	}
-
-	// Records the actual file names, so the log shows which container this
-	// firmware ships.
-	int len = snprintf(summary, sizeof(summary), "%s%s%s", basename_of(regular_file), bold_file ? ", " : "",
-					   bold_file ? basename_of(bold_file) : "");
+	int len = snprintf(summary, sizeof(summary), "%s%s%s", basename_of(reg), bld ? ", " : "",
+					   bld ? basename_of(bld) : "");
 	const char *sep = ", ";
 	if (japanese.used && len > 0 && (size_t)len < sizeof(summary)) {
 		len += snprintf(summary + len, sizeof(summary) - (size_t)len, "%s%s", sep, japanese.name);
@@ -487,9 +457,42 @@ bool fonts_init(void) {
 			sep = " + ";
 		}
 	}
+}
+
+bool fonts_init(void) {
+	default_regular_file = first_present(FONT_DEFAULT_FILES);
+	default_bold_file = first_present(FONT_BOLD_FILES);
+	regular_file = default_regular_file;
+	bold_file = default_bold_file;
+	for (size_t i = 0; i < SCRIPT_COUNT; i++) {
+		scripts[i].regular = first_present(scripts[i].regular_files);
+		scripts[i].bold = first_present(scripts[i].bold_files);
+	}
+	japanese.regular = first_present(japanese.regular_files);
+	japanese.bold = first_present(japanese.bold_files);
+	japanese_ui = strcmp(lang_current(), FONTS_JAPANESE_LANGUAGE) == 0;
+
+	if (!default_regular_file) {
+		fprintf(stderr, "fonts: no default.ttf or default.otf in %s or %s\n", FONT_DIR, FONT_DIR_FALLBACK);
+		return false;
+	}
+
+	current_slot = 0;
+	custom_font_path[0] = '\0';
+	large_text = config_get_int("ui", "text_size", FONTS_TEXT_NORMAL) == FONTS_TEXT_LARGE;
+	if (!build_set(0, large_text)) {
+		return false;
+	}
+	// Fill the static objects the interface points at.
+	for (size_t i = 0; i < UI_FONT_COUNT; i++) {
+		*ui_fonts[i].font = sets[0][large_text][i];
+	}
+
+	update_summary();
 
 	char from[256];
-	snprintf(from, sizeof(from), "%.*s", (int)(basename_of(regular_file) - regular_file - 1), regular_file);
+	snprintf(from, sizeof(from), "%.*s", (int)(basename_of(default_regular_file) - default_regular_file - 1),
+			 default_regular_file);
 	fprintf(stderr, "fonts: %d sizes from %s (%s)%s\n", (int)UI_FONT_COUNT, from, summary,
 			large_text ? ", large text" : "");
 	return true;
@@ -566,28 +569,42 @@ static void rescale_labels(lv_obj_t *obj, const int32_t *old_line) {
 	}
 }
 
-static bool apply_font_set(int family, bool large) {
-	if (!build_set(family, large)) {
-		return false;
+static void refresh_font_tree(lv_obj_t *root, const int32_t *old_line) {
+	if (!root) {
+		return;
 	}
+	rescale_labels(root, old_line);
+	lv_obj_refresh_style(root, LV_PART_ANY, LV_STYLE_PROP_ANY);
+}
 
+static void swap_active_set(int slot, bool large) {
 	int32_t old_line[UI_FONT_COUNT];
 	for (size_t i = 0; i < UI_FONT_COUNT; i++) {
 		old_line[i] = lv_font_get_line_height(ui_fonts[i].font);
-		*ui_fonts[i].font = sets[family][large][i];
+		*ui_fonts[i].font = sets[slot][large][i];
 	}
-	current_family = family;
+	current_slot = slot;
 	large_text = large;
+	update_summary();
 
 	for (lv_display_t *disp = lv_display_get_next(NULL); disp; disp = lv_display_get_next(disp)) {
 		for (uint32_t i = 0; i < disp->screen_cnt; i++) {
-			rescale_labels(disp->screens[i], old_line);
-			lv_obj_refresh_style(disp->screens[i], LV_PART_ANY, LV_STYLE_PROP_ANY);
+			refresh_font_tree(disp->screens[i], old_line);
 		}
+		refresh_font_tree(lv_display_get_layer_top(disp), old_line);
+		refresh_font_tree(lv_display_get_layer_sys(disp), old_line);
+		refresh_font_tree(lv_display_get_layer_bottom(disp), old_line);
 	}
 	for (int i = 0; i < change_callback_count; i++) {
 		change_callbacks[i]();
 	}
+}
+
+static bool apply_font_set(int slot, bool large) {
+	if (!build_set(slot, large)) {
+		return false;
+	}
+	swap_active_set(slot, large);
 	return true;
 }
 
@@ -595,25 +612,81 @@ bool fonts_set_large_text(bool large) {
 	if (large == large_text) {
 		return true;
 	}
-	if (!apply_font_set(current_family, large)) {
+	if (!apply_font_set(current_slot, large)) {
 		return false;
 	}
 	fprintf(stderr, "fonts: %s text\n", large ? "large" : "normal");
 	return true;
 }
 
-bool fonts_set_family(int family) {
-	if (family < 0 || family >= FONTS_FAMILY_COUNT) {
-		return false;
-	}
-	if (family == current_family) {
+static bool set_custom_file_internal(const char *path, bool save) {
+	if (!path || !path[0]) {
+		if (current_slot == 0 && !custom_font_path[0]) {
+			return true;
+		}
+		if (!apply_font_set(0, large_text)) {
+			return false;
+		}
+		// Now that active UI fonts point to slot 0, safely free slot 1 chains
+		// and release open SD-card file descriptors.
+		delete_custom_heads(custom_chain_heads[0]);
+		delete_custom_heads(custom_chain_heads[1]);
+		set_built[1][0] = false;
+		set_built[1][1] = false;
+		custom_font_path[0] = '\0';
+		if (save) {
+			config_set("ui", "font_path", "");
+			config_save();
+		}
+		fprintf(stderr, "fonts: switched to default\n");
 		return true;
 	}
-	if (!apply_font_set(family, large_text)) {
+
+	if (!is_valid_sd_font(path)) {
 		return false;
 	}
-	fprintf(stderr, "fonts: family -> %s\n", font_families[family].name);
+	if (current_slot == 1 && strcmp(path, custom_font_path) == 0) {
+		return true;
+	}
+
+	// Build the new font set into temporary buffers first so a corrupt file
+	// leaves the currently active font and caches completely untouched.
+	lv_font_t new_set[UI_FONT_COUNT];
+	lv_font_t *new_heads[UI_FONT_COUNT];
+	if (!build_set_into(1, large_text, path, NULL, new_set, new_heads)) {
+		return false;
+	}
+
+	lv_font_t *old_heads_0[UI_FONT_COUNT];
+	lv_font_t *old_heads_1[UI_FONT_COUNT];
+	memcpy(old_heads_0, custom_chain_heads[0], sizeof(old_heads_0));
+	memcpy(old_heads_1, custom_chain_heads[1], sizeof(old_heads_1));
+	memset(custom_chain_heads[0], 0, sizeof(custom_chain_heads[0]));
+	memset(custom_chain_heads[1], 0, sizeof(custom_chain_heads[1]));
+	set_built[1][0] = false;
+	set_built[1][1] = false;
+
+	snprintf(custom_font_path, sizeof(custom_font_path), "%s", path);
+	memcpy(sets[1][large_text], new_set, sizeof(new_set));
+	memcpy(custom_chain_heads[large_text], new_heads, sizeof(new_heads));
+	set_built[1][large_text] = true;
+
+	swap_active_set(1, large_text);
+
+	// Free previously loaded custom SD font chains after swapping UI fonts.
+	delete_custom_heads(old_heads_0);
+	delete_custom_heads(old_heads_1);
+
+	if (save) {
+		config_set("ui", "font_path", custom_font_path);
+		config_save();
+	}
+	fprintf(stderr, "fonts: custom SD font -> %s\n", custom_font_path);
 	return true;
+}
+
+bool fonts_set_custom_file(const char *path) {
+	return set_custom_file_internal(path, true);
 }
 
 void fonts_set_language(const char *name) {

@@ -23,6 +23,7 @@
 #include "src/gui/shell/confirm.h"
 #include "src/gui/shell/corners.h"
 #include "src/gui/settings/bootlogopage.h"
+#include "src/gui/settings/fontpage.h"
 #include "src/gui/settings/wallpaperpage.h"
 #include "src/gui/settings/kblayoutpage.h"
 #include "src/gui/settings/screensaver.h"
@@ -718,6 +719,7 @@ void gui_init(gui_config_t *cfg) {
 	systempage_init(cfg);
 	bootlogopage_init(cfg); // before appearance: its row carries the screen
 	wallpaperpage_init(cfg); // before appearance: its row carries the screen
+	fontpage_init(cfg); // before appearance: its row carries the screen
 	playerstylepage_init(cfg);
 	menustylepage_init(cfg);
 	appearance_init(cfg);

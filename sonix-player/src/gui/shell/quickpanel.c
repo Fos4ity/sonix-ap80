@@ -72,7 +72,7 @@
 #define CARD_GAP 16	   // between the two cards
 #define CARD_ROW_GAP 12 // between the blocks inside the controls card
 #define HANDLE_ROOM 24	// added under the slider when the card has a handle
-#define BRIGHT_ROW_H 44
+#define BRIGHT_ROW_H 58
 // The dimmest backlight level on the slider: 0 would put the backlight out.
 #define BRIGHTNESS_FLOOR 1
 
@@ -2035,7 +2035,15 @@ void quickpanel_init(gui_config_t *cfg) {
 	// card, so the slider stays where it is while the card stretches.
 	lv_obj_set_flex_align(controls_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 	lv_obj_set_style_pad_gap(controls_card, CARD_ROW_GAP, 0);
-	int row_h = card_h - 2 * CARD_PADDING - BRIGHT_ROW_H - CARD_ROW_GAP;
+	int first_lines = QP_SLOT_VISIBLE / QP_BUTTONS_PER_LINE;
+	int first_h = first_lines * CIRCLE_BUTTON_SIZE + (first_lines - 1) * CIRCLE_BUTTON_GAP;
+	int bright_h = BRIGHT_ROW_H;
+	int row_h = card_h - 2 * CARD_PADDING - bright_h - CARD_ROW_GAP;
+	if (row_h < first_h) {
+		bright_h -= (first_h - row_h);
+		if (bright_h < 44) bright_h = 44;
+		row_h = first_h;
+	}
 
 	lv_obj_t *row = lv_obj_create(controls_card);
 	quick_row = row;
@@ -2137,18 +2145,18 @@ void quickpanel_init(gui_config_t *cfg) {
 	lv_obj_add_event_cb(gapless_btn, gapless_page_cb, LV_EVENT_LONG_PRESSED, NULL);
 
 	bright_row = lv_obj_create(controls_card);
-	lv_obj_set_size(bright_row, lv_pct(100), BRIGHT_ROW_H);
+	lv_obj_set_size(bright_row, lv_pct(100), bright_h);
 	lv_obj_set_style_bg_opa(bright_row, 0, 0);
 	lv_obj_set_style_border_width(bright_row, 0, 0);
 	lv_obj_set_style_pad_all(bright_row, 0, 0);
-	// The knob is 26 px across and centred on the value, so at full scale half of
+	// The knob is 34 px across and centred on the value, so at full scale half of
 	// it falls past the end of the track; the row clips its children, which would
-	// slice the knob down the middle. Keeping the track 13 px short of the row's
+	// slice the knob down the middle. Keeping the track 18 px short of the row's
 	// right edge gives it room.
-	lv_obj_set_style_pad_right(bright_row, 13, 0);
+	lv_obj_set_style_pad_right(bright_row, 18, 0);
 	lv_obj_set_style_pad_gap(bright_row, 18, 0);
 	lv_obj_set_scrollable(bright_row, false);
-	lv_obj_set_event_bubble(bright_row, true);
+	lv_obj_set_event_bubble(bright_row, false);
 	lv_obj_set_flex_flow(bright_row, LV_FLEX_FLOW_ROW);
 	lv_obj_set_flex_align(bright_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
@@ -2158,7 +2166,7 @@ void quickpanel_init(gui_config_t *cfg) {
 	lv_obj_set_style_image_recolor_opa(sun, LV_OPA_COVER, 0);
 
 	brightness_slider = lv_slider_create(bright_row);
-	lv_obj_set_height(brightness_slider, 10);
+	lv_obj_set_height(brightness_slider, 14);
 	lv_obj_set_flex_grow(brightness_slider, 1);
 	lv_slider_set_range(brightness_slider, BRIGHTNESS_FLOOR, 100);
 	lv_obj_set_style_radius(brightness_slider, LV_RADIUS_CIRCLE, LV_PART_MAIN);
@@ -2169,11 +2177,11 @@ void quickpanel_init(gui_config_t *cfg) {
 	lv_obj_set_style_radius(brightness_slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
 	lv_obj_set_style_bg_color(brightness_slider, lv_color_white(), LV_PART_KNOB);
 	theme_apply_slider_knob(brightness_slider);
-	lv_obj_set_style_pad_all(brightness_slider, 8, LV_PART_KNOB);
+	lv_obj_set_style_pad_all(brightness_slider, 10, LV_PART_KNOB);
 	lv_obj_set_style_shadow_width(brightness_slider, 8, LV_PART_KNOB);
 	lv_obj_set_style_shadow_opa(brightness_slider, LV_OPA_30, LV_PART_KNOB);
 	lv_obj_set_style_shadow_color(brightness_slider, lv_color_black(), LV_PART_KNOB);
-	lv_obj_set_ext_click_area(brightness_slider, 24);
+	lv_obj_set_ext_click_area(brightness_slider, 28);
 	lv_obj_add_event_cb(brightness_slider, brightness_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
 	lv_obj_add_event_cb(brightness_slider, brightness_released_cb, LV_EVENT_RELEASED, NULL);
 
@@ -2182,8 +2190,6 @@ void quickpanel_init(gui_config_t *cfg) {
 	// down by as much; the buttons sit in it one gap down, so they read as
 	// further lines of the grid above. The window clips them, so the stretch is
 	// what uncovers them.
-	int first_lines = QP_SLOT_VISIBLE / QP_BUTTONS_PER_LINE;
-	int first_h = first_lines * CIRCLE_BUTTON_SIZE + (first_lines - 1) * CIRCLE_BUTTON_GAP;
 	extra_clip = lv_obj_create(controls_card);
 	lv_obj_remove_style_all(extra_clip);
 	lv_obj_set_ignore_layout(extra_clip, true);

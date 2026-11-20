@@ -73,7 +73,7 @@ void player_cover_accent_set(bool on);
 // Player visual customization options (persisted in [screen]).
 typedef enum {
 	PLAYER_BACKDROP_BLUR = 0,  // blurred album art behind controls (default)
-	PLAYER_BACKDROP_THEME = 1, // active Omarchy theme panel/wallpaper
+	PLAYER_BACKDROP_THEME = 1, // active theme panel/wallpaper
 	PLAYER_BACKDROP_BLACK = 2, // pitch black (#000000)
 } player_backdrop_mode_t;
 

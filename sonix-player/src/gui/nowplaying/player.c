@@ -3054,7 +3054,7 @@ static void apply_custom_art_layout(void) {
 		return;
 	}
 
-	// Transparent cover_panel so the themed dark screen + Omarchy wallpaper shows behind it.
+	// Transparent cover_panel so the themed dark screen + wallpaper shows behind it.
 	lv_obj_set_style_bg_opa(cover_panel, LV_OPA_TRANSP, 0);
 
 	int box = layout_carousel_now ? 280 : 300;
@@ -5755,7 +5755,7 @@ void player_init(gui_config_t *cfg) {
 	lv_obj_set_style_shadow_opa(progress_slider, LV_OPA_40, LV_PART_KNOB);
 	lv_obj_set_style_shadow_color(progress_slider, lv_color_black(), LV_PART_KNOB);
 	lv_obj_set_style_shadow_offset_y(progress_slider, 1, LV_PART_KNOB);
-	lv_obj_set_ext_click_area(progress_slider, 24);
+	lv_obj_set_ext_click_area(progress_slider, 30);
 
 	lv_obj_add_event_cb(progress_slider, progress_slider_event_cb, LV_EVENT_ALL, NULL);
 
@@ -5793,6 +5793,7 @@ void player_init(gui_config_t *cfg) {
 	lv_obj_set_style_radius(below_slider_group, 0, 0);
 	lv_obj_set_style_pad_all(below_slider_group, 0, 0);
 	lv_obj_set_scrollable(below_slider_group, false);
+	lv_obj_set_clickable(below_slider_group, false);
 
 	// Elapsed and total time, tucked under the two ends of the bar.
 	elapsed_label = lv_label_create(below_slider_group);

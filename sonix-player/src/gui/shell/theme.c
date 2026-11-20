@@ -32,7 +32,7 @@ typedef struct {
 	const char *wallpaper; // relative to SONIX_RESOURCE_DIR "/gui/", or NULL
 } theme_preset_t;
 
-// Authentic Omarchy theme palettes (from colors.toml) + Light mode.
+// Curated open-source theme palettes + Light mode.
 static const theme_preset_t THEME_PRESETS[THEME_PRESET_COUNT] = {
 	{
 		.name = "CpUnk",
@@ -153,7 +153,8 @@ static theme_palette_t palette_light;
 static int preset_index = 0;      // active preset (0..THEME_PRESET_COUNT-1)
 static int last_dark_preset = 0;  // remembered when toggling Light <-> Dark
 static bool custom_accent_override = false;
-static int custom_hue = -1; // 0..359 when custom hue slider is active, -1 otherwise
+static int custom_hue = -1; // 0..359 when custom hue/saturation sliders are active, -1 otherwise
+static int custom_saturation = 85; // 0..100 saturation for custom accent color
 static char sd_wallpaper_dir[448];
 static char sd_wallpaper_buf[512];
 
@@ -195,14 +196,54 @@ lv_color_t theme_accent_preset(int index) {
 int theme_get_accent(void) { return accent_index; }
 bool theme_has_custom_accent(void) { return custom_accent_override; }
 int theme_get_custom_accent_hue(void) { return custom_hue; }
+int theme_get_custom_accent_saturation(void) { return custom_saturation; }
 bool theme_has_custom_hue(void) { return custom_accent_override && custom_hue >= 0; }
 
-static lv_color_t color_from_hue(int hue) {
+static void rgb_to_hs(lv_color_t c, int *out_hue, int *out_sat) {
+	int r = c.red;
+	int g = c.green;
+	int b = c.blue;
+	int mx = r > g ? r : g;
+	if (b > mx) mx = b;
+	int mn = r < g ? r : g;
+	if (b < mn) mn = b;
+	int delta = mx - mn;
+
+	int sat = (mx == 0) ? 0 : (delta * 100 + mx / 2) / mx;
+	int hue = 0;
+	if (delta > 0) {
+		if (mx == r) {
+			hue = (60 * (g - b)) / delta;
+		} else if (mx == g) {
+			hue = 120 + (60 * (b - r)) / delta;
+		} else {
+			hue = 240 + (60 * (r - g)) / delta;
+		}
+		hue = ((hue % 360) + 360) % 360;
+	}
+	if (out_hue) *out_hue = hue;
+	if (out_sat) *out_sat = sat;
+}
+
+void theme_get_active_accent_hs(int *out_hue, int *out_sat) {
+	if (custom_accent_override && custom_hue >= 0) {
+		if (out_hue) *out_hue = custom_hue;
+		if (out_sat) *out_sat = custom_saturation;
+		return;
+	}
+	rgb_to_hs(active->accent, out_hue, out_sat);
+}
+
+static lv_color_t color_from_hs(int hue, int sat, bool dark) {
 	int h = ((hue % 360) + 360) % 360;
+	if (sat < 0) sat = 0;
+	if (sat > 100) sat = 100;
 	int sector = h / 60;
 	int rem = (h % 60) * 255 / 60;
-	int hi = 245;
-	int lo = 37;
+	// Cap lightness at low saturation so white text on active accent pills
+	// remains legible even when saturation is dragged down to 0%.
+	int hi = dark ? (155 + (90 * sat) / 100) : (130 + (85 * sat) / 100);
+	int lo = hi - (hi * sat) / 100;
 	int rise = lo + ((hi - lo) * rem) / 255;
 	int fall = hi - ((hi - lo) * rem) / 255;
 	switch (sector) {
@@ -791,10 +832,17 @@ void theme_init(void) {
 	}
 	custom_accent_override = config_get_bool("ui", "accent_override", false);
 	custom_hue = (int)config_get_int("ui", "accent_hue", -1);
+	custom_saturation = (int)config_get_int("ui", "accent_saturation", 85);
+	if (custom_saturation < 0) custom_saturation = 0;
+	if (custom_saturation > 100) custom_saturation = 100;
 	if (custom_accent_override) {
-		lv_color_t ac = (custom_hue >= 0 && custom_hue < 360) ? color_from_hue(custom_hue) : ACCENT_COLORS[accent_index];
-		palette_dark.accent = ac;
-		palette_light.accent = ac;
+		if (custom_hue >= 0 && custom_hue < 360) {
+			palette_dark.accent = color_from_hs(custom_hue, custom_saturation, true);
+			palette_light.accent = color_from_hs(custom_hue, custom_saturation, false);
+		} else {
+			palette_dark.accent = ACCENT_COLORS[accent_index];
+			palette_light.accent = ACCENT_COLORS[accent_index];
+		}
 	}
 
 	dynamic_tint = config_get_bool("ui", "dynamic_tint", false);
@@ -1015,6 +1063,7 @@ void theme_set_preset(int index) {
 	preset_wp_seq++;
 	custom_accent_override = false;
 	custom_hue = -1;
+	custom_saturation = 85;
 	if (THEME_PRESETS[index].palette.dark) {
 		last_dark_preset = index;
 		palette_dark = THEME_PRESETS[index].palette;
@@ -1056,6 +1105,7 @@ void theme_set_preset(int index) {
 	config_set_bool("ui", "dark_theme", active->dark);
 	config_set_bool("ui", "accent_override", false);
 	config_set_int("ui", "accent_hue", -1);
+	config_set_int("ui", "accent_saturation", 85);
 	config_save();
 
 	bootlogo_follow(active->dark, accent_index);
@@ -1092,24 +1142,55 @@ void theme_set_accent(int index) {
 	refresh_all();
 }
 
+static void apply_custom_hs(void) {
+	custom_accent_override = true;
+	palette_dark.accent = color_from_hs(custom_hue, custom_saturation, true);
+	palette_light.accent = color_from_hs(custom_hue, custom_saturation, false);
+	rebuild_active();
+	apply_palette();
+	refresh_all();
+}
+
 void theme_set_custom_accent_hue(int hue) {
 	hue = ((hue % 360) + 360) % 360;
+	if (custom_hue < 0) {
+		// Preserve the current accent's saturation when starting from a preset,
+		// unless it is near-monochrome (e.g. Ash), where dragging Hue should
+		// immediately show colour.
+		rgb_to_hs(active->accent, NULL, &custom_saturation);
+		if (custom_saturation < 20) {
+			custom_saturation = 80;
+		}
+	}
 	custom_hue = hue;
-	custom_accent_override = true;
-	lv_color_t ac = color_from_hue(hue);
-	palette_dark.accent = ac;
-	palette_light.accent = ac;
-	rebuild_active();
+	apply_custom_hs();
+}
+
+void theme_set_custom_accent_saturation(int sat) {
+	if (sat < 0) sat = 0;
+	if (sat > 100) sat = 100;
+	if (custom_hue < 0) {
+		// Derive starting hue from the active accent so adjusting saturation
+		// modifies the current colour instead of jumping to red.
+		rgb_to_hs(active->accent, &custom_hue, NULL);
+	}
+	custom_saturation = sat;
+	apply_custom_hs();
+}
+
+void theme_commit_custom_accent(void) {
+	if (!custom_accent_override || custom_hue < 0) {
+		return;
+	}
 	if (dynamic_tint) {
 		rebuild_wallpaper_blended();
+		apply_palette();
+		refresh_all();
 	}
-	apply_palette();
-
 	config_set_bool("ui", "accent_override", true);
-	config_set_int("ui", "accent_hue", hue);
+	config_set_int("ui", "accent_hue", custom_hue);
+	config_set_int("ui", "accent_saturation", custom_saturation);
 	config_save();
-
-	refresh_all();
 }
 
 void theme_set_card_root(const char *sd_root) {

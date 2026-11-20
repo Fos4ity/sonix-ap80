@@ -388,20 +388,6 @@ static void none_cb(lv_event_t *e) {
 	toast_success("Wallpaper disabled");
 }
 
-#ifdef HOST_BUILD
-static void omarchy_shortcut_cb(lv_event_t *e) {
-	(void)e;
-	if (busy || switcher_back_drag_active()) {
-		return;
-	}
-	const char *home = getenv("HOME");
-	if (home && home[0]) {
-		snprintf(current_dir, sizeof(current_dir), "%s/.config/omarchy/themes/cpunk/backgrounds", home);
-		refresh();
-	}
-}
-#endif
-
 static lv_obj_t *add_check(lv_obj_t *row) {
 	lv_obj_t *mark = lv_image_create(row);
 	lv_image_set_src(mark, &icon_check);
@@ -465,10 +451,6 @@ void wallpaperpage_init(gui_config_t *cfg) {
 
 	lv_obj_t *none_row = settingsrow_action(container, "None", none_cb, NULL);
 	none_check = add_check(none_row);
-
-#ifdef HOST_BUILD
-	settingsrow_action(container, "Omarchy cpunk backgrounds", omarchy_shortcut_cb, NULL);
-#endif
 
 	path_label = add_note(container, current_dir);
 
