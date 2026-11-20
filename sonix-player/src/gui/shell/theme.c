@@ -1,10 +1,12 @@
 #include "theme.h"
 
+#include "src/gui/shell/gui.h"
 #include "src/system/device/bootlogo.h"
 #include "src/system/core/config.h"
 #include "src/system/core/respath.h"
 #include "src/system/image/stb_image_decl.h"
 
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -187,6 +189,7 @@ lv_color_t theme_accent_preset(int index) {
 }
 
 int theme_get_accent(void) { return accent_index; }
+bool theme_has_custom_accent(void) { return custom_accent_override; }
 
 // Callers asking to be called back after a theme or accent change. The list
 // grows on demand and has no fixed limit: a dropped registration shows up only
@@ -266,10 +269,14 @@ static void rebuild_active(void) {
 	active = &tinted;
 }
 
-// Optional menu wallpaper (480x800 for HiBy R1), blended at configurable
-// opacity, zoom scale, and X/Y pan offset behind every screen.
+// Optional menu wallpaper (480x800 for HiBy R1), pre-blended at configurable
+// opacity against screen_bg so LVGL can blit at LV_OPA_COVER with zero
+// per-frame alpha math.
 static lv_image_dsc_t wallpaper_dsc;
+static uint16_t *wallpaper_raw_pixels;
 static uint16_t *wallpaper_pixels;
+static int wallpaper_w;
+static int wallpaper_h;
 static bool wallpaper_ready;
 static int wallpaper_opacity_pct = 30;
 static lv_opa_t wallpaper_opa = (lv_opa_t)((30 * 255 + 50) / 100); // 30% default
@@ -278,9 +285,71 @@ static int wallpaper_pan_x = 0;       // -100..100
 static int wallpaper_pan_y = 0;       // -100..100
 static char wallpaper_saved_path[512];
 
+static theme_card_surface_t card_surface = THEME_CARD_TRANSLUCENT;
+static int card_radius = 12;
+static theme_border_style_t border_style = THEME_BORDER_SUBTLE;
+static bool mono_grid_icons = false;
+
 static void apply_palette(void);
 static void refresh_tree(lv_obj_t *obj);
+static void refresh_all(void);
 static unsigned palette_generation;
+
+// Pre-blends wallpaper_raw_pixels with active->screen_bg at wallpaper_opa into
+// wallpaper_pixels so LVGL renders the 480x800 backdrop with LV_OPA_COVER.
+static void rebuild_wallpaper_blended(void) {
+	if (!wallpaper_raw_pixels || wallpaper_w <= 0 || wallpaper_h <= 0 || wallpaper_opa == 0) {
+		wallpaper_ready = false;
+		return;
+	}
+
+	size_t count = (size_t)wallpaper_w * (size_t)wallpaper_h;
+	if (!wallpaper_pixels) {
+		wallpaper_pixels = malloc(count * sizeof(uint16_t));
+		if (!wallpaper_pixels) {
+			wallpaper_ready = false;
+			return;
+		}
+	}
+
+	if (wallpaper_opa >= 255) {
+		memcpy(wallpaper_pixels, wallpaper_raw_pixels, count * sizeof(uint16_t));
+	} else {
+		uint32_t a = wallpaper_opa;
+		uint32_t inv_a = 255 - a;
+		uint32_t bg_r = active->screen_bg.red;
+		uint32_t bg_g = active->screen_bg.green;
+		uint32_t bg_b = active->screen_bg.blue;
+
+		for (size_t i = 0; i < count; i++) {
+			uint16_t px = wallpaper_raw_pixels[i];
+			uint32_t r5 = (px >> 11) & 0x1F;
+			uint32_t g6 = (px >> 5) & 0x3F;
+			uint32_t b5 = px & 0x1F;
+			uint32_t fg_r = (r5 << 3) | (r5 >> 2);
+			uint32_t fg_g = (g6 << 2) | (g6 >> 4);
+			uint32_t fg_b = (b5 << 3) | (b5 >> 2);
+
+			uint32_t sr = fg_r * a + bg_r * inv_a;
+			uint32_t sg = fg_g * a + bg_g * inv_a;
+			uint32_t sb = fg_b * a + bg_b * inv_a;
+			uint32_t r = (sr + 1 + (sr >> 8)) >> 8;
+			uint32_t g = (sg + 1 + (sg >> 8)) >> 8;
+			uint32_t b = (sb + 1 + (sb >> 8)) >> 8;
+			wallpaper_pixels[i] = (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+		}
+	}
+
+	memset(&wallpaper_dsc, 0, sizeof(wallpaper_dsc));
+	wallpaper_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+	wallpaper_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
+	wallpaper_dsc.header.w = (uint32_t)wallpaper_w;
+	wallpaper_dsc.header.h = (uint32_t)wallpaper_h;
+	wallpaper_dsc.header.stride = (uint32_t)wallpaper_w * 2;
+	wallpaper_dsc.data_size = (uint32_t)(count * sizeof(uint16_t));
+	wallpaper_dsc.data = (const uint8_t *)wallpaper_pixels;
+	wallpaper_ready = true;
+}
 
 // Decodes a PNG/JPEG file and aspect-fill crops/scales it to target_w x target_h
 // in RGB565 using scale_pct (100..250) and pan_x/pan_y (-100..100).
@@ -406,21 +475,17 @@ uint16_t *theme_decode_wallpaper_rgb565(const char *path, int target_w, int targ
 }
 
 void theme_apply_wallpaper_pixels(uint16_t *pixels, int w, int h, const char *saved_path) {
-	// Detach from style before freeing old pixel buffer.
+	// Detach from style before freeing old pixel buffers.
 	lv_style_set_bg_image_src(&theme_style_screen, NULL);
+	free(wallpaper_raw_pixels);
 	free(wallpaper_pixels);
-	wallpaper_pixels = pixels;
+	wallpaper_raw_pixels = pixels;
+	wallpaper_pixels = NULL;
+	wallpaper_w = w;
+	wallpaper_h = h;
 
 	if (pixels && w > 0 && h > 0) {
-		memset(&wallpaper_dsc, 0, sizeof(wallpaper_dsc));
-		wallpaper_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
-		wallpaper_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
-		wallpaper_dsc.header.w = (uint32_t)w;
-		wallpaper_dsc.header.h = (uint32_t)h;
-		wallpaper_dsc.header.stride = (uint32_t)w * 2;
-		wallpaper_dsc.data_size = (uint32_t)((size_t)w * (size_t)h * sizeof(uint16_t));
-		wallpaper_dsc.data = (const uint8_t *)wallpaper_pixels;
-		wallpaper_ready = true;
+		rebuild_wallpaper_blended();
 	} else {
 		wallpaper_ready = false;
 	}
@@ -432,10 +497,7 @@ void theme_apply_wallpaper_pixels(uint16_t *pixels, int w, int h, const char *sa
 	}
 
 	apply_palette();
-	palette_generation++;
-	if (lv_screen_active()) {
-		refresh_tree(lv_screen_active());
-	}
+	refresh_all();
 }
 
 static const char *preset_default_wallpaper(void) {
@@ -483,11 +545,9 @@ void theme_set_wallpaper_opacity(int pct) {
 	config_set_int("ui", "wallpaper_opacity", pct);
 	config_save();
 
+	rebuild_wallpaper_blended();
 	apply_palette();
-	palette_generation++;
-	if (lv_screen_active()) {
-		refresh_tree(lv_screen_active());
-	}
+	refresh_all();
 }
 
 int theme_get_wallpaper_scale(void) { return wallpaper_scale_pct; }
@@ -557,16 +617,10 @@ static void wallpaper_load(void) {
 		wallpaper_ready = false;
 		return;
 	}
-	wallpaper_pixels = px;
-	memset(&wallpaper_dsc, 0, sizeof(wallpaper_dsc));
-	wallpaper_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
-	wallpaper_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
-	wallpaper_dsc.header.w = (uint32_t)w;
-	wallpaper_dsc.header.h = (uint32_t)h;
-	wallpaper_dsc.header.stride = (uint32_t)w * 2;
-	wallpaper_dsc.data_size = (uint32_t)((size_t)w * (size_t)h * sizeof(uint16_t));
-	wallpaper_dsc.data = (const uint8_t *)wallpaper_pixels;
-	wallpaper_ready = true;
+	wallpaper_raw_pixels = px;
+	wallpaper_w = w;
+	wallpaper_h = h;
+	rebuild_wallpaper_blended();
 }
 
 // Pushes the active palette into the shared styles.
@@ -574,27 +628,52 @@ static void apply_palette(void) {
 	lv_style_set_bg_color(&theme_style_screen, active->screen_bg);
 	if (active->dark && wallpaper_ready && wallpaper_opa > 0) {
 		lv_style_set_bg_image_src(&theme_style_screen, &wallpaper_dsc);
-		lv_style_set_bg_image_opa(&theme_style_screen, wallpaper_opa);
+		lv_style_set_bg_image_opa(&theme_style_screen, LV_OPA_COVER);
 	} else {
 		lv_style_set_bg_image_src(&theme_style_screen, NULL);
 	}
 
+	lv_opa_t panel_opa = LV_OPA_COVER;
+	lv_opa_t card_opa = LV_OPA_COVER;
+	if (card_surface == THEME_CARD_GLASS) {
+		panel_opa = (active->dark && wallpaper_ready) ? LV_OPA_80 : LV_OPA_COVER;
+		card_opa = (active->dark && wallpaper_ready) ? LV_OPA_50 : LV_OPA_90;
+	} else if (card_surface == THEME_CARD_TRANSLUCENT && active->dark && wallpaper_ready) {
+		panel_opa = LV_OPA_90;
+		card_opa = LV_OPA_80;
+	}
+
 	lv_style_set_bg_color(&theme_style_panel, active->panel);
-	lv_style_set_bg_opa(&theme_style_panel, (active->dark && wallpaper_ready) ? LV_OPA_90 : LV_OPA_COVER);
+	lv_style_set_bg_opa(&theme_style_panel, panel_opa);
 
 	lv_style_set_bg_color(&theme_style_card, active->surface);
-	lv_style_set_bg_opa(&theme_style_card, (active->dark && wallpaper_ready) ? LV_OPA_80 : LV_OPA_COVER);
+	lv_style_set_bg_opa(&theme_style_card, card_opa);
+	lv_style_set_radius(&theme_style_card, card_radius);
 	lv_style_set_text_color(&theme_style_card, active->text_primary);
-	if (active->dark) {
+
+	if (border_style == THEME_BORDER_NONE) {
+		lv_style_set_border_width(&theme_style_card, 0);
+	} else if (border_style == THEME_BORDER_ACCENT) {
+		lv_style_set_border_color(&theme_style_card, active->accent);
+		lv_style_set_border_width(&theme_style_card, 1);
+		lv_style_set_border_opa(&theme_style_card, LV_OPA_70);
+	} else if (active->dark || card_surface == THEME_CARD_GLASS) {
 		lv_style_set_border_color(&theme_style_card, THEME_PRESETS[preset_index].border);
 		lv_style_set_border_width(&theme_style_card, 1);
-		lv_style_set_border_opa(&theme_style_card, LV_OPA_50);
+		lv_style_set_border_opa(&theme_style_card, card_surface == THEME_CARD_GLASS ? LV_OPA_70 : LV_OPA_50);
 	} else {
 		lv_style_set_border_width(&theme_style_card, 0);
 	}
 
 	lv_style_set_bg_color(&theme_style_card_pressed, active->surface_pressed);
-	if (active->dark) {
+	lv_style_set_radius(&theme_style_card_pressed, card_radius);
+	if (border_style == THEME_BORDER_NONE) {
+		lv_style_set_border_width(&theme_style_card_pressed, 0);
+	} else if (border_style == THEME_BORDER_ACCENT) {
+		lv_style_set_border_color(&theme_style_card_pressed, active->accent);
+		lv_style_set_border_width(&theme_style_card_pressed, 2);
+		lv_style_set_border_opa(&theme_style_card_pressed, LV_OPA_COVER);
+	} else if (active->dark || card_surface == THEME_CARD_GLASS) {
 		lv_style_set_border_color(&theme_style_card_pressed, active->text_primary);
 		lv_style_set_border_width(&theme_style_card_pressed, 1);
 		lv_style_set_border_opa(&theme_style_card_pressed, LV_OPA_60);
@@ -676,6 +755,21 @@ void theme_init(void) {
 	}
 
 	dynamic_tint = config_get_bool("ui", "dynamic_tint", false);
+
+	int cs = (int)config_get_int("ui", "card_surface", THEME_CARD_TRANSLUCENT);
+	if (cs < THEME_CARD_TRANSLUCENT || cs > THEME_CARD_GLASS) cs = THEME_CARD_TRANSLUCENT;
+	card_surface = (theme_card_surface_t)cs;
+
+	card_radius = (int)config_get_int("ui", "card_radius", 12);
+	if (card_radius != 0 && card_radius != 6 && card_radius != 12 && card_radius != 20) {
+		card_radius = 12;
+	}
+
+	int bs = (int)config_get_int("ui", "border_style", THEME_BORDER_SUBTLE);
+	if (bs < THEME_BORDER_SUBTLE || bs > THEME_BORDER_NONE) bs = THEME_BORDER_SUBTLE;
+	border_style = (theme_border_style_t)bs;
+
+	mono_grid_icons = config_get_bool("ui", "mono_grid_icons", false);
 
 	wallpaper_load();
 	rebuild_active();
@@ -826,11 +920,56 @@ const char *theme_preset_name(int index) {
 
 int theme_get_preset(void) { return preset_index; }
 
+typedef struct {
+	unsigned seq;
+	char path[512];
+	int scale_pct;
+	int pan_x;
+	int pan_y;
+	uint16_t *pixels;
+	int w;
+	int h;
+} preset_wp_job_t;
+
+static unsigned preset_wp_seq;
+
+static void preset_wp_done_cb(void *arg) {
+	preset_wp_job_t *job = (preset_wp_job_t *)arg;
+	if (job->seq == preset_wp_seq && !wallpaper_saved_path[0] && job->pixels) {
+		lv_style_set_bg_image_src(&theme_style_screen, NULL);
+		free(wallpaper_raw_pixels);
+		free(wallpaper_pixels);
+		wallpaper_raw_pixels = job->pixels;
+		wallpaper_pixels = NULL;
+		wallpaper_w = job->w;
+		wallpaper_h = job->h;
+		rebuild_wallpaper_blended();
+		apply_palette();
+		refresh_all();
+	} else {
+		free(job->pixels);
+	}
+	free(job);
+}
+
+static void *preset_wp_thread(void *arg) {
+	preset_wp_job_t *job = (preset_wp_job_t *)arg;
+	job->pixels = theme_decode_wallpaper_rgb565(job->path, 480, 800,
+												  job->scale_pct, job->pan_x, job->pan_y,
+												  &job->w, &job->h);
+	if (!gui_post(preset_wp_done_cb, job)) {
+		free(job->pixels);
+		free(job);
+	}
+	return NULL;
+}
+
 void theme_set_preset(int index) {
 	if (index < 0 || index >= THEME_PRESET_COUNT) {
 		return;
 	}
 	preset_index = index;
+	preset_wp_seq++;
 	custom_accent_override = false;
 	if (THEME_PRESETS[index].palette.dark) {
 		last_dark_preset = index;
@@ -841,27 +980,30 @@ void theme_set_preset(int index) {
 		dark_selected = false;
 	}
 	rebuild_active();
+
 	// If using the theme-default wallpaper (not a custom file or "none"), swap
-	// to this theme's bundled 480x800 wallpaper automatically.
+	// to this theme's bundled 480x800 wallpaper asynchronously so the UI
+	// responds immediately without blocking on PNG decode.
+	bool async_wp_queued = false;
 	if (!wallpaper_saved_path[0] && THEME_PRESETS[index].wallpaper) {
-		int w = 0, h = 0;
-		uint16_t *px = theme_decode_wallpaper_rgb565(THEME_PRESETS[index].wallpaper, 480, 800,
-													 wallpaper_scale_pct, wallpaper_pan_x, wallpaper_pan_y,
-													 &w, &h);
-		if (px) {
-			lv_style_set_bg_image_src(&theme_style_screen, NULL);
-			free(wallpaper_pixels);
-			wallpaper_pixels = px;
-			memset(&wallpaper_dsc, 0, sizeof(wallpaper_dsc));
-			wallpaper_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
-			wallpaper_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
-			wallpaper_dsc.header.w = (uint32_t)w;
-			wallpaper_dsc.header.h = (uint32_t)h;
-			wallpaper_dsc.header.stride = (uint32_t)w * 2;
-			wallpaper_dsc.data_size = (uint32_t)((size_t)w * (size_t)h * sizeof(uint16_t));
-			wallpaper_dsc.data = (const uint8_t *)wallpaper_pixels;
-			wallpaper_ready = true;
+		preset_wp_job_t *job = calloc(1, sizeof(*job));
+		if (job) {
+			job->seq = preset_wp_seq;
+			snprintf(job->path, sizeof(job->path), "%s", THEME_PRESETS[index].wallpaper);
+			job->scale_pct = wallpaper_scale_pct;
+			job->pan_x = wallpaper_pan_x;
+			job->pan_y = wallpaper_pan_y;
+			pthread_t th;
+			if (pthread_create(&th, NULL, preset_wp_thread, job) == 0) {
+				pthread_detach(th);
+				async_wp_queued = true;
+			} else {
+				free(job);
+			}
 		}
+	}
+	if (!async_wp_queued && active->dark) {
+		rebuild_wallpaper_blended();
 	}
 	apply_palette();
 
@@ -888,6 +1030,9 @@ void theme_set_accent(int index) {
 	palette_dark.accent = ACCENT_COLORS[index];
 	palette_light.accent = ACCENT_COLORS[index];
 	rebuild_active(); // the tint is drawn from the accent, so it moves with it
+	if (dynamic_tint) {
+		rebuild_wallpaper_blended();
+	}
 	apply_palette();
 
 	config_set_int("ui", "accent", index);
@@ -907,10 +1052,71 @@ void theme_set_dynamic_tint(bool on) {
 	}
 	dynamic_tint = on;
 	rebuild_active();
+	rebuild_wallpaper_blended();
 	apply_palette();
 
 	config_set_bool("ui", "dynamic_tint", on);
 	config_save();
 
+	refresh_all();
+}
+
+theme_card_surface_t theme_get_card_surface(void) { return card_surface; }
+
+void theme_set_card_surface(theme_card_surface_t surface) {
+	if (surface < THEME_CARD_TRANSLUCENT || surface > THEME_CARD_GLASS) {
+		surface = THEME_CARD_TRANSLUCENT;
+	}
+	if (card_surface == surface) {
+		return;
+	}
+	card_surface = surface;
+	config_set_int("ui", "card_surface", (int)surface);
+	config_save();
+	apply_palette();
+	refresh_all();
+}
+
+int theme_get_card_radius(void) { return card_radius; }
+
+void theme_set_card_radius(int px) {
+	if (px != 0 && px != 6 && px != 12 && px != 20) {
+		px = 12;
+	}
+	if (card_radius == px) {
+		return;
+	}
+	card_radius = px;
+	config_set_int("ui", "card_radius", px);
+	config_save();
+	apply_palette();
+	refresh_all();
+}
+
+theme_border_style_t theme_get_border_style(void) { return border_style; }
+
+void theme_set_border_style(theme_border_style_t style) {
+	if (style < THEME_BORDER_SUBTLE || style > THEME_BORDER_NONE) {
+		style = THEME_BORDER_SUBTLE;
+	}
+	if (border_style == style) {
+		return;
+	}
+	border_style = style;
+	config_set_int("ui", "border_style", (int)style);
+	config_save();
+	apply_palette();
+	refresh_all();
+}
+
+bool theme_get_mono_grid_icons(void) { return mono_grid_icons; }
+
+void theme_set_mono_grid_icons(bool on) {
+	if (mono_grid_icons == on) {
+		return;
+	}
+	mono_grid_icons = on;
+	config_set_bool("ui", "mono_grid_icons", on);
+	config_save();
 	refresh_all();
 }

@@ -140,6 +140,18 @@ static lv_style_t tint_icon_style;
 // Up over the player's artwork (topbar_set_over_artwork): white on the
 // picture, whatever the theme or the page underneath says.
 static bool over_art;
+static bool bar_transparent;
+
+static void apply_bar_bg_opa(void) {
+	if (!top_bar || over_art || tint_active) {
+		return;
+	}
+	if (bar_transparent) {
+		lv_obj_set_style_bg_opa(top_bar, LV_OPA_TRANSP, 0);
+	} else {
+		lv_obj_remove_local_style_prop(top_bar, LV_STYLE_BG_OPA, 0);
+	}
+}
 
 static lv_color_t shell_color(bool known) {
 	if (over_art) {
@@ -859,6 +871,8 @@ void topbar_init(gui_config_t *cfg) {
 	lv_obj_set_size(top_bar, cfg->screen_width, cfg->top_bar_height);
 	lv_obj_align(top_bar, LV_ALIGN_TOP_MID, 0, 0);
 	lv_obj_add_style(top_bar, &theme_style_panel, 0);
+	bar_transparent = config_get_bool("screen", "topbar_transparent", false);
+	apply_bar_bg_opa();
 	lv_obj_set_style_border_width(top_bar, 0, 0);
 	lv_obj_set_style_radius(top_bar, 0, 0);
 	lv_obj_set_scrollable(top_bar, false);
@@ -1108,6 +1122,7 @@ static void tint_apply(void) {
 	tint_active = active;
 
 	if (active) {
+		lv_obj_remove_local_style_prop(top_bar, LV_STYLE_BG_OPA, 0);
 		lv_obj_set_style_bg_color(top_bar, tint_bg, 0);
 		lv_style_set_text_color(&tint_text_style, tint_ink);
 		lv_style_set_image_recolor(&tint_icon_style, tint_ink);
@@ -1117,6 +1132,7 @@ static void tint_apply(void) {
 		lv_style_remove_prop(&tint_text_style, LV_STYLE_TEXT_COLOR);
 		lv_style_remove_prop(&tint_icon_style, LV_STYLE_IMAGE_RECOLOR);
 		lv_style_remove_prop(&tint_icon_style, LV_STYLE_IMAGE_RECOLOR_OPA);
+		apply_bar_bg_opa();
 	}
 	lv_obj_report_style_change(&tint_text_style);
 	lv_obj_report_style_change(&tint_icon_style);
@@ -1163,6 +1179,7 @@ void topbar_set_over_artwork(bool on, bool blur) {
 		// hold the artwork's white until this puts them back.
 		tint_active = true;
 		tint_apply();
+		apply_bar_bg_opa();
 	} else {
 		return;
 	}
@@ -1216,4 +1233,16 @@ void topbar_set_hidden(bool hidden) {
 	} else {
 		lv_obj_set_hidden(top_bar, false);
 	}
+}
+
+bool topbar_get_transparent(void) { return bar_transparent; }
+
+void topbar_set_transparent(bool transparent) {
+	if (bar_transparent == transparent) {
+		return;
+	}
+	bar_transparent = transparent;
+	config_set_bool("screen", "topbar_transparent", transparent);
+	config_save();
+	apply_bar_bg_opa();
 }

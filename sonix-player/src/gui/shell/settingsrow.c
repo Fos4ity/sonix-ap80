@@ -295,8 +295,6 @@ static lv_obj_t *make_card(lv_obj_t *parent, const char *name, lv_obj_t **value_
 	lv_obj_set_width(card, lv_pct(100));
 	lv_obj_set_height(card, height);
 	lv_obj_add_style(card, &theme_style_card, 0);
-	lv_obj_set_style_radius(card, ROW_RADIUS, 0);
-	lv_obj_set_style_border_width(card, 0, 0);
 	lv_obj_set_style_shadow_width(card, 0, 0);
 	lv_obj_set_style_pad_hor(card, 20, 0);
 	lv_obj_set_style_pad_ver(card, 14, 0);
@@ -700,7 +698,6 @@ lv_obj_t *settingsrow_add(lv_obj_t *parent, const char *name, lv_obj_t **value_o
 	lv_obj_set_height(row, ROW_HEIGHT);
 	lv_obj_add_style(row, &theme_style_card, 0);
 	lv_obj_add_style(row, &theme_style_card_pressed, LV_STATE_PRESSED);
-	lv_obj_set_style_radius(row, ROW_RADIUS, 0);
 	lv_obj_set_style_shadow_width(row, 0, 0);
 	lv_obj_set_style_pad_hor(row, 20, 0);
 	// Presses bubble up to the page container, so the swipe-back drag can start
@@ -800,8 +797,6 @@ lv_obj_t *settingsrow_toggle_pills(lv_obj_t *parent, const char *title, lv_event
 	lv_obj_set_width(card, lv_pct(100));
 	lv_obj_set_height(card, LV_SIZE_CONTENT);
 	lv_obj_add_style(card, &theme_style_card, 0);
-	lv_obj_set_style_radius(card, 12, 0);
-	lv_obj_set_style_border_width(card, 0, 0);
 	lv_obj_set_style_shadow_width(card, 0, 0);
 	lv_obj_set_style_pad_all(card, 20, 0);
 	lv_obj_set_style_pad_row(card, 18, 0);
@@ -857,8 +852,6 @@ lv_obj_t *settingsrow_pills(lv_obj_t *parent, const char *title, lv_obj_t **pill
 	lv_obj_set_width(card, lv_pct(100));
 	lv_obj_set_height(card, LV_SIZE_CONTENT);
 	lv_obj_add_style(card, &theme_style_card, 0);
-	lv_obj_set_style_radius(card, 12, 0);
-	lv_obj_set_style_border_width(card, 0, 0);
 	lv_obj_set_style_shadow_width(card, 0, 0);
 	lv_obj_set_style_pad_all(card, 20, 0);
 	lv_obj_set_style_pad_row(card, 18, 0);
@@ -890,7 +883,7 @@ lv_obj_t *settingsrow_pills(lv_obj_t *parent, const char *title, lv_obj_t **pill
 static lv_obj_t *pill_make(lv_obj_t *parent, const char *label_text, int value, lv_event_cb_t cb) {
 	lv_obj_t *btn = lv_btn_create(parent);
 	lv_obj_set_size(btn, LV_SIZE_CONTENT, 56);
-	lv_obj_set_style_pad_hor(btn, 26, 0);
+	lv_obj_set_style_pad_hor(btn, 18, 0);
 	lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0); // Adwaita pill button
 	lv_obj_set_style_shadow_width(btn, 0, 0);
 	lv_obj_set_style_border_width(btn, 0, 0);
@@ -916,8 +909,11 @@ void settingsrow_pill_active(lv_obj_t *pill, bool active) {
 	if (!pill) {
 		return;
 	}
-	lv_obj_set_style_bg_color(pill, active ? theme()->accent : theme()->surface_pressed, 0);
-	lv_obj_set_style_text_color(lv_obj_get_child(pill, 0), active ? lv_color_white() : theme()->text_primary, 0);
+	lv_color_t accent = theme()->accent;
+	int luma = ((int)accent.red * 299 + (int)accent.green * 587 + (int)accent.blue * 114) / 1000;
+	lv_color_t ink = (luma > 150) ? lv_color_make(20, 20, 20) : lv_color_white();
+	lv_obj_set_style_bg_color(pill, active ? accent : theme()->surface_pressed, 0);
+	lv_obj_set_style_text_color(lv_obj_get_child(pill, 0), active ? ink : theme()->text_primary, 0);
 }
 
 // ---------------------------------------------------------------------------

@@ -15,7 +15,38 @@
 #include "src/system/device/usb.h"
 
 #define GRID_GAP 14
-#define TILE_RADIUS 12 // Adwaita card radius
+#define MAX_GRIDS 16
+
+static lv_obj_t *tracked_grids[MAX_GRIDS];
+static int tracked_grid_count;
+
+static void apply_tile_icon_mode(lv_obj_t *icon) {
+	if (!icon) {
+		return;
+	}
+	if (theme_get_mono_grid_icons()) {
+		lv_obj_set_style_image_recolor(icon, theme()->text_primary, 0);
+		lv_obj_set_style_image_recolor_opa(icon, LV_OPA_COVER, 0);
+	} else {
+		lv_obj_set_style_image_recolor_opa(icon, LV_OPA_TRANSP, 0);
+	}
+}
+
+static void refresh_grid_icons(void) {
+	for (int g = 0; g < tracked_grid_count; g++) {
+		lv_obj_t *grid = tracked_grids[g];
+		if (!grid) {
+			continue;
+		}
+		uint32_t cnt = lv_obj_get_child_count(grid);
+		for (uint32_t i = 0; i < cnt; i++) {
+			lv_obj_t *tile = lv_obj_get_child(grid, (int32_t)i);
+			if (tile && lv_obj_get_child_count(tile) > 0) {
+				apply_tile_icon_mode(lv_obj_get_child(tile, 0));
+			}
+		}
+	}
+}
 
 static void unavailable_cb(lv_event_t *e) {
 	if (player_sheet_drag_active() || switcher_back_drag_active() || coverflow_drag_active()) {
@@ -65,7 +96,6 @@ static void add_tile(lv_obj_t *grid, const grid_entry_t *entry, int width, int h
 	lv_obj_set_size(tile, width, height);
 	lv_obj_add_style(tile, &theme_style_card, 0);
 	lv_obj_add_style(tile, &theme_style_card_pressed, LV_STATE_PRESSED);
-	lv_obj_set_style_radius(tile, TILE_RADIUS, 0);
 	lv_obj_set_style_shadow_width(tile, 0, 0);
 	lv_obj_set_style_pad_all(tile, 8, 0);
 
@@ -78,10 +108,10 @@ static void add_tile(lv_obj_t *grid, const grid_entry_t *entry, int width, int h
 	lv_obj_set_style_pad_gap(tile, 8, 0);
 	lv_obj_set_scrollable(tile, false);
 
-	// The tile artwork keeps its own colours, so unlike the interface glyphs it
-	// is not run through the theme's recolour.
+	// The tile artwork keeps its own colours unless Monochrome Grid Icons is on.
 	lv_obj_t *icon = lv_image_create(tile);
 	lv_image_set_src(icon, entry->icon);
+	apply_tile_icon_mode(icon);
 
 	// The caption wraps rather than running out of the tile: a translated label
 	// such as "Album-Interpreten" does not fit on one line. Centred, because a
@@ -145,6 +175,13 @@ lv_obj_t *gridpage_build(lv_obj_t *screen, gui_config_t *cfg, const grid_entry_t
 	// with empty places. Centring would drift an odd tile into the middle of
 	// its row, giving that page a shape no other one has.
 	lv_obj_set_flex_align(grid, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
+
+	if (tracked_grid_count == 0) {
+		theme_register_refresh(refresh_grid_icons);
+	}
+	if (tracked_grid_count < MAX_GRIDS) {
+		tracked_grids[tracked_grid_count++] = grid;
+	}
 
 	gridpage_set_entries(grid, cfg, entries, count, columns, rows, clear_corner_buttons);
 

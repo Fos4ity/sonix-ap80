@@ -76,6 +76,7 @@ void theme_toggle(void);
 #define THEME_ACCENT_COUNT 6
 lv_color_t theme_accent_preset(int index);
 int theme_get_accent(void);
+bool theme_has_custom_accent(void);
 void theme_set_accent(int index);
 
 // Picks a specific theme rather than flipping; no-op when already active.
@@ -113,5 +114,30 @@ int theme_get_wallpaper_scale(void);
 int theme_get_wallpaper_pan_x(void);
 int theme_get_wallpaper_pan_y(void);
 void theme_set_wallpaper_transform(int scale_pct, int pan_x, int pan_y);
+
+// Menu & card surface customization (persisted in [ui]).
+typedef enum {
+	THEME_CARD_TRANSLUCENT = 0, // LV_OPA_80 when wallpaper active (default)
+	THEME_CARD_SOLID = 1,       // LV_OPA_COVER always (fastest scrolling)
+	THEME_CARD_GLASS = 2,       // LV_OPA_50 + crisp border
+} theme_card_surface_t;
+
+typedef enum {
+	THEME_BORDER_SUBTLE = 0, // preset border in dark mode (default)
+	THEME_BORDER_ACCENT = 1, // accent-coloured border
+	THEME_BORDER_NONE = 2,   // borderless cards
+} theme_border_style_t;
+
+theme_card_surface_t theme_get_card_surface(void);
+void theme_set_card_surface(theme_card_surface_t surface);
+
+int theme_get_card_radius(void); // 0, 6, 12 (default), 20
+void theme_set_card_radius(int px);
+
+theme_border_style_t theme_get_border_style(void);
+void theme_set_border_style(theme_border_style_t style);
+
+bool theme_get_mono_grid_icons(void);
+void theme_set_mono_grid_icons(bool on);
 
 #endif // THEME_H

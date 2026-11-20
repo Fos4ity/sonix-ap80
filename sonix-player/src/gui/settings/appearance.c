@@ -5,29 +5,23 @@
 #include "lvgl/lvgl.h"
 
 #include "src/gui/fonts/fonts.h"
-#include "src/gui/nowplaying/player.h"
 #include "src/gui/settings/bootlogopage.h"
+#include "src/gui/settings/menustylepage.h"
+#include "src/gui/settings/playerstylepage.h"
 #include "src/gui/settings/wallpaperpage.h"
-#include "src/gui/shell/corners.h"
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
 #include "src/gui/shell/theme.h"
-#include "src/gui/shell/topbar.h"
 #include "src/system/core/config.h"
 #include "src/system/core/lang.h"
 
 lv_obj_t *appearance_screen;
 
 static lv_obj_t *btn_theme[THEME_PRESET_COUNT];
-static lv_obj_t *btn_clock[4]; // left / centre / right / hidden
 static lv_obj_t *btn_accent[THEME_ACCENT_COUNT]; // the coloured circles
 static lv_obj_t *tint_toggle;
-static lv_obj_t *battery_percent_toggle;
-static lv_obj_t *statusbar_always_toggle;
-static lv_obj_t *rounded_corners_toggle;
 static lv_obj_t *text_size_pill[2]; // normal / large
 static lv_obj_t *font_family_pill[FONTS_FAMILY_COUNT];
-static lv_obj_t *player_layout_pill[5];
 
 static void refresh_font_family_pills(void) {
 	int chosen = fonts_get_family();
@@ -49,49 +43,6 @@ static void font_family_pick_cb(lv_event_t *e) {
 	config_set_int("ui", "font_family", family);
 	config_save();
 	refresh_font_family_pills();
-}
-
-static void refresh_player_layout_pills(void) {
-	player_layout_t chosen = player_layout_get();
-	if (player_layout_pill[PLAYER_LAYOUT_STANDARD]) {
-		settingsrow_pill_active(player_layout_pill[PLAYER_LAYOUT_STANDARD], chosen == PLAYER_LAYOUT_STANDARD);
-	}
-	if (player_layout_pill[PLAYER_LAYOUT_COMPACT]) {
-		settingsrow_pill_active(player_layout_pill[PLAYER_LAYOUT_COMPACT], chosen == PLAYER_LAYOUT_COMPACT);
-	}
-	if (player_layout_pill[PLAYER_LAYOUT_CAROUSEL]) {
-		settingsrow_pill_active(player_layout_pill[PLAYER_LAYOUT_CAROUSEL], chosen == PLAYER_LAYOUT_CAROUSEL);
-	}
-}
-
-static void player_layout_pick_cb(lv_event_t *e) {
-	if (switcher_back_drag_active()) {
-		return;
-	}
-	player_layout_set((player_layout_t)(intptr_t)lv_event_get_user_data(e));
-	refresh_player_layout_pills();
-}
-// The status bar draws the battery either way; this setting is only about the
-// number beside it, and is on by default.
-static void battery_percent_cb(lv_event_t *e) {
-	(void)e;
-	bool shown = lv_obj_has_state(battery_percent_toggle, LV_STATE_CHECKED);
-	topbar_set_battery_percent(shown);
-	config_set_int("screen", "battery_percent", shown ? 1 : 0);
-	config_save();
-}
-
-static void statusbar_always_cb(lv_event_t *e) {
-	(void)e;
-	bool on = lv_obj_has_state(statusbar_always_toggle, LV_STATE_CHECKED);
-	player_set_statusbar_always(on);
-	config_set_int("screen", "statusbar_always", on ? 1 : 0);
-	config_save();
-}
-
-static void rounded_corners_cb(lv_event_t *e) {
-	(void)e;
-	corners_set_enabled(lv_obj_has_state(rounded_corners_toggle, LV_STATE_CHECKED));
 }
 
 // The accent's hue spread over the backgrounds and cards. theme_set_dynamic_tint
@@ -131,15 +82,17 @@ static void refresh_buttons(void) {
 	}
 }
 
-// The active circle wears a ring in the text colour; the rest sit flat.
+// The active circle wears a ring in the text colour when a custom accent
+// override is active; otherwise all circles sit flat (preset's own accent).
 static void refresh_accent_buttons(void) {
+	bool has_override = theme_has_custom_accent();
 	int active_accent = theme_get_accent();
 	for (int i = 0; i < THEME_ACCENT_COUNT; i++) {
 		if (!btn_accent[i]) {
 			continue;
 		}
 		lv_obj_set_style_bg_color(btn_accent[i], theme_accent_preset(i), 0);
-		if (i == active_accent) {
+		if (has_override && i == active_accent) {
 			lv_obj_set_style_border_width(btn_accent[i], 3, 0);
 			lv_obj_set_style_border_color(btn_accent[i], theme()->text_primary, 0);
 			lv_obj_set_style_border_opa(btn_accent[i], LV_OPA_COVER, 0);
@@ -166,48 +119,6 @@ static lv_obj_t *make_accent_circle(lv_obj_t *parent, int index) {
 	return btn;
 }
 
-// Paints the clock-position pills the same way: accent on the active one.
-static void refresh_clock_buttons(void) {
-	int active = (int)config_get_int("screen", "clock_pos", TOPBAR_CLOCK_CENTER);
-	for (int i = 0; i < 4; i++) {
-		if (!btn_clock[i]) {
-			continue;
-		}
-		if (i == active) {
-			lv_obj_set_style_bg_color(btn_clock[i], theme()->accent, 0);
-			lv_obj_set_style_text_color(lv_obj_get_child(btn_clock[i], 0), lv_color_white(), 0);
-		} else {
-			lv_obj_set_style_bg_color(btn_clock[i], theme()->surface_pressed, 0);
-			lv_obj_set_style_text_color(lv_obj_get_child(btn_clock[i], 0), theme()->text_primary, 0);
-		}
-	}
-}
-
-static void clock_pos_cb(lv_event_t *e) {
-	int pos = (int)(intptr_t)lv_event_get_user_data(e);
-	config_set_int("screen", "clock_pos", pos);
-	config_save();
-	topbar_set_clock_position(pos);
-	refresh_clock_buttons();
-}
-
-static lv_obj_t *make_clock_choice(lv_obj_t *parent, const char *text, int pos) {
-	lv_obj_t *btn = lv_btn_create(parent);
-	lv_obj_set_size(btn, LV_SIZE_CONTENT, 64);
-	lv_obj_set_style_pad_hor(btn, 14, 0);
-	lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0); // Adwaita pill button
-	lv_obj_set_style_shadow_width(btn, 0, 0);
-	lv_obj_set_style_border_width(btn, 0, 0);
-	lv_obj_add_event_cb(btn, clock_pos_cb, LV_EVENT_CLICKED, (void *)(intptr_t)pos);
-
-	lv_obj_t *label = lv_label_create(btn);
-	lv_label_set_text(label, tr(text));
-	lv_obj_set_style_text_font(label, &font_ui_24, 0);
-	lv_obj_center(label);
-
-	return btn;
-}
-
 static void pick_cb(lv_event_t *e) {
 	if (switcher_back_drag_active()) {
 		return;
@@ -215,6 +126,7 @@ static void pick_cb(lv_event_t *e) {
 	int preset = (int)(intptr_t)lv_event_get_user_data(e);
 	theme_set_preset(preset);
 	refresh_buttons();
+	refresh_accent_buttons();
 }
 
 void appearance_init(gui_config_t *cfg) {
@@ -227,51 +139,11 @@ void appearance_init(gui_config_t *cfg) {
 		btn_theme[i] = settingsrow_pill(theme_pills, theme_preset_name(i), i, pick_cb);
 	}
 
-	// A second card: where the clock sits in the status bar.
-	lv_obj_t *clock_card = lv_obj_create(container);
-	lv_obj_set_width(clock_card, lv_pct(100));
-	lv_obj_set_height(clock_card, LV_SIZE_CONTENT);
-	lv_obj_add_style(clock_card, &theme_style_card, 0);
-	lv_obj_set_style_radius(clock_card, 12, 0);
-	lv_obj_set_style_border_width(clock_card, 0, 0);
-	lv_obj_set_style_shadow_width(clock_card, 0, 0);
-	lv_obj_set_style_pad_all(clock_card, 20, 0);
-	lv_obj_set_style_pad_gap(clock_card, 18, 0);
-	lv_obj_set_scrollable(clock_card, false);
-	lv_obj_set_event_bubble(clock_card, true);
-	lv_obj_set_flex_flow(clock_card, LV_FLEX_FLOW_COLUMN);
-	lv_obj_set_flex_align(clock_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-
-	lv_obj_t *clock_name = lv_label_create(clock_card);
-	lv_label_set_text(clock_name, tr("appearance_clock_position"));
-	lv_obj_add_style(clock_name, &theme_style_text, 0);
-	lv_obj_set_style_text_font(clock_name, &font_ui_24, 0);
-
-	lv_obj_t *clock_row = lv_obj_create(clock_card);
-	lv_obj_set_size(clock_row, lv_pct(100), LV_SIZE_CONTENT);
-	lv_obj_set_style_bg_opa(clock_row, 0, 0);
-	lv_obj_set_style_border_width(clock_row, 0, 0);
-	lv_obj_set_style_pad_all(clock_row, 0, 0);
-	lv_obj_set_style_pad_gap(clock_row, 10, 0);
-	lv_obj_set_scrollable(clock_row, false);
-	// Wrapped, not a single line: four pills of translated words do not fit
-	// across 480 pixels in every language, and one that does not fit is drawn
-	// off the card rather than shrunk.
-	lv_obj_set_flex_flow(clock_row, LV_FLEX_FLOW_ROW_WRAP);
-	lv_obj_set_flex_align(clock_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-
-	btn_clock[TOPBAR_CLOCK_LEFT] = make_clock_choice(clock_row, "left", TOPBAR_CLOCK_LEFT);
-	btn_clock[TOPBAR_CLOCK_CENTER] = make_clock_choice(clock_row, "centre", TOPBAR_CLOCK_CENTER);
-	btn_clock[TOPBAR_CLOCK_RIGHT] = make_clock_choice(clock_row, "right", TOPBAR_CLOCK_RIGHT);
-	btn_clock[TOPBAR_CLOCK_HIDDEN] = make_clock_choice(clock_row, "hide", TOPBAR_CLOCK_HIDDEN);
-
-	// A third card: the accent colour, as a row of coloured circles.
+	// Accent colour override: a row of coloured circles.
 	lv_obj_t *accent_card = lv_obj_create(container);
 	lv_obj_set_width(accent_card, lv_pct(100));
 	lv_obj_set_height(accent_card, LV_SIZE_CONTENT);
 	lv_obj_add_style(accent_card, &theme_style_card, 0);
-	lv_obj_set_style_radius(accent_card, 12, 0);
-	lv_obj_set_style_border_width(accent_card, 0, 0);
 	lv_obj_set_style_shadow_width(accent_card, 0, 0);
 	lv_obj_set_style_pad_all(accent_card, 20, 0);
 	lv_obj_set_style_pad_gap(accent_card, 18, 0);
@@ -313,22 +185,11 @@ void appearance_init(gui_config_t *cfg) {
 	lv_obj_set_style_text_font(tint_note, &font_ui_22, 0);
 	lv_label_set_text(tint_note, tr("appearance_dynamic_tint_note"));
 
-	// The picture shown while the player boots, which follows the theme and
-	// the accent unless one of the user's own is chosen.
-	settingsrow_add(container, "bootlogo", NULL, switch_screen_cb, bootlogopage_screen);
-
-	// Menu background wallpaper picked from files on the device (30% opacity).
+	// Dedicated sub-pages for Player visuals, Menu & bar visuals, Wallpaper, and Boot logo.
+	settingsrow_add(container, "Player style", NULL, switch_screen_cb, playerstylepage_screen);
+	settingsrow_add(container, "Menu & bar style", NULL, switch_screen_cb, menustylepage_screen);
 	settingsrow_add(container, "Menu wallpaper", NULL, switch_screen_cb, wallpaperpage_screen);
-
-	// Now Playing screen style (Standard, Square, Carousel).
-	lv_obj_t *layout_pills;
-	settingsrow_pills(container, "musicsettings_player_layout", &layout_pills);
-	player_layout_pill[PLAYER_LAYOUT_STANDARD] =
-		settingsrow_pill(layout_pills, "musicsettings_layout_standard", PLAYER_LAYOUT_STANDARD, player_layout_pick_cb);
-	player_layout_pill[PLAYER_LAYOUT_COMPACT] =
-		settingsrow_pill(layout_pills, "Square", PLAYER_LAYOUT_COMPACT, player_layout_pick_cb);
-	player_layout_pill[PLAYER_LAYOUT_CAROUSEL] =
-		settingsrow_pill(layout_pills, "Carousel", PLAYER_LAYOUT_CAROUSEL, player_layout_pick_cb);
+	settingsrow_add(container, "bootlogo", NULL, switch_screen_cb, bootlogopage_screen);
 
 	// UI font family (Default, JetBrains, Victor, Bookerly) — switches live.
 	lv_obj_t *font_pills;
@@ -346,42 +207,12 @@ void appearance_init(gui_config_t *cfg) {
 	text_size_pill[FONTS_TEXT_LARGE] =
 		settingsrow_pill(text_size_pills, "appearance_text_large", FONTS_TEXT_LARGE, text_size_cb);
 
-	// A fifth card, and a plain switch: whether the status
-	// bar prints the charge as a number as well as drawing it.
-	settingsrow_toggle(container, "appearance_battery_percentage", &battery_percent_toggle, battery_percent_cb);
-	if (config_get_int("screen", "battery_percent", 1) != 0) {
-		lv_obj_add_state(battery_percent_toggle, LV_STATE_CHECKED);
-	}
-
-	// The bar up in the player too, where it otherwise steps aside for the
-	// artwork.
-	settingsrow_toggle(container, "appearance_statusbar_always", &statusbar_always_toggle, statusbar_always_cb);
-	if (player_statusbar_always()) {
-		lv_obj_add_state(statusbar_always_toggle, LV_STATE_CHECKED);
-	}
-	lv_obj_t *statusbar_note = lv_label_create(container);
-	lv_label_set_long_mode(statusbar_note, LV_LABEL_LONG_WRAP);
-	lv_obj_set_width(statusbar_note, lv_pct(100));
-	lv_obj_add_style(statusbar_note, &theme_style_text_dim, 0);
-	lv_obj_set_style_text_font(statusbar_note, &font_ui_22, 0);
-	lv_label_set_text(statusbar_note, tr("appearance_statusbar_always_note"));
-
-	// Rounds off the four corners of the screen, over every page and overlay.
-	settingsrow_toggle(container, "appearance_rounded_corners", &rounded_corners_toggle, rounded_corners_cb);
-	if (corners_enabled()) {
-		lv_obj_add_state(rounded_corners_toggle, LV_STATE_CHECKED);
-	}
-
 	refresh_buttons();
-	refresh_clock_buttons();
 	refresh_accent_buttons();
 	refresh_text_size_pills();
 	refresh_font_family_pills();
-	refresh_player_layout_pills();
 	theme_register_refresh(refresh_buttons);
 	theme_register_refresh(refresh_text_size_pills);
 	theme_register_refresh(refresh_font_family_pills);
-	theme_register_refresh(refresh_clock_buttons);
 	theme_register_refresh(refresh_accent_buttons);
-	theme_register_refresh(refresh_player_layout_pills);
 }

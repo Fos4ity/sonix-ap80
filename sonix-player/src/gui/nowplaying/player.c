@@ -372,6 +372,12 @@ static uint32_t album_tone; // the sleeve's colour, 0 when there is no sleeve
 // The setting that has the Standard and Studio arrangements wear the sleeve's
 // colour as their accent too, as Waveform always does.
 static bool cover_accent;
+static player_backdrop_mode_t backdrop_mode = PLAYER_BACKDROP_BLUR;
+static int art_radius = 14;
+static player_art_border_t art_border = PLAYER_ART_BORDER_NONE;
+static bool show_format_badge = true;
+static bool show_queue_pos = true;
+static void apply_player_visual_style(void);
 
 static lv_obj_t *song_text_obj; // the title and artist, wherever they live now
 static lv_obj_t *song_side_obj; // the star and the format, likewise
@@ -3056,11 +3062,13 @@ static void apply_custom_art_layout(void) {
 	lv_obj_set_size(art_frame, box, box);
 	lv_obj_align(art_frame, LV_ALIGN_TOP_MID, 0, top_y);
 	lv_obj_set_style_bg_opa(art_frame, LV_OPA_TRANSP, 0);
-	lv_obj_set_style_border_width(art_frame, 0, 0);
+	lv_obj_set_style_radius(art_frame, art_radius, 0);
 	lv_obj_set_hidden(art_frame, false);
 
 	lv_obj_set_parent(cover_img, art_frame);
-	uint32_t scale = cover_box_w > 0 ? (uint32_t)((box * 256 + cover_box_w / 2) / cover_box_w) : LV_SCALE_NONE;
+	int border_px = (art_border == PLAYER_ART_BORDER_ACCENT) ? 2 : (art_border == PLAYER_ART_BORDER_THEME ? 1 : 0);
+	int inner_box = box - 2 * border_px;
+	uint32_t scale = cover_box_w > 0 ? (uint32_t)((inner_box * 256 + cover_box_w / 2) / cover_box_w) : LV_SCALE_NONE;
 	lv_image_set_scale(cover_img, scale);
 	lv_image_set_rotation(cover_img, 0);
 	lv_obj_center(cover_img);
@@ -3159,7 +3167,7 @@ static void apply_layout(void) {
 			lv_obj_move_to_index(fav_btn_obj, 0);
 		}
 		if (format_label) {
-			lv_obj_set_hidden(format_label, false);
+			lv_obj_set_hidden(format_label, !show_format_badge);
 		}
 		if (song_side_obj) {
 			lv_obj_set_hidden(song_side_obj, false);
@@ -3478,8 +3486,8 @@ static void reload_cover(const char *filepath) {
 		studio_refresh_cover();
 	}
 
-	// Backdrop gone: the chrome goes back to following the theme.
-	set_over_cover(false);
+	// Backdrop gone: the chrome goes back to following the theme (unless Pitch Black).
+	set_over_cover(backdrop_mode == PLAYER_BACKDROP_BLACK);
 	album_tone = 0;
 	paint_alt_tint();
 
@@ -3680,11 +3688,13 @@ static void apply_cover_result(void) {
 		if (new_backdrop.pixels) {
 			current_backdrop = new_backdrop;
 			current_backdrop.dsc.data = current_backdrop.pixels;
-			lv_obj_set_style_bg_image_src(player_menu, &current_backdrop.dsc, 0);
+			if (backdrop_mode == PLAYER_BACKDROP_BLUR) {
+				lv_obj_set_style_bg_image_src(player_menu, &current_backdrop.dsc, 0);
+			}
 		}
 
-		// The dark backdrop is up: light chrome, in both themes.
-		set_over_cover(true);
+		// The dark backdrop is up: light chrome, in both themes (unless Theme Solid).
+		set_over_cover(backdrop_mode != PLAYER_BACKDROP_THEME);
 
 		// And the sleeve's own colour, which is what the alternative layout is
 		// drawn in: the one an album's page is painted in (cover_page_tone),
@@ -3769,6 +3779,14 @@ static void player_refresh_theme(void) {
 	if (!cover_panel)
 		return;
 
+	static bool prev_dark = true;
+	static uint32_t prev_bg = 0;
+	lv_color_t bg = theme()->screen_bg;
+	uint32_t cur_bg = ((uint32_t)bg.red << 16) | ((uint32_t)bg.green << 8) | bg.blue;
+	bool palette_changed = (prev_dark != theme()->dark) || (prev_bg != cur_bg);
+	prev_dark = theme()->dark;
+	prev_bg = cur_bg;
+
 	if (studio_box) {
 		lv_obj_set_style_bg_color(studio_box, theme()->screen_bg, 0);
 	}
@@ -3784,10 +3802,13 @@ static void player_refresh_theme(void) {
 	set_over_cover(chrome_over_cover); // repaints the play disc for the new palette
 	update_repeat_button();
 	update_speed_button();
+	apply_player_visual_style();
 
-	device_state_t state;
-	device_state_get(&state);
-	refresh_cover(state.current_file);
+	if (palette_changed) {
+		device_state_t state;
+		device_state_get(&state);
+		refresh_cover(state.current_file);
+	}
 	if (lyrics_pane) {
 		lyrics_look(lyrics_look_on); // the words in the new theme's colours
 	}
@@ -4627,11 +4648,13 @@ void player_screen_next(void) {
 
 static void prev_btn_event_cb(lv_event_t *e) {
 	(void)e;
+	if (player_sheet_drag_active()) return;
 	player_screen_prev();
 }
 
 static void next_btn_event_cb(lv_event_t *e) {
 	(void)e;
+	if (player_sheet_drag_active()) return;
 	player_screen_next();
 }
 
@@ -4891,6 +4914,7 @@ void player_cover_accent_set(bool on) {
 	config_set_bool("screen", "cover_accent", on);
 	config_save();
 	paint_transport_tint();
+	apply_player_visual_style();
 }
 
 void player_layout_set(player_layout_t layout) {
@@ -4907,6 +4931,138 @@ void player_layout_set(player_layout_t layout) {
 	device_state_t state;
 	device_state_get(&state);
 	update_layout(&state);
+}
+
+static void apply_player_visual_style(void) {
+	if (art_frame) {
+		lv_obj_set_style_radius(art_frame, art_radius, 0);
+		if (art_border == PLAYER_ART_BORDER_ACCENT) {
+			lv_obj_set_style_border_color(art_frame, chrome_accent(), 0);
+			lv_obj_set_style_border_width(art_frame, 2, 0);
+			lv_obj_set_style_border_opa(art_frame, LV_OPA_COVER, 0);
+		} else if (art_border == PLAYER_ART_BORDER_THEME) {
+			lv_obj_set_style_border_color(art_frame, theme()->text_secondary, 0);
+			lv_obj_set_style_border_width(art_frame, 1, 0);
+			lv_obj_set_style_border_opa(art_frame, LV_OPA_60, 0);
+		} else {
+			lv_obj_set_style_border_width(art_frame, 0, 0);
+		}
+	}
+	if (carousel_prev_frame) {
+		lv_obj_set_style_radius(carousel_prev_frame, art_radius, 0);
+		lv_obj_set_style_border_color(carousel_prev_frame, theme()->text_secondary, 0);
+	}
+	if (carousel_next_frame) {
+		lv_obj_set_style_radius(carousel_next_frame, art_radius, 0);
+		lv_obj_set_style_border_color(carousel_next_frame, theme()->text_secondary, 0);
+	}
+
+	if (player_screen && player_menu) {
+		if (backdrop_mode == PLAYER_BACKDROP_BLACK) {
+			lv_obj_set_style_bg_color(player_screen, lv_color_black(), 0);
+			lv_obj_set_style_bg_image_src(player_screen, NULL, 0);
+			lv_obj_set_style_bg_color(player_menu, lv_color_black(), 0);
+			lv_obj_set_style_bg_opa(player_menu, LV_OPA_COVER, 0);
+			lv_obj_set_style_bg_image_src(player_menu, NULL, 0);
+			set_over_cover(true);
+		} else if (backdrop_mode == PLAYER_BACKDROP_THEME) {
+			lv_obj_set_style_bg_color(player_screen, theme()->screen_bg, 0);
+			lv_obj_set_style_bg_image_src(player_screen, NULL, 0);
+			lv_obj_set_style_bg_color(player_menu, theme()->panel, 0);
+			lv_obj_set_style_bg_opa(player_menu, LV_OPA_COVER, 0);
+			lv_obj_set_style_bg_image_src(player_menu, NULL, 0);
+			set_over_cover(false);
+		} else {
+			lv_obj_remove_local_style_prop(player_screen, LV_STYLE_BG_COLOR, 0);
+			lv_obj_remove_local_style_prop(player_screen, LV_STYLE_BG_IMAGE_SRC, 0);
+			lv_obj_remove_local_style_prop(player_menu, LV_STYLE_BG_COLOR, 0);
+			lv_obj_remove_local_style_prop(player_menu, LV_STYLE_BG_OPA, 0);
+			if (current_backdrop.pixels) {
+				lv_obj_set_style_bg_image_src(player_menu, &current_backdrop.dsc, 0);
+				set_over_cover(true);
+			} else {
+				lv_obj_set_style_bg_image_src(player_menu, NULL, 0);
+				set_over_cover(false);
+			}
+		}
+	}
+
+	if (format_label) {
+		lv_obj_set_hidden(format_label, layout_alt_now || !show_format_badge);
+	}
+	if (queue_position_label) {
+		lv_obj_set_hidden(queue_position_label, !show_queue_pos);
+	}
+}
+
+player_backdrop_mode_t player_backdrop_mode_get(void) { return backdrop_mode; }
+
+void player_backdrop_mode_set(player_backdrop_mode_t mode) {
+	if (mode < PLAYER_BACKDROP_BLUR || mode > PLAYER_BACKDROP_BLACK) {
+		mode = PLAYER_BACKDROP_BLUR;
+	}
+	if (backdrop_mode == mode) {
+		return;
+	}
+	backdrop_mode = mode;
+	config_set_int("screen", "player_backdrop_mode", (int)mode);
+	config_save();
+	apply_player_visual_style();
+}
+
+int player_art_radius_get(void) { return art_radius; }
+
+void player_art_radius_set(int px) {
+	if (px != 0 && px != 8 && px != 14 && px != 24) {
+		px = 14;
+	}
+	if (art_radius == px) {
+		return;
+	}
+	art_radius = px;
+	config_set_int("screen", "player_art_radius", px);
+	config_save();
+	apply_player_visual_style();
+}
+
+player_art_border_t player_art_border_get(void) { return art_border; }
+
+void player_art_border_set(player_art_border_t border) {
+	if (border < PLAYER_ART_BORDER_NONE || border > PLAYER_ART_BORDER_ACCENT) {
+		border = PLAYER_ART_BORDER_NONE;
+	}
+	if (art_border == border) {
+		return;
+	}
+	art_border = border;
+	config_set_int("screen", "player_art_border", (int)border);
+	config_save();
+	apply_custom_art_layout();
+	apply_player_visual_style();
+}
+
+bool player_show_format_get(void) { return show_format_badge; }
+
+void player_show_format_set(bool show) {
+	if (show_format_badge == show) {
+		return;
+	}
+	show_format_badge = show;
+	config_set_bool("screen", "player_show_format", show);
+	config_save();
+	apply_player_visual_style();
+}
+
+bool player_show_queue_pos_get(void) { return show_queue_pos; }
+
+void player_show_queue_pos_set(bool show) {
+	if (show_queue_pos == show) {
+		return;
+	}
+	show_queue_pos = show;
+	config_set_bool("screen", "player_show_queue_pos", show);
+	config_save();
+	apply_player_visual_style();
 }
 
 void player_output_unplugged(const char *what) {
@@ -5871,6 +6027,7 @@ void player_init(gui_config_t *cfg) {
 	lv_obj_set_style_border_color(carousel_prev_frame, lv_color_make(127, 110, 110), 0);
 	lv_obj_set_style_clip_corner(carousel_prev_frame, true, 0);
 	lv_obj_set_scrollable(carousel_prev_frame, false);
+	lv_obj_set_event_bubble(carousel_prev_frame, true);
 	lv_obj_add_event_cb(carousel_prev_frame, prev_btn_event_cb, LV_EVENT_CLICKED, NULL);
 	lv_obj_set_hidden(carousel_prev_frame, true);
 
@@ -5897,6 +6054,7 @@ void player_init(gui_config_t *cfg) {
 	lv_obj_set_style_border_color(carousel_next_frame, lv_color_make(127, 110, 110), 0);
 	lv_obj_set_style_clip_corner(carousel_next_frame, true, 0);
 	lv_obj_set_scrollable(carousel_next_frame, false);
+	lv_obj_set_event_bubble(carousel_next_frame, true);
 	lv_obj_add_event_cb(carousel_next_frame, next_btn_event_cb, LV_EVENT_CLICKED, NULL);
 	lv_obj_set_hidden(carousel_next_frame, true);
 
@@ -6036,11 +6194,27 @@ void player_init(gui_config_t *cfg) {
 					: (saved == (int)PLAYER_LAYOUT_CAROUSEL) ? PLAYER_LAYOUT_CAROUSEL
 															 : PLAYER_LAYOUT_STANDARD;
 	cover_accent = config_get_bool("screen", "cover_accent", false);
+
+	int bm = (int)config_get_int("screen", "player_backdrop_mode", PLAYER_BACKDROP_BLUR);
+	if (bm < PLAYER_BACKDROP_BLUR || bm > PLAYER_BACKDROP_BLACK) bm = PLAYER_BACKDROP_BLUR;
+	backdrop_mode = (player_backdrop_mode_t)bm;
+
+	art_radius = (int)config_get_int("screen", "player_art_radius", 14);
+	if (art_radius != 0 && art_radius != 8 && art_radius != 14 && art_radius != 24) art_radius = 14;
+
+	int ab = (int)config_get_int("screen", "player_art_border", PLAYER_ART_BORDER_NONE);
+	if (ab < PLAYER_ART_BORDER_NONE || ab > PLAYER_ART_BORDER_ACCENT) ab = PLAYER_ART_BORDER_NONE;
+	art_border = (player_art_border_t)ab;
+
+	show_format_badge = config_get_bool("screen", "player_show_format", true);
+	show_queue_pos = config_get_bool("screen", "player_show_queue_pos", true);
+
 	layout_alt_now = false; // apply_layout() below puts the standard one up first
 	layout_studio_now = false;
 	layout_compact_now = (layout_choice == PLAYER_LAYOUT_COMPACT);
 	layout_carousel_now = (layout_choice == PLAYER_LAYOUT_CAROUSEL);
 	apply_layout();
+	apply_player_visual_style();
 
 	theme_register_refresh(player_refresh_theme);
 }
