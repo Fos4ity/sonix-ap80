@@ -1,0 +1,8 @@
+# Nothing (inspired by Nothing Phone 2): black, white text, red accent
+name = Nothing
+screen = 0x000000
+card = 0x101010
+list_row = 0x1A1A1A
+text_primary = 0xFFFFFF
+text_muted = 0x8A8A8A
+accent = 0xD71921

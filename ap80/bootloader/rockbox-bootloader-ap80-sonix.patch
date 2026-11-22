@@ -1,0 +1,174 @@
+diff --git a/apps/bitmaps/native/SOURCES b/apps/bitmaps/native/SOURCES
+index 5fab111..4c691e2 100644
+--- a/apps/bitmaps/native/SOURCES
++++ b/apps/bitmaps/native/SOURCES
+@@ -50,6 +50,9 @@ toolsicon.70x70x16.bmp
+ hibyicon.130x130x16.bmp
+ rockboxicon.130x130x16.bmp
+ toolsicon.130x130x16.bmp
++#if defined(HIDIZS_AP80MAX)
++sonixicon.130x130x16.bmp
++#endif
+ #endif
+ #endif
+ 
+diff --git a/apps/bitmaps/native/sonixicon.130x130x16.bmp b/apps/bitmaps/native/sonixicon.130x130x16.bmp
+new file mode 100644
+index 0000000000000000000000000000000000000000..4a6d6736a74bf18bdc985b2a2a7ef9865a1ae08b
+GIT binary patch
+literal 51014
+zcmeI4O^zQY5XGGfL|$f*b(9l$9eLrM?~`>7;8R6OZjxifXv%qhqM;h9;ol!TYi9Hs
+zs-XBipl9T<KYsr7_q(@0AJW%f)8`-GK7V-k(_8!d)c@y?_W9PJFCriUA|L`H@G1ho
+z{rt=0KVHSMcb><CcNW;oYEHaU;8I<4=(dcy6z0aows0F4(^%B9VdF?UBP~m}YvB&S
+z5nWxiEFL_9_jZiMp@x^gC3&DFT!j)7fdk+<RV<GaV4hKZyb6sFWsf`|97O;~`^Bgd
+zG>#GIcOYd5-V6f$R?MhEV|Mx=VDkv{STU~(joj>mP|YULX2t9(G=75*w}bTGKfl|@
+zy(-_c;$EwP3AeN2K|W+A+{+62aE)IlaecV;rF5_JkWkmHkPojUa8)00-#5ZQJd4KM
+zD}-Ir2WFXc3#Tl_9$OMG5_3HtVnkzE7cn7~As?>(Ez?<hCAPC;S!b<rJMS{*;omQR
+z*~gZ_6<XHt0VecXfyCKfE#L!KvS{JT@kzI&gk$7G<vpF5V2@$UyNRdzfVFa&u{W-h
+zg;`kej781C(8b6hjpzA*#hJir9HNNX3MVU@D4T9Ol(odNYNPG8pX7tHN{6Vk8Yjz{
+z%Na11<qYU|$%m!i56*6LcD8LP<nj)4vJlULbBmgTp^K428t--<fW!nC$cM_g2BD(J
+za5B^w(O6coHfwY$v;fTL4AS0ptMlNn0TmXFM2obXxl%mOl5}x|u15JlP??<LLuP_K
+za&AD+_W@ONb+J_r&q^hsybNb-E?#4op6tWeRmRx7GOLR{2ha2&Gl4hUE7`nqE=Jp>
+z<-`BKiiurg{9^8PvFBj<ARoT{1sQgp?GNlr7Dx6d#%D2UuB=XbZ27A5F#0^O+ex>W
+zkYeP+P#-cA?6Jj)K|Wx9o|7*YXbV6*3+qB8iw9&enXMk-1G7vTlQ2l=2N1<tSnRF~
+zSc>AX519$}Xj5^S(7W{_lEnkEiulneA0G04(0Q<PyL)1>^@~F1LFeItKgT(@L-81(
+zQRhMDLFeK7f4Z&np!1;fpz~laNd8d~+Pa)KE+Sd%X5p1w6uOsmFX>*=y=0dIUo6nO
+zHw+?K>}D0OBQ)w>(!Hd6Y2dw-PFD7<1<o2DTWIUeQtZ*X5Xs^JS-?^hhwr6~5KqD&
+zp|f~4#JUj4;sIGqW~&GJupKzHFi2>NWc<+9g-8|;$g(BWzRHK8@9BgY+sZ@@eAX@>
+zM*F~4WU!q_`7pr;hj*<@KFEg${`^qe?z`<X&qJD=zvoFB<zz22ex+q8_GpRM&%y$G
+z#bh5+IpE5rU4$r?$A+i&ScSaCE<N9eVmYx@4$rdM2JV#NVp|&JL*?HcJDw-5ur51A
+zEy#;8@*(5{TT$fN+juJ<(&Dmhisfb-l(%V?Vvk6yiC9)`wB7c*`H&U_LcBQnP&wBO
+zX{*7Kg@rjpx8tD2$>J%XkysOmWKjz~-hRXLP+YWp2%U$-lJ{BCpz9Dt%vLyA*+llZ
+z9U*IpWo3i3Kb~|RtU#=l>vf27Sf-sU%)%l|-#&6M^fqi%%c(vT7vT^s##^J41&S=3
+zp{$F8p?9;w0rH`KuL8e`FyofQ1$;;t!bFkS!tzMW8a}WUM`+E<UB-ub2#1U;AL{Ri
+zA%GhPkq`3W`)?Iyn<o1vH0v!sW-0bqjJ#&!_0EHF0@p@th-cB5dxfy8`q0aU@k93x
+za$>xE(EFkKehBPKoB<Yran4GqpNG_QR#Aa@89#JjoKsR<6Yk|h;s^XDP9Ykb^jSWz
+z6)_%XWj)S^vp^o4ch860T}=mhoRZ#Pf_!*^Gi^S|im6sKn;;)9<Abc2WJS+mu-Hk3
+zEIw?%4>}UVw@k<cor<wO956vvjI!de32A^)wX8hO2p?p{!5uWn1RLgHEz714H35Sy
+zi!-orK${~16)l)DhkZ8cf?T_noZ*`M*j3sh!IP0Y!!H7OcbN{N7k2HI`QU&TV(yyi
+V!N{?+E+7gP0TB=Z5fFhmfv=mfQC0u|
+
+literal 0
+HcmV?d00001
+
+diff --git a/bootloader/hibyos_linux.c b/bootloader/hibyos_linux.c
+index abb3719..9f40aa1 100644
+--- a/bootloader/hibyos_linux.c
++++ b/bootloader/hibyos_linux.c
+@@ -139,6 +139,11 @@
+ /* images */
+ #include "bitmaps/rockboxicon.h"
+ #include "bitmaps/toolsicon.h"
++#if defined(HIDIZS_AP80MAX)
++#define HAVE_SONIX_ENTRY
++#include "bitmaps/sonixicon.h"
++#define SONIX_SCRIPT BASE_DIR "/sonix.sh"
++#endif
+ 
+ /* don't issue an error when parsing the file for dependencies */
+ #if defined(BMPWIDTH_rockboxicon) && (BMPWIDTH_rockboxicon != ICON_WIDTH || \
+@@ -178,6 +183,9 @@ enum boot_mode
+     BOOT_ROCKBOX,
+     BOOT_TOOLS,
+     BOOT_OF,
++#ifdef HAVE_SONIX_ENTRY
++    BOOT_SONIX,
++#endif
+     BOOT_COUNT,
+     BOOT_STOP, /* power down/suspend */
+     BOOT_CANARY,
+@@ -200,16 +208,26 @@ static void display_text_centerf(int y, const char *format, ...)
+     display_text_center(y, buf);
+ }
+ 
++/* set when a player started from the menu has returned to it, so the menu
++ * waits the full timeout instead of starting it again after one second */
++static bool came_back = false;
++
+ /* get timeout before taking action if the user doesn't touch the device */
+ static int get_inactivity_tmo(int same_as_last)
+ {
++    if (came_back)
++        same_as_last = 0;
+ #if defined(HAS_BUTTON_HOLD)
+     if(button_hold())
+         return 5 * HZ; /* Inactivity timeout when on hold */
+     else
+ #endif
+         if (same_as_last)
++#if defined(HAVE_SONIX_ENTRY)
++            return 10 * HZ; /* AP80 with Sonix: always time to pick another player */
++#else
+             return 1 * HZ; /* Timeout when mode is the same as the previous mode */
++#endif
+         else
+             return 10 * HZ; /* Default timeout */
+ }
+@@ -270,6 +288,8 @@ static enum boot_mode get_boot_mode(void)
+     /* load previous mode, or start with rockbox if none */
+     enum boot_mode init_mode = load_boot_mode(BOOT_CANARY);
+     /* wait for user action */
++    if (init_mode != BOOT_CANARY && ((int)init_mode < 0 || init_mode >= BOOT_COUNT))
++        init_mode = BOOT_CANARY;
+     enum boot_mode mode = (init_mode == BOOT_CANARY) ? BOOT_ROCKBOX : init_mode;
+     int last_activity = current_tick;
+ #if defined(HAS_BUTTON_HOLD)
+@@ -312,10 +332,16 @@ static enum boot_mode get_boot_mode(void)
+         lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
+         /* display icon */
+         const struct bitmap *icon = (mode == BOOT_OF) ? &ICON_NAME :
++#ifdef HAVE_SONIX_ENTRY
++            (mode == BOOT_SONIX) ? &bm_sonixicon :
++#endif
+             (mode == BOOT_ROCKBOX) ? &bm_rockboxicon : &bm_toolsicon;
+         lcd_bmp(icon, (LCD_WIDTH - ICON_WIDTH) / 2, get_icon_y());
+         /* display bottom description */
+         const char *desc = (mode == BOOT_OF) ? OF_NAME :
++#ifdef HAVE_SONIX_ENTRY
++            (mode == BOOT_SONIX) ? "SONIX" :
++#endif
+             (mode == BOOT_ROCKBOX) ? "ROCKBOX" : "TOOLS";
+ 
+         int desc_height;
+@@ -684,6 +710,41 @@ int main(int argc, char **argv)
+         {
+             tools_screen();
+         }
++#ifdef HAVE_SONIX_ENTRY
++        else if(mode == BOOT_SONIX)
++        {
++            /* Sonix runs from the SD card through its script; when it
++             * exits, the menu comes back. */
++            system("/usr/bin/bt_suspend");
++            system("killall bluealsa bt-agent bluetoothd 2>/dev/null");
++            mount_storage(true);
++            if (access(SONIX_SCRIPT, R_OK) != 0)
++            {
++                error_screen("sonix.sh not found on SD");
++                sleep(3 * HZ);
++            }
++            else
++            {
++                lcd_clear_display();
++                lcd_update();
++                pid_t pid = fork();
++                if (pid == 0)
++                {
++                    execl("/bin/sh", "sh", SONIX_SCRIPT, (char *)NULL);
++                    _exit(42);
++                }
++                if (pid > 0)
++                {
++                    int status;
++                    waitpid(pid, &status, 0);
++                }
++                /* Sonix drew on the framebuffer; take the panel back */
++                lcd_clear_display();
++                lcd_update();
++            }
++            came_back = true;
++        }
++#endif
+         else if(mode == BOOT_ROCKBOX)
+         {
+ #if defined(HIBY_R3PROII) || defined(HIBY_R1) || defined(HIDIZS_AP80MAX)

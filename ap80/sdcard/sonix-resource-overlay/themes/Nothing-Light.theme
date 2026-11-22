@@ -1,0 +1,8 @@
+# Nothing light: off-white, black text, red accent
+name = Nothing Light
+screen = 0xEDEDED
+card = 0xFFFFFF
+list_row = 0xFFFFFF
+text_primary = 0x000000
+text_muted = 0x6E6E6E
+accent = 0xD71921
