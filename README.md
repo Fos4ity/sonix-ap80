@@ -7,6 +7,13 @@ A fork of [Sonix Player](https://github.com/Tartarus6/sonix-player) that runs on
 Sonix lives entirely on the **SD card**. The only thing that changes in the player
 itself is the boot menu, which gets one more entry: **SONIX**.
 
+> [!CAUTION]
+> **Use at your own risk.** This is a hobby project. It has **not been thoroughly
+> tested**, and only on one player. Installing it, and above all flashing the boot
+> menu, can damage your player or leave it unable to start. The author gives
+> **no warranty** and is **not responsible for any damage** to your device, your
+> data or anything else. If you are not comfortable with that, do not install it.
+
 > **This repository contains source code, patches and scripts only.**
 > There is no HiBy / Hidizs firmware in it and no ready-made `.upt` file.
 > You build everything yourself from the official firmware, the same way Rockbox is built.
@@ -107,7 +114,10 @@ then delete `sonix.sh` and the `sonix` folder from the card.
 
 Flashing firmware can leave a player that does not start. Keep the original
 `ap80max.upt` somewhere safe before you begin. Step 3 needs no flashing at all.
-This is a hobby project with **no warranty**; you do it at your own risk.
+
+Everything here is provided **as is, with no warranty**, as the GPL says. It was
+not thoroughly tested. The author is not responsible for any damage. You install
+it at your own risk.
 
 ## What is in this repository
 
