@@ -88,18 +88,20 @@ Step 3 flashes the player. Read the warning at the top first.
 
 | Boot menu entry | Needs on the card | If it is missing |
 |---|---|---|
-| HIBY PLAYER | nothing | always works |
-| TOOLS | nothing | always works |
-| SONIX | `sonix.sh` and the `sonix` folder | "sonix.sh not found on SD", back to the menu |
-| ROCKBOX | the `.rockbox` folder from a [Rockbox build](https://www.rockbox.org/wiki/HidizsPort) | "Cannot boot Rockbox!", back to the menu |
+| HIBY PLAYER | nothing | always there |
+| TOOLS | nothing | always there |
+| SONIX | `sonix.sh` and the `sonix` folder | the entry is not shown |
+| ROCKBOX | the `.rockbox` folder from a [Rockbox build](https://www.rockbox.org/wiki/HidizsPort) | the entry is not shown |
 
-You do **not** need Rockbox to use Sonix. Without it the player is not harmed and
-does not hang: a missing player shows a short message and the menu comes back, so
-you can always pick HIBY PLAYER.
+You do **not** need Rockbox to use Sonix, and you do not need either of them to
+use HiBy OS. The menu only offers what is really on the card. With an empty card,
+or no card, it shows TOOLS and HIBY PLAYER and starts HiBy OS.
 
-The menu remembers your last choice in the `.rockbox` folder on the card. That is
-why the SD card package contains an (almost) empty one. Without that folder, or
-without a card, the menu starts at ROCKBOX every time and waits for you to choose.
+You always get 10 seconds to choose. Then the menu starts your last choice. The
+first time, that is Rockbox if it is on the card, else Sonix, else HiBy OS. The
+choice is remembered on the card (in `.rockbox`, or in `sonix` when there is no
+`.rockbox` folder). If the remembered player is removed from the card, the menu
+goes back to what is there.
 
 ## Build it yourself
 

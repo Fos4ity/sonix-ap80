@@ -1,5 +1,5 @@
 diff --git a/apps/bitmaps/native/SOURCES b/apps/bitmaps/native/SOURCES
-index 5fab111..4c691e2 100644
+index 5fab11132..4c691e2c9 100644
 --- a/apps/bitmaps/native/SOURCES
 +++ b/apps/bitmaps/native/SOURCES
 @@ -50,6 +50,9 @@ toolsicon.70x70x16.bmp
@@ -52,7 +52,7 @@ literal 0
 HcmV?d00001
 
 diff --git a/bootloader/hibyos_linux.c b/bootloader/hibyos_linux.c
-index abb3719..9f40aa1 100644
+index abb3719ba..664a72501 100644
 --- a/bootloader/hibyos_linux.c
 +++ b/bootloader/hibyos_linux.c
 @@ -139,6 +139,11 @@
@@ -97,23 +97,124 @@ index abb3719..9f40aa1 100644
  #endif
          if (same_as_last)
 +#if defined(HAVE_SONIX_ENTRY)
-+            return 10 * HZ; /* AP80 with Sonix: always time to pick another player */
++            return 10 * HZ; /* AP80 with Sonix: always 10 s to pick another player */
 +#else
              return 1 * HZ; /* Timeout when mode is the same as the previous mode */
 +#endif
          else
              return 10 * HZ; /* Default timeout */
  }
-@@ -270,6 +288,8 @@ static enum boot_mode get_boot_mode(void)
+@@ -241,11 +259,60 @@ static void mount_storage(int enable)
+     mounted = enable;
+ }
+ 
++#ifdef HAVE_SONIX_ENTRY
++/* Without Rockbox on the card there is no .rockbox folder to keep the last
++ * choice in, so it goes next to Sonix instead. */
++#define SONIX_MODE_FILE BASE_DIR "/sonix/rb_bl_mode.txt"
++
++/* ROCKBOX and SONIX are only offered when their files are on the SD card;
++ * TOOLS and the original firmware are always there. */
++static bool mode_available(enum boot_mode mode)
++{
++    if(mode == BOOT_ROCKBOX)
++        return access(BASE_DIR ROCKBOX_DIR "/" BOOTFILE, R_OK) == 0;
++    if(mode == BOOT_SONIX)
++        return access(SONIX_SCRIPT, R_OK) == 0;
++    return true;
++}
++
++/* next (dir = 1) or previous (dir = -1) entry that can be started */
++static enum boot_mode step_mode(enum boot_mode mode, int dir)
++{
++    do
++        mode = (mode + BOOT_COUNT + dir) % BOOT_COUNT;
++    while(!mode_available(mode));
++    return mode;
++}
++
++/* what to select when nothing usable is stored: Rockbox, else Sonix, else
++ * the original firmware */
++static enum boot_mode default_mode(void)
++{
++    if(mode_available(BOOT_ROCKBOX))
++        return BOOT_ROCKBOX;
++    if(mode_available(BOOT_SONIX))
++        return BOOT_SONIX;
++    return BOOT_OF;
++}
++#endif
++
++#ifdef HAVE_SONIX_ENTRY
++/* the last choice made while this menu has been running; used when the card
++ * has no place to store it, so leaving TOOLS does not jump to another entry */
++static enum boot_mode mem_mode = BOOT_CANARY;
++#endif
++
+ /* we store the boot mode in a file so we can reload it between 'boots' */
+ static enum boot_mode load_boot_mode(enum boot_mode mode)
+ {
+     mount_storage(true);
+     int fd = open(BASE_DIR ROCKBOX_DIR "/rb_bl_mode.txt", O_RDONLY);
++#ifdef HAVE_SONIX_ENTRY
++    if(fd < 0)
++        fd = open(SONIX_MODE_FILE, O_RDONLY);
++    if(fd < 0 && mem_mode != BOOT_CANARY)
++        mode = mem_mode;
++#endif
+     if(fd >= 0)
+     {
+         read(fd, &mode, sizeof(mode));
+@@ -256,8 +323,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
+ 
+ static void save_boot_mode(enum boot_mode mode)
+ {
++#ifdef HAVE_SONIX_ENTRY
++    mem_mode = mode;
++#endif
+     mount_storage(true);
+     int fd = open(BASE_DIR ROCKBOX_DIR "/rb_bl_mode.txt", O_RDWR | O_CREAT | O_TRUNC);
++#ifdef HAVE_SONIX_ENTRY
++    if(fd < 0)
++        fd = open(SONIX_MODE_FILE, O_RDWR | O_CREAT | O_TRUNC, 0644);
++#endif
+     if(fd >= 0)
+     {
+         write(fd, &mode, sizeof(mode));
+@@ -270,13 +344,32 @@ static enum boot_mode get_boot_mode(void)
      /* load previous mode, or start with rockbox if none */
      enum boot_mode init_mode = load_boot_mode(BOOT_CANARY);
      /* wait for user action */
 +    if (init_mode != BOOT_CANARY && ((int)init_mode < 0 || init_mode >= BOOT_COUNT))
 +        init_mode = BOOT_CANARY;
++#ifdef HAVE_SONIX_ENTRY
++    /* the stored player is not on the card any more: start over */
++    if (init_mode != BOOT_CANARY && !mode_available(init_mode))
++        init_mode = BOOT_CANARY;
++    enum boot_mode mode = (init_mode == BOOT_CANARY) ? default_mode() : init_mode;
++#else
      enum boot_mode mode = (init_mode == BOOT_CANARY) ? BOOT_ROCKBOX : init_mode;
++#endif
      int last_activity = current_tick;
  #if defined(HAS_BUTTON_HOLD)
-@@ -312,10 +332,16 @@ static enum boot_mode get_boot_mode(void)
+     bool hold_status = button_hold();
+ #endif
+     while(true)
+     {
++#ifdef HAVE_SONIX_ENTRY
++        /* the card went away while the menu is up: fall back to the
++         * original firmware, which is always there */
++        if(!mode_available(mode))
++        {
++            mode = BOOT_OF;
++            init_mode = BOOT_CANARY;
++            last_activity = current_tick;
++        }
++#endif
+         /* on usb detect, immediately boot with last choice */
+ #if !defined(HIBY_R3PROII) && !defined(HIBY_R1) && !defined(HIDIZS_AP80MAX)
+         if(!adb_running && power_input_status() & POWER_INPUT_USB_CHARGER)
+@@ -312,10 +405,16 @@ static enum boot_mode get_boot_mode(void)
          lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
          /* display icon */
          const struct bitmap *icon = (mode == BOOT_OF) ? &ICON_NAME :
@@ -130,7 +231,69 @@ index abb3719..9f40aa1 100644
              (mode == BOOT_ROCKBOX) ? "ROCKBOX" : "TOOLS";
  
          int desc_height;
-@@ -684,6 +710,41 @@ int main(int argc, char **argv)
+@@ -358,11 +457,19 @@ static enum boot_mode get_boot_mode(void)
+             break;
+         /* left/right/up/down: change mode */
+         if(btn == BUTTON_LEFT || btn == BUTTON_DOWN) {
++#ifdef HAVE_SONIX_ENTRY
++            mode = step_mode(mode, -1);
++#else
+             mode = (mode + BOOT_COUNT - 1) % BOOT_COUNT;
++#endif
+             init_mode = BOOT_CANARY;
+         }
+         if(btn == BUTTON_RIGHT || btn == BUTTON_UP) {
++#ifdef HAVE_SONIX_ENTRY
++            mode = step_mode(mode, 1);
++#else
+             mode = (mode + 1) % BOOT_COUNT;
++#endif
+             init_mode = BOOT_CANARY;
+         }
+     }
+@@ -553,7 +660,18 @@ static void tools_screen(void)
+     printf("Version: %s\n", rbversion);
+     printf("%s\n", MODEL_NAME);
+     const char *choices[] = {"ADB start", "ADB stop", "Run script", "Remount SD", "Restart", "Shutdown", "Recovery", "Back"};
++#ifdef HAVE_SONIX_ENTRY
++    /* stay here until Back: ADB start/stop, a script or a remount used to
++     * drop back to the player selection */
++    const char *title = "TOOLS MENU";
++    while(true)
++    {
++    int choice = choice_screen(title, true, 8, choices, 2, extra);
++    title = (choice == 0) ? "TOOLS MENU - ADB started" :
++            (choice == 1) ? "TOOLS MENU - ADB stopped" : "TOOLS MENU";
++#else
+     int choice = choice_screen("TOOLS MENU", true, 8, choices, 2, extra);
++#endif
+     if(choice == 0)
+     {
+         /* run service menu */
+@@ -597,6 +715,9 @@ static void tools_screen(void)
+     {
+         return;
+     }
++#ifdef HAVE_SONIX_ENTRY
++    }
++#endif
+ }
+ 
+ #ifdef ENABLE_LOGGING
+@@ -675,6 +796,12 @@ int main(int argc, char **argv)
+             close(fileno(stderr));
+ #endif
+             mount_storage(false);
++#ifdef HAVE_SONIX_ENTRY
++            /* The OF's display driver needs one contiguous 8 MB block and
++             * the device has 64 MB of RAM: free what can be freed first. */
++            system("sync; echo 3 > /proc/sys/vm/drop_caches; "
++                   "echo 1 > /proc/sys/vm/compact_memory 2>/dev/null");
++#endif
+             /* boot OF */
+             execvp("/usr/bin/hiby_player", argv);
+             error_screen("Cannot boot OF");
+@@ -684,8 +811,56 @@ int main(int argc, char **argv)
          {
              tools_screen();
          }
@@ -162,6 +325,9 @@ index abb3719..9f40aa1 100644
 +                    int status;
 +                    waitpid(pid, &status, 0);
 +                }
++                /* keys pressed while Sonix ran were queued here too; drop
++                 * them so they do not move the selection now */
++                button_clear_queue();
 +                /* Sonix drew on the framebuffer; take the panel back */
 +                lcd_clear_display();
 +                lcd_update();
@@ -171,4 +337,16 @@ index abb3719..9f40aa1 100644
 +#endif
          else if(mode == BOOT_ROCKBOX)
          {
++#ifdef HAVE_SONIX_ENTRY
++            /* the services stopped below do not come back before a restart,
++             * so do not stop them for a Rockbox that is not on the card */
++            if(!mode_available(BOOT_ROCKBOX))
++            {
++                error_screen("Rockbox not found on SD");
++                sleep(3 * HZ);
++                continue;
++            }
++#endif
  #if defined(HIBY_R3PROII) || defined(HIBY_R1) || defined(HIDIZS_AP80MAX)
+             /* Suspend bluetooth as it's not currently supported */
+             system("/usr/bin/bt_suspend");

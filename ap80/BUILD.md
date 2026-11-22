@@ -100,12 +100,22 @@ make -j4               # -> bootloader.ap80max
 The patch:
 
 - adds the SONIX entry, which runs `/data/mnt/sd_0/sonix.sh`,
-- gives you 10 seconds to choose instead of 1 before the last player starts again,
+- shows ROCKBOX and SONIX only when their files are on the SD card, so the
+  player works with HiBy OS alone, with Sonix alone, or with all three,
+- always gives you 10 seconds to choose before the last player starts again,
+- remembers the choice in `sonix/` when the card has no `.rockbox` folder,
+- keeps the TOOLS menu open until you choose Back,
+- frees memory before HiBy OS starts (its display driver needs one 8 MB block
+  and the player has 64 MB of RAM),
 - ignores a stored choice that is out of range.
 
-**Try it before flashing.** Copy `bootloader.ap80max` to the SD card as `bl_test`
-together with `ap80/bootloader/testbl.sh`, then run
-*TOOLS > Run script > testbl.sh* in the existing boot menu.
+**Trying it before flashing** is possible but limited. Copy `bootloader.ap80max`
+to the SD card as `bl_test` together with `ap80/bootloader/testbl.sh`, then run
+*TOOLS > Run script > testbl.sh* in the existing boot menu. The new menu then runs
+on top of the old one. This is good for looking at the menu, TOOLS and Sonix.
+**Do not judge HiBy OS from this test:** started this way it can come up with a
+black screen, because too little memory is left. Hold the power button to switch
+off, and start HiBy OS normally.
 
 **Put it into the firmware:**
 
