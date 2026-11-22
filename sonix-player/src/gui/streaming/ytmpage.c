@@ -2162,22 +2162,38 @@ static void build_search_page(gui_config_t *cfg) {
 	// Room for it, so a long query does not run underneath.
 	lv_obj_set_style_pad_right(search_field, 60, 0);
 
-	static const char *const KINDS[] = {"tracks_2", "albums", "artists"};
+	// Three pills in one row, as wide as the panel allows: 140 px each where
+	// there is room (a 480 px panel), a third of the width where there is not
+	// (the AP80's 360 px), so the page never has anything to scroll sideways
+	// to. A name too long for its pill scrolls inside it.
+	static const char *const KINDS[] = {"search_tracks_2", "albums", "artists"};
+	const int pill_gap = 8;
+	int pill_w = (cfg->screen_width - 2 * cfg->padding - 2 * pill_gap) / 3;
+	if (pill_w > 140) {
+		pill_w = 140;
+	}
+	const lv_font_t *pill_font = pill_w < 130 ? &font_ui_18 : &font_ui_20;
 	for (int i = 0; i < 3; i++) {
 		lv_obj_t *pill = lv_btn_create(search_screen);
-		lv_obj_set_size(pill, 140, 52);
+		lv_obj_set_size(pill, pill_w, 52);
 		lv_obj_set_style_radius(pill, LV_RADIUS_CIRCLE, 0);
 		lv_obj_set_style_shadow_width(pill, 0, 0);
 		lv_obj_set_style_border_width(pill, 0, 0);
-		lv_obj_align(pill, LV_ALIGN_TOP_LEFT, cfg->padding + i * 150, top + 78);
+		lv_obj_set_style_pad_hor(pill, 10, 0);
+		lv_obj_align(pill, LV_ALIGN_TOP_LEFT, cfg->padding + i * (pill_w + pill_gap), top + 78);
 		lv_obj_add_event_cb(pill, search_pill_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
 
 		lv_obj_t *label = lv_label_create(pill);
 		lv_label_set_text(label, tr(KINDS[i]));
-		lv_obj_set_style_text_font(label, &font_ui_20, 0);
+		lv_obj_set_style_text_font(label, pill_font, 0);
+		lv_obj_set_width(label, pill_w - 20);
+		lv_obj_set_height(label, lv_font_get_line_height(pill_font));
+		lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+		scrolltext_auto(label);
 		lv_obj_center(label);
 		search_pills[i] = pill;
 	}
+	lv_obj_set_scroll_dir(search_screen, LV_DIR_VER);
 	paint_search_pills();
 
 	search_keyboard = keyboard_create(search_screen, cfg->screen_width, 316, search_field, NULL, "ok",
@@ -2928,3 +2944,8 @@ void ytmpage_init(gui_config_t *cfg) {
 	player_sheet_attach_drag(ytm_screen, true);
 	player_sheet_attach_drag(home_container, true);
 }
+
+#ifdef HOST_BUILD
+// Simulator only: the search page without tapping to it (SONIX_TEST_SCREEN).
+void ytmpage_test_open_search(void) { open_search_cb(NULL); }
+#endif

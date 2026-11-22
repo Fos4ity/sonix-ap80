@@ -1939,6 +1939,9 @@ static void test_screen_cb(lv_timer_t *t) {
 	const char *which = getenv("SONIX_TEST_SCREEN");
 	if (which && strcmp(which, "ytm") == 0) {
 		switch_screen(ytm_screen);
+	} else if (which && strcmp(which, "ytm_search") == 0) {
+		extern void ytmpage_test_open_search(void);
+		ytmpage_test_open_search();
 	} else if (which && strcmp(which, "flappy") == 0) {
 		flappybird_open();
 	} else {
