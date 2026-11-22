@@ -1,5 +1,14 @@
 ﻿# Sonix Player
 
+> [!IMPORTANT]
+> **Have a Hidizs AP80 Pro Max?** Do not follow the install steps on this page,
+> they are for the HiBy R3 Pro II and R1 and their firmware files must not be
+> flashed on the AP80.
+>
+> The AP80 Pro Max port is in the [`ap80` branch](https://github.com/Fos4ity/sonix-ap80/tree/ap80):
+> read its [README](https://github.com/Fos4ity/sonix-ap80/blob/ap80/README.md) and download the
+> files from [Releases](https://github.com/Fos4ity/sonix-ap80/releases).
+
 > [!Note]
 > THIS IS THE SUCCESSOR TO M4ttia's SONIX REPO
 > 
