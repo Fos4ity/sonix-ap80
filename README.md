@@ -7,6 +7,8 @@ A fork of [Sonix Player](https://github.com/Tartarus6/sonix-player) that runs on
 Sonix lives entirely on the **SD card**. The only thing that changes in the player
 itself is the boot menu, which gets one more entry: **SONIX**.
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/Fos4)
+
 > [!CAUTION]
 > **Use at your own risk.** This is a hobby project. It has **not been thoroughly
 > tested**, and only on one player. Installing it, and above all flashing the boot
@@ -198,6 +200,15 @@ audio path; the original copyright notices are kept in
 
 Not affiliated with Hidizs, HiBy, Rockbox, Google, Nothing or the Sonix authors.
 All product names belong to their owners.
+
+## Support
+
+If this port is useful to you, you can
+[buy me a coffee](https://buymeacoffee.com/Fos4). It is entirely optional.
+
+The player itself is the work of the Sonix authors. If you like Sonix, please
+support them too: [Ko-fi of the original author](https://ko-fi.com/m4ttia59438),
+and see the [upstream project](https://github.com/Tartarus6/sonix-player).
 
 ## Licence
 
