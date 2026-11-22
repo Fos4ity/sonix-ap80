@@ -155,6 +155,7 @@ static lv_color_t tint_with(lv_color_t c, lv_color_t accent, float strength) {
 typedef struct {
 	char name[64];
 	theme_palette_t pal;
+	bool has_accent; // the skin's own accent (accent=0xRRGGBB), else Sonix's
 } skin_t;
 static skin_t *skins;
 static int skin_count;
@@ -179,6 +180,8 @@ static bool parse_skin(const char *path, skin_t *out) {
 	static const char *const KEYS[5] = {"screen", "card", "list_row", "text_primary", "text_muted"};
 	char line[256];
 	out->name[0] = 0;
+	out->has_accent = false;
+	uint32_t accent = 0;
 	while (fgets(line, sizeof(line), f)) {
 		char *p = line;
 		while (isspace((unsigned char)*p)) {
@@ -207,6 +210,11 @@ static bool parse_skin(const char *path, skin_t *out) {
 		}
 		if (strcmp(key, "name") == 0) {
 			snprintf(out->name, sizeof(out->name), "%s", val);
+			continue;
+		}
+		if (strcmp(key, "accent") == 0) {
+			accent = (uint32_t)strtoul(val, NULL, 0) & 0xFFFFFF;
+			out->has_accent = true;
 			continue;
 		}
 		for (int i = 0; i < 5; i++) {
@@ -244,6 +252,7 @@ static bool parse_skin(const char *path, skin_t *out) {
 	out->pal.text_primary = text;
 	out->pal.text_secondary = hex_color(c[4]);
 	out->pal.dark = dark;
+	out->pal.accent = hex_color(accent);
 	return true;
 }
 
@@ -291,7 +300,9 @@ static void rebuild_active(void) {
 	theme_palette_t *base = dark_selected ? &palette_dark : &palette_light;
 	if (skin_index >= 0 && skin_index < skin_count) {
 		skin_palette = skins[skin_index].pal;
-		skin_palette.accent = palette_dark.accent;
+		if (!skins[skin_index].has_accent) {
+			skin_palette.accent = palette_dark.accent;
+		}
 		base = &skin_palette;
 	}
 
