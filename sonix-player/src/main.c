@@ -1921,6 +1921,8 @@ static void limit_realtime_share(void) {
 #endif
 
 #ifdef HOST_BUILD
+#include "src/gui/flappybird/flappybird.h"
+#include "src/gui/shell/switcher.h"
 static void test_switch_cb(lv_timer_t *t) {
 	(void)t;
 	char buf[200];
@@ -1937,6 +1939,8 @@ static void test_screen_cb(lv_timer_t *t) {
 	const char *which = getenv("SONIX_TEST_SCREEN");
 	if (which && strcmp(which, "ytm") == 0) {
 		switch_screen(ytm_screen);
+	} else if (which && strcmp(which, "flappy") == 0) {
+		flappybird_open();
 	} else {
 		switch_screen(streaming_screen);
 	}

@@ -393,6 +393,17 @@ static lv_obj_t *frame_image;
 static lv_timer_t *tick_timer;
 static lv_image_dsc_t frame_dsc;
 
+// The game draws into `frame`, panel_w x panel_h. On a panel at least
+// FULL_PANEL_W wide that is the panel itself. A narrower one (the 360x640 of
+// the AP80) would cut the labels and the score board off at the sides, so
+// there the game draws a frame a third larger each way and `out_frame` takes
+// three of every four of its columns and rows: every artwork pixel comes out
+// three panel pixels square instead of four, and the game shows as much of
+// the world as on the wide panel.
+#define FULL_PANEL_W 480
+static int out_w, out_h;	// the panel
+static bool shrink;
+static uint16_t *out_frame; // out_w x out_h, with `shrink`
 static int panel_w, panel_h;
 static int view_h;		  // the panel's height in artwork pixels
 static int ground_top;	  // artwork pixels
@@ -677,14 +688,13 @@ static void blit4_turned(const sprite_t *s, float cx, float cy, float deg) {
 }
 
 // The whole frame tinted with `colour` at `opa`.
-static void wash(uint16_t colour, unsigned opa) {
+static void wash(uint16_t *buf, size_t n, uint16_t colour, unsigned opa) {
 	if (opa == 0) {
 		return;
 	}
-	size_t n = (size_t)panel_w * panel_h;
 	if (opa >= 255) {
 		for (size_t i = 0; i < n; i++) {
-			frame[i] = colour;
+			buf[i] = colour;
 		}
 		return;
 	}
@@ -692,11 +702,11 @@ static void wash(uint16_t colour, unsigned opa) {
 	unsigned inv = 256 - a;
 	unsigned cr = ((colour >> 11) & 31) * a, cg = ((colour >> 5) & 63) * a, cb = (colour & 31) * a;
 	for (size_t i = 0; i < n; i++) {
-		uint16_t p = frame[i];
+		uint16_t p = buf[i];
 		unsigned r = (cr + ((p >> 11) & 31) * inv) >> 8;
 		unsigned g = (cg + ((p >> 5) & 63) * inv) >> 8;
 		unsigned b = (cb + (p & 31) * inv) >> 8;
-		frame[i] = (uint16_t)((r << 11) | (g << 5) | b);
+		buf[i] = (uint16_t)((r << 11) | (g << 5) | b);
 	}
 }
 
@@ -1195,6 +1205,18 @@ static int moving_areas(lv_area_t *out) {
 	return n;
 }
 
+// The white flash of a hit and the fade between two screens. Both are drawn
+// on whole frames only.
+static void wash_frame(uint16_t *buf, size_t n) {
+	if (flash_t >= 0) {
+		wash(buf, n, 0xFFFF, (unsigned)(FLASH_OPA * (FLASH_STEPS - flash_t) / FLASH_STEPS));
+	}
+	if (fade_t >= 0) {
+		int t = fade_t <= FADE_STEPS ? fade_t : 2 * FADE_STEPS - fade_t;
+		wash(buf, n, 0x0000, (unsigned)(255 * t / FADE_STEPS));
+	}
+}
+
 // A whole frame, or with `whole` false one where the background above
 // band_top is painted back only where the moving things were and are, and the
 // one-colour bottom of the ground is left as it is. Everything else is drawn
@@ -1276,12 +1298,66 @@ static void render(bool whole) {
 		break;
 	}
 
-	if (flash_t >= 0) {
-		wash(0xFFFF, (unsigned)(FLASH_OPA * (FLASH_STEPS - flash_t) / FLASH_STEPS));
+	// With `shrink` the flash and the fade go onto the smaller frame (present).
+	if (!shrink) {
+		wash_frame(frame, (size_t)panel_w * panel_h);
 	}
-	if (fade_t >= 0) {
-		int t = fade_t <= FADE_STEPS ? fade_t : 2 * FADE_STEPS - fade_t;
-		wash(0x0000, (unsigned)(255 * t / FADE_STEPS));
+}
+
+// One area of `frame` onto `out_frame`: column and row 4k+3 are left out.
+// `o` gets the area on the panel; false when nothing of `a` is on it.
+static bool shrink_area(const lv_area_t *a, lv_area_t *o) {
+	o->x1 = (a->x1 * 3 + 3) / 4;
+	o->y1 = (a->y1 * 3 + 3) / 4;
+	o->x2 = (a->x2 * 3 + 6) / 4 - 1;
+	o->y2 = (a->y2 * 3 + 6) / 4 - 1;
+	if (o->x2 > out_w - 1) {
+		o->x2 = out_w - 1;
+	}
+	if (o->y2 > out_h - 1) {
+		o->y2 = out_h - 1;
+	}
+	if (o->x1 > o->x2 || o->y1 > o->y2) {
+		return false;
+	}
+	for (int oy = o->y1; oy <= o->y2; oy++) {
+		const uint16_t *src = frame + (size_t)(oy + oy / 3) * panel_w;
+		uint16_t *dst = out_frame + (size_t)oy * out_w;
+		int sx = o->x1 + o->x1 / 3, phase = o->x1 % 3;
+		for (int ox = o->x1; ox <= o->x2; ox++) {
+			dst[ox] = src[sx++];
+			if (++phase == 3) {
+				phase = 0;
+				sx++;
+			}
+		}
+	}
+	return true;
+}
+
+// What render() changed, onto the panel's own frame and marked for LVGL
+// (`image` NULL: only the frame).
+static void present(lv_obj_t *image) {
+	for (int i = 0; i < changed_n; i++) {
+		lv_area_t o = changed[i];
+		if (shrink && !shrink_area(&changed[i], &o)) {
+			continue;
+		}
+		if (image) {
+			lv_obj_invalidate_area(image, &o);
+		}
+	}
+	if (shrink) {
+		wash_frame(out_frame, (size_t)out_w * out_h);
+	}
+}
+
+// A touch on the panel, in the coordinates of `frame`.
+static void touch_point(lv_point_t *p) {
+	lv_indev_get_point(lv_indev_active(), p);
+	if (shrink) {
+		p->x += p->x / 3;
+		p->y += p->y / 3;
 	}
 }
 
@@ -1341,9 +1417,7 @@ static void tick_cb(lv_timer_t *timer) {
 		}
 		render(!(in_air && frame_whole));
 		frame_whole = in_air;
-		for (int i = 0; i < changed_n; i++) {
-			lv_obj_invalidate_area(frame_image, &changed[i]);
-		}
+		present(frame_image);
 		// On the panel now, in step with the frame just drawn, rather than at
 		// the display timer's own phase.
 		lv_refr_now(NULL);
@@ -1365,7 +1439,7 @@ static void press_cb(lv_event_t *e) {
 		return;
 	}
 	lv_point_t p;
-	lv_indev_get_point(lv_indev_active(), &p);
+	touch_point(&p);
 
 	switch (state) {
 	case ST_TITLE:
@@ -1400,7 +1474,7 @@ static void release_cb(lv_event_t *e) {
 		return;
 	}
 	lv_point_t p;
-	lv_indev_get_point(lv_indev_active(), &p);
+	touch_point(&p);
 	if (button_at(&p) != pressed) {
 		return;
 	}
@@ -1443,6 +1517,8 @@ static void release_all(void) {
 	memset(&frame_dsc, 0, sizeof(frame_dsc));
 	free(frame);
 	frame = NULL;
+	free(out_frame);
+	out_frame = NULL;
 	free(bg_wide);
 	bg_wide = NULL;
 	free(ground_wide);
@@ -1495,7 +1571,8 @@ void flappybird_open(void) {
 	frame = malloc((size_t)panel_w * panel_h * sizeof(uint16_t));
 	bg_wide = malloc((size_t)ground_top * BG_W * SCALE * sizeof(uint16_t));
 	ground_wide = malloc((size_t)GROUND_H * GROUND_W * SCALE * sizeof(uint16_t));
-	if (!frame || !bg_wide || !ground_wide || !art_load()) {
+	out_frame = shrink ? malloc((size_t)out_w * out_h * sizeof(uint16_t)) : NULL;
+	if (!frame || !bg_wide || !ground_wide || (shrink && !out_frame) || !art_load()) {
 		release_all();
 		gui_notify_popup("flappybird_missing_files");
 		return;
@@ -1522,23 +1599,43 @@ void flappybird_open(void) {
 	// Opens out of black.
 	fade_t = FADE_STEPS;
 	fade_action = NULL;
+#ifdef HOST_BUILD
+	// Test hook for the simulator, which takes no taps: SONIX_FLAPPY_TEST=ready
+	// or =over opens on that screen.
+	const char *test = getenv("SONIX_FLAPPY_TEST");
+	if (test) {
+		go_ready();
+		fade_t = -1;
+		if (strcmp(test, "over") == 0) {
+			state = ST_OVER;
+			score = 23;
+			best = 108;
+			bird_c = bird_floor();
+			over_t = OVER_DONE_AT - 1;
+		}
+	}
+#endif
 	render(true);
+	present(NULL);
 
 	frame_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
 	frame_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
-	frame_dsc.header.w = (uint32_t)panel_w;
-	frame_dsc.header.h = (uint32_t)panel_h;
-	frame_dsc.header.stride = (uint32_t)panel_w * 2;
-	frame_dsc.data_size = (uint32_t)panel_w * panel_h * 2;
-	frame_dsc.data = (const uint8_t *)frame;
+	frame_dsc.header.w = (uint32_t)out_w;
+	frame_dsc.header.h = (uint32_t)out_h;
+	frame_dsc.header.stride = (uint32_t)out_w * 2;
+	frame_dsc.data_size = (uint32_t)out_w * out_h * 2;
+	frame_dsc.data = (const uint8_t *)(shrink ? out_frame : frame);
 	lv_image_set_src(frame_image, &frame_dsc);
 
 	switch_screen(flappybird_screen);
 }
 
 void flappybird_init(gui_config_t *cfg) {
-	panel_w = (int)cfg->screen_width;
-	panel_h = (int)cfg->screen_height;
+	out_w = (int)cfg->screen_width;
+	out_h = (int)cfg->screen_height;
+	shrink = out_w < FULL_PANEL_W;
+	panel_w = shrink ? (out_w * 4 + 2) / 3 : out_w;
+	panel_h = shrink ? (out_h * 4 + 2) / 3 : out_h;
 	view_h = panel_h / SCALE;
 	ground_top = view_h - GROUND_H;
 	layout_shift = (panel_h - 720) / 2;
@@ -1551,7 +1648,7 @@ void flappybird_init(gui_config_t *cfg) {
 
 	frame_image = lv_image_create(flappybird_screen);
 	lv_obj_set_pos(frame_image, 0, 0);
-	lv_obj_set_size(frame_image, panel_w, panel_h);
+	lv_obj_set_size(frame_image, out_w, out_h);
 	lv_obj_set_clickable(frame_image, false);
 
 	lv_obj_add_event_cb(flappybird_screen, press_cb, LV_EVENT_PRESSED, NULL);
