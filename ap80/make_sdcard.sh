@@ -23,6 +23,12 @@ cp -r "$repo/sonix-packer/assets/R3PII/usr/resource/sonix/." "$out/sonix/resourc
 # ... then the AP80 extras on top (system-info.json, custom fonts, icon packs, skins)
 cp -r "$here/sdcard/sonix-resource-overlay/." "$out/sonix/resource/"
 
+# The boot menu stores the last choice in .rockbox/rb_bl_mode.txt, so the folder
+# has to exist even when Rockbox itself is not installed.
+mkdir -p "$out/.rockbox"
+cp "$here/sdcard/rockbox-folder-note.txt" "$out/.rockbox/sonix-ap80-note.txt"
+cp "$repo/LICENSE" "$out/sonix/LICENSE.txt"
+
 # Root certificates for HTTPS (AutoEq, streaming, YouTube Music)
 if [ ! -f "$out/sonix/resource/cacert.pem" ]; then
     curl -fsSL -o "$out/sonix/resource/cacert.pem" https://curl.se/ca/cacert.pem \

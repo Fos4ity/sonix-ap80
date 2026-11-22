@@ -1,6 +1,8 @@
 # Building Sonix for the Hidizs AP80 Pro Max
 
 Everything here is built from source. You supply the firmware file yourself.
+If you only want to install, use the ready-made files on the
+[Releases](https://github.com/Fos4ity/sonix-ap80/releases) page instead.
 
 ## 1. The player
 
@@ -33,6 +35,7 @@ The card ends up like this:
 
 ```
 sonix.sh                         started by the boot menu
+.rockbox/                        the boot menu remembers the last choice here
 sonix/
 ├── sonix_player                 the program
 └── resource/

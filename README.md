@@ -14,9 +14,11 @@ itself is the boot menu, which gets one more entry: **SONIX**.
 > **no warranty** and is **not responsible for any damage** to your device, your
 > data or anything else. If you are not comfortable with that, do not install it.
 
-> **This repository contains source code, patches and scripts only.**
-> There is no HiBy / Hidizs firmware in it and no ready-made `.upt` file.
-> You build everything yourself from the official firmware, the same way Rockbox is built.
+> **This repository contains source code, patches and scripts only**, no firmware.
+> Ready-made files (the SD card package and a pre-patched firmware update file, the
+> same kind Rockbox offers) are on the
+> [Releases](https://github.com/Fos4ity/sonix-ap80/releases) page. You can also
+> build everything yourself, see below.
 
 | Home | Rockbox DSP | PEQdB target | YouTube Music |
 |:---:|:---:|:---:|:---:|
@@ -63,7 +65,41 @@ power on
 `sonix.sh` starts `sonix/sonix_player` from the card. Remove the card, or delete
 the `sonix` folder, and the player is exactly as it was before.
 
-## Install
+## Quick install (from the release)
+
+No PC tools needed, only a card reader.
+
+1. Download `sonix-ap80-sdcard.zip` from
+   [Releases](https://github.com/Fos4ity/sonix-ap80/releases) and unzip it to the
+   **root of the SD card**. You get `sonix.sh`, a `sonix` folder and a `.rockbox` folder.
+2. **If you already run Rockbox** on the player: choose
+   **TOOLS > Run script > sonix.sh** in the boot menu. Done, nothing was flashed.
+3. **If you want SONIX in the boot menu**, or you do not have Rockbox at all: download
+   `ap80max-v12-sonix-patched.upt`, put it in the root of the SD card renamed to
+   `ap80max.upt`, and in HiBy OS go to
+   *System Settings > Firmware Update > via SD Card > Update System Firmware > OK*.
+   After the restart pick SONIX. Then delete `ap80max.upt` from the card.
+
+Step 3 flashes the player. Read the warning at the top first.
+
+### What has to be on the SD card
+
+| Boot menu entry | Needs on the card | If it is missing |
+|---|---|---|
+| HIBY PLAYER | nothing | always works |
+| TOOLS | nothing | always works |
+| SONIX | `sonix.sh` and the `sonix` folder | "sonix.sh not found on SD", back to the menu |
+| ROCKBOX | the `.rockbox` folder from a [Rockbox build](https://www.rockbox.org/wiki/HidizsPort) | "Cannot boot Rockbox!", back to the menu |
+
+You do **not** need Rockbox to use Sonix. Without it the player is not harmed and
+does not hang: a missing player shows a short message and the menu comes back, so
+you can always pick HIBY PLAYER.
+
+The menu remembers your last choice in the `.rockbox` folder on the card. That is
+why the SD card package contains an (almost) empty one. Without that folder, or
+without a card, the menu starts at ROCKBOX every time and waits for you to choose.
+
+## Build it yourself
 
 You need a Linux PC (or WSL on Windows) to build. Allow an hour or two the first
 time, most of it is the compiler building itself.
