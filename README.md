@@ -33,8 +33,9 @@ original [README](README.sonix.md). On top of that:
   (PBE), bass and treble, auditory fatigue reduction and Haas surround.
   *Music > gear icon > Rockbox DSP.*
 - **PEQdB target for AutoEq.** Downloaded headphone corrections can be re-targeted
-  from Harman to the PEQdB "Diamond β" curve. *PEQ > gear icon > AutoEQ target.*
-- **Skins.** Colour skins in the simple `.theme` format used by Compas, with an
+  from Harman to the [PEQdB](https://peqdb.com/) "Diamond β" curve. *PEQ > gear icon > AutoEQ target.*
+- **Skins.** Colour skins in the simple `.theme` format used by
+  [Compas player](https://github.com/Starnished66/compas-player), with an
   optional accent colour. Two are included: Nothing and Nothing Light.
 - **Fonts and icon packs.** 13 fonts and 6 icon packs to choose from, with previews.
 - **YouTube Music.** Search, albums, artists, playlists and playback. Signing in
@@ -139,9 +140,9 @@ This fork stands on other people's work. Thank you.
 | Haas surround | Rockbox, [`lib/rbcodec/dsp/surround.c`](https://github.com/Rockbox/rockbox/blob/master/lib/rbcodec/dsp/surround.c) | Chiwen Chang | GPL v2 or later |
 | Bass / treble | Rockbox, [`lib/rbcodec/dsp/tone_controls.c`](https://github.com/Rockbox/rockbox/blob/master/lib/rbcodec/dsp/tone_controls.c) | Thom Johansen, Michael Sevakis | GPL v2 or later |
 | Compiler toolchain | Rockbox, `rockboxdev.sh` (already used by Sonix) | the Rockbox team | GPL v2 or later |
-| "Diamond β" target curve | PEQdB | sharur (S. Chala, *An Optimized Headphone Target Response Curve*) | curve values only |
+| "Diamond β" target curve | [PEQdB](https://peqdb.com/) | sharur (S. Chala, *An Optimized Headphone Target Response Curve*) | curve values only |
 | Headphone corrections | [AutoEq](https://github.com/jaakkopasanen/AutoEq) (already used by Sonix) | Jaakko Pasanen | MIT |
-| Skin file format | Compas player | the Compas authors | format only, no code |
+| Skin file format | [Compas player](https://github.com/Starnished66/compas-player) | Starnished66 and the Compas contributors | GPL v3 (format only, no code taken) |
 | Icons | [Lucide](https://lucide.dev), [Phosphor](https://phosphoricons.com) | their contributors | ISC, MIT |
 | Fonts | Inter, Lexend, Nunito, Noto Sans, Source Sans 3, Atkinson Hyperlegible, Comfortaa, JetBrains Mono, Merriweather, Oswald, Quicksand, Space Grotesk, Doto | their designers | SIL OFL 1.1 (licence file next to each font) |
 
