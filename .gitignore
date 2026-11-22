@@ -49,3 +49,7 @@ sonix-packer/sonix_launch
 
 # Output of ap80/make_sdcard.sh
 ap80/out/
+# agent scratch (orchestration briefs/specs/validation)
+.specs/
+.karen/
+__pycache__/
