@@ -44,4 +44,10 @@ const char *iconpack_current(void);	 // "" for the built-in set
 // Returns how many icons the pack replaced, or -1 when it has none.
 int iconpack_set(const char *name);
 
+// For the pack picker: one icon as `pack` draws it ("" = built-in), size x
+// size. `tile` picks the coloured menu artwork instead of a glyph; a pack
+// without tiles gives the built-in tile. Free with iconpack_preview_free.
+lv_image_dsc_t *iconpack_preview(const char *pack, const char *file, bool tile, int size);
+void iconpack_preview_free(lv_image_dsc_t *dsc);
+
 #endif

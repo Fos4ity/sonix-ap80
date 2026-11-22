@@ -1944,6 +1944,13 @@ static void test_screen_cb(lv_timer_t *t) {
 		ytmpage_test_open_search();
 	} else if (which && strcmp(which, "flappy") == 0) {
 		flappybird_open();
+	} else if (which && strcmp(which, "appearance") == 0) {
+		extern lv_obj_t *appearance_screen;
+		switch_screen(appearance_screen);
+	} else if (which && strcmp(which, "settings") == 0) {
+		switch_screen(settings_screen);
+	} else if (which && strcmp(which, "player") == 0) {
+		switch_screen(player_screen);
 	} else {
 		switch_screen(streaming_screen);
 	}
@@ -2355,7 +2362,7 @@ int main(int argc, char **argv) {
 	// Test hook: SONIX_TEST_SWITCH="font|pack" switches both a few seconds in,
 	// the way a tap in Appearance does, so the live change can be checked.
 	if (getenv("SONIX_TEST_SWITCH")) {
-		lv_timer_t *tt = lv_timer_create(test_switch_cb, 4000, NULL);
+		lv_timer_t *tt = lv_timer_create(test_switch_cb, getenv("SONIX_TEST_SWITCH_MS") ? (uint32_t)atoi(getenv("SONIX_TEST_SWITCH_MS")) : 4000, NULL);
 		lv_timer_set_repeat_count(tt, 1);
 	}
 	// Test hook: SONIX_TEST_SCREEN=streaming|ytm opens that page a few seconds

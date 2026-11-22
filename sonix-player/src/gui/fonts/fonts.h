@@ -102,6 +102,11 @@ const char *fonts_get_custom(void);		 // "" for the built-in font
 // False, changing nothing, when the file cannot be opened.
 bool fonts_set_custom(const char *name);
 
+// For the font picker: `name`'s regular face ("" = built-in) at `size`, apart
+// from the interface's fonts. Close it once nothing draws with it any more.
+lv_font_t *fonts_preview_open(const char *name, int size);
+void fonts_preview_close(lv_font_t *font);
+
 // For the developer options page: which font files are in use, e.g.
 // "default.otf, bold.otf, Korean + Thai + Arabic". Never NULL.
 const char *fonts_summary(void);

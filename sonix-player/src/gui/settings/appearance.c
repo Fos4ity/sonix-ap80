@@ -10,6 +10,7 @@
 #include "src/gui/settings/bootlogopage.h"
 #include "src/gui/shell/corners.h"
 #include "src/gui/shell/iconpack.h"
+#include "src/gui/settings/lookpicker.h"
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
 #include "src/gui/shell/toast.h"
@@ -69,12 +70,15 @@ static void sync_tint_toggle(void) {
 	}
 }
 
+static void refresh_nothing_toggle(void); // the Nothing preset's switch, below
+
 static void dynamic_tint_cb(lv_event_t *e) {
 	(void)e;
 	bool on = lv_obj_has_state(tint_toggle, LV_STATE_CHECKED);
 	bool had_skin = theme_get_skin() >= 0;
 	theme_set_dynamic_tint(on); // switches a Compas skin off
 	if (on && had_skin) toast_success(appearance_czech() ? "Compas skin vypnut" : "Compas skin turned off");
+	refresh_nothing_toggle();
 }
 
 // Settings -> Appearance -> Font: a tap steps through the built-in font and
@@ -87,36 +91,18 @@ static void refresh_font_row(void) {
 	lv_label_set_text(font_value, cur[0] ? cur : "MiSans");
 }
 
+static void font_picked(void) {
+	refresh_font_row();
+	refresh_nothing_toggle();
+}
+
+// A tap opens the list of fonts, each drawn in its own face.
 static void font_next_cb(lv_event_t *e) {
 	(void)e;
 	if (switcher_back_drag_active()) {
 		return;
 	}
-	int n = fonts_custom_count();
-	if (n == 0) {
-		toast_error(appearance_czech() ? "Žádné fonty v sonix/resource/fonts/custom" : "No fonts in sonix/resource/fonts/custom");
-		return;
-	}
-	// The list is: built-in, then each custom font; step to the next.
-	const char *cur = fonts_get_custom();
-	int at = -1;
-	for (int i = 0; i < n; i++) {
-		if (strcmp(fonts_custom_name(i), cur) == 0) at = i;
-	}
-	for (int step = 1; step <= n + 1; step++) {
-		int next = (at + 1 + step) % (n + 1) - 1; // -1 = built-in
-		char name[64];
-		snprintf(name, sizeof(name), "%s", next < 0 ? "" : fonts_custom_name(next));
-		if (fonts_set_custom(name)) {
-			// Say which one: several of the sans-serif fonts look alike.
-			char msg[96];
-			snprintf(msg, sizeof(msg), "%s: %s", appearance_czech() ? "P\xC3\xADsmo" : "Font", name[0] ? name : "MiSans");
-			toast_success(msg);
-			break;
-		}
-		toast_error(appearance_czech() ? "Font nejde otevřít (max 8 MB, .ttf/.otf)" : "Cannot open that font (max 8 MB, .ttf/.otf)");
-	}
-	refresh_font_row();
+	lookpicker_fonts(appearance_czech() ? "P\xC3\xADsmo" : "Font", font_picked);
 }
 
 // Settings -> Appearance -> Icons: a tap steps through the built-in icons and
@@ -129,38 +115,18 @@ static void refresh_iconpack_row(void) {
 	lv_label_set_text(iconpack_value, cur[0] ? cur : "Sonix");
 }
 
+static void iconpack_picked(void) {
+	refresh_iconpack_row();
+	refresh_nothing_toggle();
+}
+
+// A tap opens the list of packs, each shown as a strip of its icons.
 static void iconpack_next_cb(lv_event_t *e) {
 	(void)e;
 	if (switcher_back_drag_active()) {
 		return;
 	}
-	int n = iconpack_count();
-	if (n == 0) {
-		toast_error(appearance_czech() ? "Žádné sady v sonix/resource/icons" : "No packs in sonix/resource/icons");
-		return;
-	}
-	const char *cur = iconpack_current();
-	int at = -1;
-	for (int i = 0; i < n; i++) {
-		if (strcmp(iconpack_name(i), cur) == 0) at = i;
-	}
-	for (int step = 1; step <= n + 1; step++) {
-		int next = (at + 1 + step) % (n + 1) - 1; // -1 = built-in
-		char name[64];
-		snprintf(name, sizeof(name), "%s", next < 0 ? "" : iconpack_name(next));
-		int replaced = iconpack_set(name);
-		if (replaced >= 0) {
-			char msg[96];
-			if (name[0]) {
-				snprintf(msg, sizeof(msg), "%s: %s (%d)", appearance_czech() ? "Ikony" : "Icons", name, replaced);
-			} else {
-				snprintf(msg, sizeof(msg), "%s: Sonix", appearance_czech() ? "Ikony" : "Icons");
-			}
-			toast_success(msg);
-			break;
-		}
-	}
-	refresh_iconpack_row();
+	lookpicker_icons(appearance_czech() ? "Ikony" : "Icons", iconpack_picked);
 }
 
 static void refresh_text_size_pills(void) {
@@ -215,8 +181,78 @@ static void skin_toggle_cb(lv_event_t *e) {
 	bool had_tint = theme_dynamic_tint();
 	theme_set_skin(on ? skin_last : -1); // switches the dynamic tint off
 	sync_tint_toggle();
+	refresh_nothing_toggle();
 	if (on && had_tint) toast_success(appearance_czech() ? "Dynamický odstín vypnut" : "Dynamic tint turned off");
 }
+
+// The Nothing preset: one switch for the whole look -- the "Nothing" skin
+// (black, red accent), the dot-matrix font and the Nothing icon pack. On when
+// all three are in place; switching it off goes back to Sonix's own skin-less
+// look, built-in font and icons. The pieces stay separately choosable below.
+#define NOTHING_SKIN "Nothing"
+#define NOTHING_SKIN_LIGHT "Nothing Light"
+#define NOTHING_FONT "Nothing Dot"
+static lv_obj_t *nothing_toggle;
+
+static int nothing_skin_index(const char *name) {
+	for (int i = 0; i < theme_skin_count(); i++) {
+		if (strcmp(theme_skin_name(i), name) == 0) return i;
+	}
+	return -1;
+}
+
+static bool nothing_active(void) {
+	int idx = theme_get_skin();
+	if (idx < 0) return false;
+	const char *skin = theme_skin_name(idx);
+	if (strcmp(skin, NOTHING_SKIN) != 0 && strcmp(skin, NOTHING_SKIN_LIGHT) != 0) return false;
+	return strcmp(fonts_get_custom(), NOTHING_FONT) == 0 && strcmp(iconpack_current(), skin) == 0;
+}
+
+static void refresh_nothing_toggle(void) {
+	if (!nothing_toggle) return;
+	if (nothing_active()) {
+		lv_obj_add_state(nothing_toggle, LV_STATE_CHECKED);
+	} else {
+		lv_obj_remove_state(nothing_toggle, LV_STATE_CHECKED);
+	}
+}
+
+static void nothing_toggle_cb(lv_event_t *e) {
+	(void)e;
+	bool on = lv_obj_has_state(nothing_toggle, LV_STATE_CHECKED);
+	if (on) {
+		int idx = nothing_skin_index(NOTHING_SKIN);
+		if (idx < 0) {
+			toast_error(appearance_czech() ? "Chyb\xC3\xAD sonix/resource/themes/Nothing.theme"
+										   : "sonix/resource/themes/Nothing.theme is missing");
+			refresh_nothing_toggle();
+			return;
+		}
+		skin_last = idx;
+		theme_set_skin(idx); // switches the dynamic tint off
+		fonts_custom_count();
+		bool font_ok = fonts_set_custom(NOTHING_FONT);
+		iconpack_count();
+		bool icons_ok = iconpack_set(NOTHING_SKIN) > 0;
+		if (font_ok && icons_ok) {
+			toast_success(appearance_czech() ? "Nothing: skin, p\xC3\xADsmo a ikony" : "Nothing: skin, font and icons");
+		} else {
+			toast_error(appearance_czech() ? "Nothing: chyb\xC3\xAD p\xC3\xADsmo nebo ikony na kart\xC4\x9B"
+										   : "Nothing: font or icons missing on the card");
+		}
+	} else {
+		theme_set_skin(-1);
+		fonts_set_custom("");
+		iconpack_set("");
+	}
+	sync_tint_toggle();
+	refresh_skin_row();
+	refresh_font_row();
+	refresh_iconpack_row();
+	refresh_nothing_toggle();
+}
+
 
 // A tap on the row steps to the next skin, and switches skins on.
 static void skin_next_cb(lv_event_t *e) {
@@ -229,8 +265,19 @@ static void skin_next_cb(lv_event_t *e) {
 	skin_last = idx >= 0 ? (idx + 1) % n : skin_last;
 	bool had_tint = theme_dynamic_tint();
 	theme_set_skin(skin_last);
+	// The two Nothing skins each have an icon pack of the same name (white
+	// tiles for the dark one, black for the light): keep them in step.
+	const char *skin = theme_skin_name(skin_last);
+	const char *pack = iconpack_current();
+	if ((strcmp(pack, NOTHING_SKIN) == 0 || strcmp(pack, NOTHING_SKIN_LIGHT) == 0) && strcmp(pack, skin) != 0 &&
+		(strcmp(skin, NOTHING_SKIN) == 0 || strcmp(skin, NOTHING_SKIN_LIGHT) == 0)) {
+		iconpack_count();
+		iconpack_set(skin);
+		refresh_iconpack_row();
+	}
 	sync_tint_toggle();
 	refresh_skin_row();
+	refresh_nothing_toggle();
 	if (had_tint) toast_success(appearance_czech() ? "Dynamický odstín vypnut" : "Dynamic tint turned off");
 }
 
@@ -404,6 +451,12 @@ void appearance_init(gui_config_t *cfg) {
 	}
 	settingsrow_toggle(container, "Compas skin", &skin_toggle, skin_toggle_cb);
 	settingsrow_add(container, "Skin", &skin_value, skin_next_cb, NULL);
+	// Shown only when the Nothing skin is on the card.
+	if (nothing_skin_index(NOTHING_SKIN) >= 0) {
+		settingsrow_toggle(container, appearance_czech() ? "Preset Nothing" : "Nothing preset",
+						   &nothing_toggle, nothing_toggle_cb);
+		refresh_nothing_toggle();
+	}
 
 	// A second card: where the clock sits in the status bar.
 	lv_obj_t *clock_card = lv_obj_create(container);

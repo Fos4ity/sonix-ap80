@@ -218,3 +218,73 @@ int iconpack_set(const char *name) {
 	fprintf(stderr, "iconpack: now %s (%d icons)\n", current[0] ? current : "built-in", n);
 	return n;
 }
+
+// A picture of one icon as `pack` draws it ("" = the built-in set), scaled to
+// size x size, for the pack picker. NULL when the pack has no such icon.
+lv_image_dsc_t *iconpack_preview(const char *pack, const char *file, bool tile, int size) {
+	if (!pack || !file || size <= 0 || size > 256 || strchr(pack, '/')) {
+		return NULL;
+	}
+	remember_builtin();
+	int w = 0, h = 0;
+	uint8_t *rgba = NULL;
+	if (pack[0]) {
+		char path[700];
+		snprintf(path, sizeof(path), "%s/%.63s/%s%s.png", PACK_DIR, pack, tile ? "tiles/" : "", file);
+		rgba = read_png(path, &w, &h);
+	}
+	if (!rgba) {
+		if (pack[0] && !tile) {
+			return NULL;
+		}
+		// Built-in picture (also the tile of a pack that brings no tiles):
+		// LVGL's B, G, R, A back to R, G, B, A for scale_into.
+		for (int i = 0; i < iconpack_table_count && !rgba; i++) {
+			iconpack_entry_t *e = &iconpack_table[i];
+			if (e->glyph == tile || strcmp(e->file, file) != 0 || e->dsc->header.cf != LV_COLOR_FORMAT_ARGB8888) {
+				continue;
+			}
+			w = e->dsc->header.w;
+			h = e->dsc->header.h;
+			int stride = e->dsc->header.stride;
+			rgba = malloc((size_t)w * (size_t)h * 4);
+			if (!rgba) {
+				return NULL;
+			}
+			for (int y = 0; y < h; y++) {
+				const uint8_t *s = e->builtin_data + (size_t)y * stride;
+				uint8_t *d = rgba + (size_t)y * w * 4;
+				for (int x = 0; x < w; x++) {
+					d[x * 4] = s[x * 4 + 2];
+					d[x * 4 + 1] = s[x * 4 + 1];
+					d[x * 4 + 2] = s[x * 4];
+					d[x * 4 + 3] = s[x * 4 + 3];
+				}
+			}
+		}
+		if (!rgba) {
+			return NULL;
+		}
+	}
+	lv_image_dsc_t *dsc = calloc(1, sizeof(*dsc) + (size_t)size * (size_t)size * 4);
+	if (dsc) {
+		uint8_t *pixels = (uint8_t *)(dsc + 1);
+		scale_into(rgba, w, h, pixels, size, size, size * 4, !tile);
+		dsc->header.magic = LV_IMAGE_HEADER_MAGIC;
+		dsc->header.cf = LV_COLOR_FORMAT_ARGB8888;
+		dsc->header.w = (uint32_t)size;
+		dsc->header.h = (uint32_t)size;
+		dsc->header.stride = (uint32_t)size * 4;
+		dsc->data = pixels;
+		dsc->data_size = (uint32_t)size * (uint32_t)size * 4;
+	}
+	free(rgba); // stb's allocator is malloc
+	return dsc;
+}
+
+void iconpack_preview_free(lv_image_dsc_t *dsc) {
+	if (dsc) {
+		lv_image_cache_drop(dsc);
+		free(dsc);
+	}
+}

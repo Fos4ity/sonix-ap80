@@ -405,7 +405,7 @@ const char *fonts_get_custom(void) { return custom_current; }
 
 // Fills custom_regular / custom_bold for `name`. False when there is no
 // usable regular face.
-static bool resolve_custom(const char *name) {
+static bool resolve_custom_into(const char *name, char *custom_regular, char *custom_bold, size_t cap) {
 	custom_regular[0] = custom_bold[0] = 0;
 	if (!name || !name[0] || strchr(name, '/')) {
 		return false;
@@ -420,7 +420,7 @@ static bool resolve_custom(const char *name) {
 		if (!is_font_file(name) || !small_enough(path)) {
 			return false;
 		}
-		snprintf(custom_regular, sizeof(custom_regular), "%s", path);
+		snprintf(custom_regular, cap, "%s", path);
 		return true;
 	}
 	DIR *d = opendir(path);
@@ -441,14 +441,18 @@ static bool resolve_custom(const char *name) {
 		char *slot = bold ? custom_bold : custom_regular;
 		// Prefer a file named "regular" when there are several.
 		if (!slot[0] || (!bold && strcasestr(e->d_name, "regular"))) {
-			snprintf(slot, sizeof(custom_regular), "%s", file);
+			snprintf(slot, cap, "%s", file);
 		}
 	}
 	closedir(d);
 	if (!custom_regular[0] && custom_bold[0]) {
-		memcpy(custom_regular, custom_bold, sizeof(custom_regular));
+		memcpy(custom_regular, custom_bold, cap);
 	}
 	return custom_regular[0] != 0;
+}
+
+static bool resolve_custom(const char *name) {
+	return resolve_custom_into(name, custom_regular, custom_bold, sizeof(custom_regular));
 }
 
 // Sets regular_file / bold_file to the custom font, or the built-in faces.
@@ -463,6 +467,31 @@ static void choose_main_faces(const char *name) {
 		regular_file = first_present(FONT_DEFAULT_FILES);
 		bold_file = first_present(FONT_BOLD_FILES);
 		custom_current[0] = 0;
+	}
+}
+
+// One face of `name` ("" = the built-in font) at `size`, for the font picker's
+// rows. Does not touch the interface's own fonts. NULL when it cannot be opened.
+lv_font_t *fonts_preview_open(const char *name, int size) {
+	char regular[600], bold[600];
+	const char *file = NULL;
+	if (name && name[0]) {
+		if (resolve_custom_into(name, regular, bold, sizeof(regular))) {
+			file = regular;
+		}
+	} else {
+		file = first_present(FONT_DEFAULT_FILES);
+	}
+	lv_font_t *f = file ? open_face(file, size) : NULL;
+	if (f) {
+		f->fallback = &font_ui_24; // letters the face lacks still show
+	}
+	return f;
+}
+
+void fonts_preview_close(lv_font_t *font) {
+	if (font) {
+		lv_freetype_font_delete(font);
 	}
 }
 
