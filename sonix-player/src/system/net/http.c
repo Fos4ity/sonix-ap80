@@ -654,18 +654,24 @@ static bool get_once(const url_t *u, const http_req_t *req, char **out, size_t *
 				 body_len);
 	}
 
+	// A caller that names its own User-Agent gets only that one. YouTube's
+	// InnerTube matches the agent against the client the request claims to
+	// be, and two User-Agent lines are worse than either.
+	bool own_agent = extra_headers && strcasestr(extra_headers, "User-Agent:") != NULL;
+
 	char request[4096];
 	int n = snprintf(request, sizeof(request),
 					 "%s %s HTTP/1.0\r\n"
 					 "Host: %s\r\n"
-					 "User-Agent: " HTTP_USER_AGENT "\r\n"
+					 "%s"
 					 "Accept: */*\r\n"
 					 "Accept-Encoding: identity\r\n"
 					 "Connection: close\r\n"
 					 "%s"
 					 "%s"
 					 "\r\n",
-					 method, u->path, host_header, body_headers, extra_headers ? extra_headers : "");
+					 method, u->path, host_header, own_agent ? "" : "User-Agent: " HTTP_USER_AGENT "\r\n", body_headers,
+					 extra_headers ? extra_headers : "");
 	// Compare the length against the buffer, not just against zero: snprintf
 	// truncates but returns what it would have written, so an over-long
 	// request would put bytes from past the end of the stack on the wire. It

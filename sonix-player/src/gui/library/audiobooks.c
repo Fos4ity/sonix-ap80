@@ -1,4 +1,5 @@
 #include "audiobooks.h"
+#include "src/gui/shell/scrolltext.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -989,7 +990,7 @@ static void build_names_page(gui_config_t *cfg) {
 		lv_obj_set_flex_align(row->button, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
 		row->label = lv_label_create(row->button);
-		lv_label_set_long_mode(row->label, LV_LABEL_LONG_DOT);
+		scrolltext_auto(row->label);
 		lv_obj_set_flex_grow(row->label, 1);
 		lv_obj_set_height(row->label, lv_font_get_line_height(&font_ui_24));
 		lv_obj_add_style(row->label, &theme_style_text, 0);

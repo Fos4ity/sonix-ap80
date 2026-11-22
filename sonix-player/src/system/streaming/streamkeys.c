@@ -21,6 +21,8 @@ static char qobuz_app_id[64];
 static char qobuz_app_secret[128];
 static char tidal_client_id[64];
 static char tidal_client_secret[128];
+static char youtube_client_id[128];
+static char youtube_client_secret[128];
 static char podcast_key[64];
 static char podcast_secret[128];
 static char lastfm_key[64];
@@ -112,6 +114,14 @@ static void parse_line(char *line, char section[32]) {
 		} else if (strcmp(key, "api_secret") == 0) {
 			dest = lastfm_secret;
 			dest_size = sizeof(lastfm_secret);
+		}
+	} else if (strcmp(section, "youtube") == 0) {
+		if (strcmp(key, "client_id") == 0) {
+			dest = youtube_client_id;
+			dest_size = sizeof(youtube_client_id);
+		} else if (strcmp(key, "client_secret") == 0) {
+			dest = youtube_client_secret;
+			dest_size = sizeof(youtube_client_secret);
 		}
 	} else if (strcmp(section, "tidal") == 0) {
 		if (strcmp(key, "client_id") == 0) {
@@ -283,6 +293,8 @@ const char *streamkeys_qobuz_app_id(void) { return or_null(qobuz_app_id); }
 const char *streamkeys_qobuz_app_secret(void) { return or_null(qobuz_app_secret); }
 const char *streamkeys_tidal_client_id(void) { return or_null(tidal_client_id); }
 const char *streamkeys_tidal_client_secret(void) { return or_null(tidal_client_secret); }
+const char *streamkeys_youtube_client_id(void) { return or_null(youtube_client_id); }
+const char *streamkeys_youtube_client_secret(void) { return or_null(youtube_client_secret); }
 
 const char *streamkeys_podcast_key(void) { return or_null(podcast_key); }
 const char *streamkeys_podcast_secret(void) { return or_null(podcast_secret); }

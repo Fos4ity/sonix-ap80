@@ -14,6 +14,7 @@
 #include "src/gui/library/playlistpage.h"
 #include "src/gui/streaming/qobuzpage.h"
 #include "src/gui/streaming/tidalpage.h"
+#include "src/gui/streaming/ytmpage.h"
 #include "src/gui/shell/popover.h"
 #include "src/gui/settings/musicsettings.h"
 #include "src/gui/shell/settingsrow.h"
@@ -32,6 +33,7 @@
 #include "src/system/streaming/podcastcache.h"
 #include "src/system/streaming/qobuzcache.h"
 #include "src/system/streaming/tidalcache.h"
+#include "src/system/streaming/ytmcache.h"
 #include "src/system/library/library.h"
 #include "src/system/playback/playlist.h"
 #include "src/system/core/utils.h"
@@ -1502,7 +1504,7 @@ static void details_fill(const char *file, const song_metadata_t *tags, int bits
 	// duration, which is how dense the file is. Lossy files already carry it in
 	// the row above, and for a streamed track the cache file may be half
 	// downloaded, making the number meaningless.
-	if (!lossy && !qobuzcache_owns(file) && !tidalcache_owns(file) && duration_secs > 0.5) {
+	if (!lossy && !qobuzcache_owns(file) && !tidalcache_owns(file) && !ytmcache_owns(file) && duration_secs > 0.5) {
 		struct stat st_kbps;
 		if (stat(file, &st_kbps) == 0 && st_kbps.st_size > 0) {
 			int avg = (int)((double)st_kbps.st_size * 8.0 / duration_secs / 1000.0 + 0.5);
@@ -1532,7 +1534,7 @@ static void details_fill(const char *file, const song_metadata_t *tags, int bits
 	// which may still be downloading -- a number that grows on screen by itself
 	// and describes the download, not the track.
 	struct stat st;
-	if (!qobuzcache_owns(file) && !tidalcache_owns(file) && stat(file, &st) == 0) {
+	if (!qobuzcache_owns(file) && !tidalcache_owns(file) && !ytmcache_owns(file) && stat(file, &st) == 0) {
 		snprintf(buffer, sizeof(buffer), "%.1f MB", st.st_size / (1024.0 * 1024.0));
 		details_add_row("trackmenu_size", buffer);
 	}
@@ -1544,6 +1546,8 @@ static void details_fill(const char *file, const song_metadata_t *tags, int bits
 		details_add_row("trackmenu_source", "qobuz");
 	} else if (tidalcache_owns(file)) {
 		details_add_row("trackmenu_source", "tidal");
+	} else if (ytmcache_owns(file)) {
+		details_add_row("trackmenu_source", "ytm");
 	} else {
 		details_add_row("trackmenu_file", details_card_path(file));
 	}
@@ -1613,6 +1617,7 @@ static void details_rebuild(void) {
 	// average, but only for a local file -- a streamed one may still be half
 	// downloaded and the number would climb by itself.
 	if (lossy && kbps <= 0 && !qobuzcache_owns(state.current_file) && !tidalcache_owns(state.current_file) &&
+		!ytmcache_owns(state.current_file) &&
 		state.progress_total_secs > 0.5) {
 		struct stat st_lossy;
 		if (stat(state.current_file, &st_lossy) == 0 && st_lossy.st_size > 0) {
@@ -1783,6 +1788,21 @@ static void open_album_cb(void *user) {
 			return;
 		}
 		switcher_set_player_return(tidal_list_screen);
+		return;
+	}
+
+	char ytm_album[64];
+	if (ytmcache_album_id(state.current_file, ytm_album, sizeof(ytm_album))) {
+		char title[256];
+		device_state_t now;
+		device_state_get(&now);
+		snprintf(title, sizeof(title), "%s", now.metadata.album);
+		player_sheet_close(false);
+		if (!ytmpage_open_album(ytm_album, title)) {
+			gui_notify_popup("trackmenu_tidal_album_failed");
+			return;
+		}
+		switcher_set_player_return(ytm_list_screen);
 		return;
 	}
 

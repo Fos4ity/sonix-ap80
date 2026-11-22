@@ -52,6 +52,9 @@
 #include "src/system/streaming/qobuzsync.h"
 #include "src/system/streaming/tidalcache.h"
 #include "src/system/streaming/tidalsync.h"
+#include "src/system/streaming/ytm.h"
+#include "src/system/streaming/ytmcache.h"
+#include "src/system/streaming/ytmsync.h"
 #include "src/system/core/utils.h"
 #include "src/system/audio/waveform.h"
 #include "src/system/net/wifi.h"
@@ -216,6 +219,7 @@ static int badge_top(void) { return BADGE_INSET + (bar_always ? bar_height : 0);
 
 static lv_obj_t *live_badge;	   // live indicator, top right over the artwork
 static lv_obj_t *qobuz_badge;	   // the Qobuz mark, in the same corner
+static lv_obj_t *ytm_badge;
 static lv_obj_t *tidal_badge;	   // and the Tidal one, over it: only one ever shows
 static lv_obj_t *podcast_badge;	   // and the podcast one, third in the same place
 static bool live_mode;
@@ -479,6 +483,9 @@ static void apply_live_mode(bool live) {
 	}
 	// The marks share one corner and can never go there together: a live
 	// stream does not come from Qobuz.
+	if (ytm_badge && live) {
+		lv_obj_set_hidden(ytm_badge, true);
+	}
 	if (tidal_badge && live) {
 		lv_obj_set_hidden(tidal_badge, true);
 	}
@@ -1228,7 +1235,7 @@ static bool playing_local_file(const device_state_t *state) {
 		return false;
 	}
 	const char *f = state->current_file;
-	return !qobuzcache_owns(f) && !tidalcache_owns(f) && !podcastcache_is_episode(f) && !dlna_owns_path(f) &&
+	return !qobuzcache_owns(f) && !tidalcache_owns(f) && !ytmcache_owns(f) && !podcastcache_is_episode(f) && !dlna_owns_path(f) &&
 		   !dlna_owns_playback();
 }
 
@@ -2612,7 +2619,7 @@ static int studio_cover_geometry(int *top_out) {
 // `parent` of NULL leaves them where they are and only re-places them, which
 // is what studio_place() wants on a relayout.
 static void studio_badges_move(lv_obj_t *parent, int y) {
-	lv_obj_t *const marks[] = {live_badge, qobuz_badge, tidal_badge, podcast_badge};
+	lv_obj_t *const marks[] = {live_badge, qobuz_badge, tidal_badge, ytm_badge, podcast_badge};
 	for (size_t i = 0; i < sizeof(marks) / sizeof(marks[0]); i++) {
 		if (!marks[i]) {
 			continue;
@@ -2784,7 +2791,7 @@ static void studio_take_back(void) {
 		}
 		// The marks go back to the corner of the artwork they share with every
 		// other arrangement.
-		lv_obj_t *const marks[] = {live_badge, qobuz_badge, tidal_badge, podcast_badge};
+		lv_obj_t *const marks[] = {live_badge, qobuz_badge, tidal_badge, ytm_badge, podcast_badge};
 		for (size_t i = 0; i < sizeof(marks) / sizeof(marks[0]); i++) {
 			if (marks[i]) {
 				lv_obj_set_parent(marks[i], cover_panel);
@@ -3625,6 +3632,7 @@ static void fav_refresh_async(void *user) {
 
 static void qobuz_favorites_changed(void) { gui_post(fav_refresh_async, NULL); }
 static void tidal_favorites_changed(void) { gui_post(fav_refresh_async, NULL); }
+static void ytm_favorites_changed(void) { gui_post(fav_refresh_async, NULL); }
 
 // The Qobuz id of the loaded track, 0 when what is playing does not come from
 // Qobuz. This is the question that splits the star and "add to playlist" in
@@ -3684,6 +3692,12 @@ bool player_current_podcast_feed(long long *id_out, podcast_feed_t *feed_out) {
 // service": the two caches live in different directories, so a path can answer
 // yes to at most one, which makes it impossible by construction for the player
 // to believe a track comes from both.
+static long current_ytm_track(void) {
+	device_state_t state;
+	device_state_get(&state);
+	return state.current_file[0] ? ytmcache_track_id(state.current_file) : 0;
+}
+
 static long current_tidal_track(void) {
 	device_state_t state;
 	device_state_get(&state);
@@ -3703,7 +3717,16 @@ static void update_qobuz_badge(void) {
 	// have overlapped.
 	bool from_qobuz = !live_mode && current_qobuz_track() != 0;
 	bool from_tidal = !live_mode && !from_qobuz && current_tidal_track() != 0;
-	bool from_podcast = !live_mode && !from_qobuz && !from_tidal && current_podcast_episode();
+	bool from_ytm = !live_mode && !from_qobuz && !from_tidal && current_ytm_track() != 0;
+	bool from_podcast = !live_mode && !from_qobuz && !from_tidal && !from_ytm && current_podcast_episode();
+	if (ytm_badge) {
+		if (from_ytm) {
+			lv_obj_set_hidden(ytm_badge, false);
+			lv_obj_move_foreground(ytm_badge);
+		} else {
+			lv_obj_set_hidden(ytm_badge, true);
+		}
+	}
 
 	if (qobuz_badge) {
 		if (from_qobuz) {
@@ -3745,6 +3768,7 @@ static void update_fav_button(void) {
 	bool starred = false;
 	long qobuz_id = 0;
 	long tidal_id = 0;
+	long ytm_id = 0;
 	long long feed_id = 0;
 	if (radio_current_station(&station)) {
 		starred = radio_fav_contains(station.uuid);
@@ -3763,6 +3787,11 @@ static void update_fav_button(void) {
 	} else if ((tidal_id = current_tidal_track()) > 0) {
 		starred = tidalsync_is_favorite(tidal_id);
 		tidalsync_favorites_refresh(tidal_favorites_changed);
+	} else if ((ytm_id = current_ytm_track()) > 0) {
+		starred = ytmsync_is_favorite(ytm_id);
+		if (ytm_logged_in()) {
+			ytmsync_favorites_refresh(ytm_favorites_changed);
+		}
 	} else {
 		// device_state, not audio_get_current_file(): the star is drawn from
 		// one source and toggled from another, and when the two disagreed the
@@ -3816,6 +3845,12 @@ static void tidal_fav_done(bool ok, const char *error, void *user) {
 	gui_post(fav_error_async, NULL);
 }
 
+static void ytm_fav_done(bool ok, const char *error, void *user) {
+	(void)user;
+	snprintf(fav_error, sizeof(fav_error), "%s", ok ? "" : (error && error[0] ? error : tr("ytm_favourites_failed")));
+	gui_post(fav_error_async, NULL);
+}
+
 static void fav_btn_event_cb(lv_event_t *e) {
 	(void)e;
 
@@ -3865,6 +3900,19 @@ static void fav_btn_event_cb(lv_event_t *e) {
 	if (tidal_id > 0) {
 		bool want = !tidalsync_is_favorite(tidal_id);
 		tidalsync_favorite_toggle(tidal_id, want, tidal_fav_done, NULL);
+		update_fav_button();
+		return;
+	}
+
+	long ytm_id = ytmcache_track_id(state.current_file);
+	if (ytm_id > 0) {
+		if (!ytm_logged_in()) {
+			snprintf(fav_error, sizeof(fav_error), "%s", tr("ytm_not_signed_in"));
+			gui_post(fav_error_async, NULL);
+			return;
+		}
+		bool want = !ytmsync_is_favorite(ytm_id);
+		ytmsync_favorite_toggle(ytm_id, want, ytm_fav_done, NULL);
 		update_fav_button();
 		return;
 	}
@@ -3970,6 +4018,7 @@ static void update_format_label(const device_state_t *state) {
 		// finished, for the reason just given.
 		struct stat st;
 		if (kbps <= 0 && !qobuzcache_owns(state->current_file) && !tidalcache_owns(state->current_file) &&
+			!ytmcache_owns(state->current_file) &&
 			state->progress_total_secs > 0.5 && stat(state->current_file, &st) == 0 && st.st_size > 0) {
 			kbps = (int)((double)st.st_size * 8.0 / state->progress_total_secs / 1000.0 + 0.5);
 		}
@@ -4808,7 +4857,7 @@ void player_set_statusbar_always(bool on) {
 	// The marks in the artwork's corner, and everything lined up with the
 	// chevron, follow it down or back up.
 	if (!studio_up) {
-		lv_obj_t *const marks[] = {live_badge, qobuz_badge, tidal_badge, podcast_badge};
+		lv_obj_t *const marks[] = {live_badge, qobuz_badge, tidal_badge, ytm_badge, podcast_badge};
 		for (size_t i = 0; i < sizeof(marks) / sizeof(marks[0]); i++) {
 			if (marks[i]) {
 				lv_obj_align(marks[i], LV_ALIGN_TOP_RIGHT, -BADGE_INSET, badge_top());
@@ -5494,6 +5543,11 @@ void player_init(gui_config_t *cfg) {
 
 	// Same corner, same size: the marks replace each other instead of sitting
 	// side by side, and update_qobuz_badge() decides which.
+	ytm_badge = lv_image_create(cover_panel);
+	lv_image_set_src(ytm_badge, &icon_ytmusic_badge);
+	lv_obj_align(ytm_badge, LV_ALIGN_TOP_RIGHT, -BADGE_INSET, badge_top());
+	lv_obj_set_hidden(ytm_badge, true);
+
 	tidal_badge = lv_image_create(cover_panel);
 	lv_image_set_src(tidal_badge, &icon_tidal_badge);
 	lv_obj_align(tidal_badge, LV_ALIGN_TOP_RIGHT, -BADGE_INSET, badge_top());

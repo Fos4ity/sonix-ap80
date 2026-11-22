@@ -62,6 +62,12 @@ const char *streamkeys_qobuz_app_id(void);
 const char *streamkeys_qobuz_app_secret(void);
 const char *streamkeys_tidal_client_id(void);
 const char *streamkeys_tidal_client_secret(void);
+
+// [youtube]: an OAuth client of type "TVs and Limited Input devices" from the
+// user's own Google Cloud project. Optional: without it YouTube Music still
+// searches and plays, only the account (likes, playlists) is out of reach.
+const char *streamkeys_youtube_client_id(void);
+const char *streamkeys_youtube_client_secret(void);
 // Podcast Index. This pair identifies this player rather than a HiBy
 // application: it is requested free on podcastindex.org, and each request is
 // signed with the SHA-1 of key + secret + time. Same rule as the other two:

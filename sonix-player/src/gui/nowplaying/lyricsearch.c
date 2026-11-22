@@ -1,4 +1,5 @@
 #include "lyricsearch.h"
+#include "src/gui/shell/scrolltext.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -180,7 +181,7 @@ static void add_row(int index) {
 
 	lv_obj_t *track = lv_label_create(names);
 	lv_label_set_text(track, r->track[0] ? r->track : "-");
-	lv_label_set_long_mode(track, LV_LABEL_LONG_DOT);
+	scrolltext_auto(track);
 	lv_obj_set_width(track, lv_pct(100));
 	lv_obj_set_height(track, lv_font_get_line_height(&font_ui_24));
 	lv_obj_add_style(track, &theme_style_text, 0);
@@ -194,7 +195,7 @@ static void add_row(int index) {
 	}
 	lv_obj_t *sub = lv_label_create(names);
 	lv_label_set_text(sub, who);
-	lv_label_set_long_mode(sub, LV_LABEL_LONG_DOT);
+	scrolltext_auto(sub);
 	lv_obj_set_width(sub, lv_pct(100));
 	lv_obj_set_height(sub, lv_font_get_line_height(&font_ui_20));
 	lv_obj_add_style(sub, &theme_style_text_dim, 0);

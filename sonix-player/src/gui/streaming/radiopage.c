@@ -1,4 +1,5 @@
 #include "radiopage.h"
+#include "src/gui/shell/scrolltext.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1010,7 +1011,7 @@ static void build_list_page(gui_config_t *cfg) {
 		lv_obj_set_style_pad_row(text, 4, 0);
 
 		row->name = lv_label_create(text);
-		lv_label_set_long_mode(row->name, LV_LABEL_LONG_DOT);
+		scrolltext_auto(row->name);
 		lv_obj_set_width(row->name, lv_pct(100));
 		// One line, and the height is what says so. LV_LABEL_LONG_DOT wraps
 		// first and only puts the dots in when the wrapped text runs past the

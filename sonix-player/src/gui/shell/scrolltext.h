@@ -42,4 +42,12 @@ void scrolltext_apply(lv_obj_t *label);
 // Setting it only on a real change also saves the layout pass.
 void scrolltext_set(lv_obj_t *label, const char *text);
 
+// The same idea for the many: a list row's name, a page title. A text that
+// fits is drawn as it always was; one that does not stands still for the same
+// pause, then travels at the same pace, and stops while out of sight
+// (animpark.h). No fade at the ends, and no bookkeeping per label, so a page
+// may hold hundreds. The label must be one line high and of a fixed width;
+// its text may be set with plain lv_label_set_text() at any time.
+void scrolltext_auto(lv_obj_t *label);
+
 #endif /* SCROLLTEXT_H */

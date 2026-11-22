@@ -1,4 +1,5 @@
 #include "medialist.h"
+#include "src/gui/shell/scrolltext.h"
 
 #include <limits.h>
 
@@ -3871,7 +3872,7 @@ static void build_panel(panel_t *p, gui_config_t *cfg, bool is_tracks, int slot_
 		lv_obj_set_event_bubble(row->text, true);
 
 		row->label = lv_label_create(row->text);
-		lv_label_set_long_mode(row->label, LV_LABEL_LONG_DOT);
+		scrolltext_auto(row->label);
 		lv_obj_set_width(row->label, LV_PCT(100));
 		// One line, always. LV_LABEL_LONG_DOT wraps before it truncates, and a
 		// title on two lines pushes the badge under it out of the row.
@@ -3902,7 +3903,7 @@ static void build_panel(panel_t *p, gui_config_t *cfg, bool is_tracks, int slot_
 		// One line like the title, cut with dots, in the quieter colour.
 		row->artist = lv_label_create(row->detail);
 		lv_label_set_text(row->artist, "");
-		lv_label_set_long_mode(row->artist, LV_LABEL_LONG_DOT);
+		scrolltext_auto(row->artist);
 		lv_obj_set_flex_grow(row->artist, 1);
 		lv_obj_set_height(row->artist, lv_font_get_line_height(&font_ui_20));
 		lv_obj_add_style(row->artist, &theme_style_text_dim, 0);

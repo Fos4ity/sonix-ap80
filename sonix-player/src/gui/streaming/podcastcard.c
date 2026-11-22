@@ -1,4 +1,5 @@
 #include "podcastcard.h"
+#include "src/gui/shell/scrolltext.h"
 
 #include <dirent.h>
 #include <pthread.h>
@@ -1935,14 +1936,14 @@ static void build_rows(page_t *p, int width) {
 		lv_obj_set_flex_flow(texts, LV_FLEX_FLOW_COLUMN);
 
 		row->title = lv_label_create(texts);
-		lv_label_set_long_mode(row->title, LV_LABEL_LONG_DOT);
+		scrolltext_auto(row->title);
 		lv_obj_set_width(row->title, lv_pct(100));
 		lv_obj_set_height(row->title, lv_font_get_line_height(&font_ui_22));
 		lv_obj_add_style(row->title, &theme_style_text, 0);
 		lv_obj_set_style_text_font(row->title, &font_ui_22, 0);
 
 		row->detail = lv_label_create(texts);
-		lv_label_set_long_mode(row->detail, LV_LABEL_LONG_DOT);
+		scrolltext_auto(row->detail);
 		lv_obj_set_width(row->detail, lv_pct(100));
 		lv_obj_set_height(row->detail, lv_font_get_line_height(&font_ui_18));
 		lv_obj_add_style(row->detail, &theme_style_text_dim, 0);

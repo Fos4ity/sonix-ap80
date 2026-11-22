@@ -1,4 +1,5 @@
 #include "settingsrow.h"
+#include "src/gui/shell/scrolltext.h"
 
 // LVGL 9.2 made lv_event_t opaque and moved its fields here. This file swaps
 // e->user_data around a wrapped callback, which is a write, and there is no
@@ -77,7 +78,8 @@ lv_obj_t *settingsrow_title(lv_obj_t *screen, gui_config_t *cfg, const char *tex
 	lv_label_set_text(label, tr(text));
 	lv_obj_add_style(label, &theme_style_text, 0);
 	lv_obj_set_style_text_font(label, &font_ui_32, 0);
-	lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+	// Scrolls when even the smallest step of fit_title() leaves it too wide.
+	scrolltext_auto(label);
 
 	// Beside the back button, not above it: the two read as one header row.
 	int left = cfg->padding + CORNER_BTN_SIZE + 14;

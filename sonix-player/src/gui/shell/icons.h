@@ -248,6 +248,7 @@ extern lv_image_dsc_t icon_menu_wifi_transfer;
 extern lv_image_dsc_t icon_menu_sonixlink;
 extern lv_image_dsc_t icon_menu_dlna;
 extern lv_image_dsc_t icon_menu_tidal;
+extern lv_image_dsc_t icon_menu_ytmusic;
 extern lv_image_dsc_t icon_menu_qobuz;
 extern lv_image_dsc_t icon_menu_radio;
 extern lv_image_dsc_t icon_menu_podcast;
@@ -266,6 +267,7 @@ extern lv_image_dsc_t icon_menu_file_explorer;
 extern lv_image_dsc_t icon_menu_metronome;
 extern lv_image_dsc_t icon_qobuz_badge;
 extern lv_image_dsc_t icon_tidal_badge;
+extern lv_image_dsc_t icon_ytmusic_badge;
 extern lv_image_dsc_t icon_podcast_badge;
 
 #endif // ICONS_H

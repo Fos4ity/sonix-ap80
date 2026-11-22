@@ -1,4 +1,5 @@
 #include "podcastpage.h"
+#include "src/gui/shell/scrolltext.h"
 
 #include <pthread.h>
 #include <stdio.h>
@@ -999,14 +1000,14 @@ static void build_rows(int width) {
 		lv_obj_set_flex_align(texts, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
 
 		row->title = lv_label_create(texts);
-		lv_label_set_long_mode(row->title, LV_LABEL_LONG_DOT);
+		scrolltext_auto(row->title);
 		lv_obj_set_width(row->title, lv_pct(100));
 		lv_obj_set_height(row->title, lv_font_get_line_height(&font_ui_22));
 		lv_obj_add_style(row->title, &theme_style_text, 0);
 		lv_obj_set_style_text_font(row->title, &font_ui_22, 0);
 
 		row->detail = lv_label_create(texts);
-		lv_label_set_long_mode(row->detail, LV_LABEL_LONG_DOT);
+		scrolltext_auto(row->detail);
 		lv_obj_set_width(row->detail, lv_pct(100));
 		lv_obj_set_height(row->detail, lv_font_get_line_height(&font_ui_18));
 		lv_obj_add_style(row->detail, &theme_style_text_dim, 0);
@@ -2878,14 +2879,14 @@ static void build_listen_row(listen_row_t *row, lv_obj_t *parent) {
 	lv_obj_set_flex_flow(texts, LV_FLEX_FLOW_COLUMN);
 
 	row->title = lv_label_create(texts);
-	lv_label_set_long_mode(row->title, LV_LABEL_LONG_DOT);
+	scrolltext_auto(row->title);
 	lv_obj_set_width(row->title, lv_pct(100));
 	lv_obj_set_height(row->title, lv_font_get_line_height(&font_ui_20));
 	lv_obj_add_style(row->title, &theme_style_text, 0);
 	lv_obj_set_style_text_font(row->title, &font_ui_20, 0);
 
 	row->detail = lv_label_create(texts);
-	lv_label_set_long_mode(row->detail, LV_LABEL_LONG_DOT);
+	scrolltext_auto(row->detail);
 	lv_obj_set_width(row->detail, lv_pct(100));
 	lv_obj_set_height(row->detail, lv_font_get_line_height(&font_ui_16));
 	lv_obj_add_style(row->detail, &theme_style_text_dim, 0);

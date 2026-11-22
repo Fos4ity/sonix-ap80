@@ -9,16 +9,19 @@
 #include "src/gui/streaming/radiopage.h"
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/streaming/tidalpage.h"
+#include "src/gui/streaming/ytmpage.h"
 
 lv_obj_t *streaming_screen;
 
 void streaming_init(gui_config_t *cfg) {
 	qobuzpage_init(cfg);
 	tidalpage_init(cfg);
+	ytmpage_init(cfg);
 	podcastpage_init(cfg);
 
 	const grid_entry_t entries[] = {
 		{"tidal", &icon_menu_tidal, &tidal_screen, NULL},
+		{"ytm", &icon_menu_ytmusic, &ytm_screen, NULL},
 		{"qobuz", &icon_menu_qobuz, &qobuz_screen, NULL},
 		{"radio", &icon_menu_radio, &radiopage_screen, NULL},
 		{"podcasts", &icon_menu_podcast, &podcast_screen, NULL},

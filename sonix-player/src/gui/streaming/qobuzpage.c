@@ -1,4 +1,5 @@
 #include "qobuzpage.h"
+#include "src/gui/shell/scrolltext.h"
 
 #include <pthread.h>
 #include <stdio.h>
@@ -735,7 +736,7 @@ static lv_obj_t *make_row(const char *name, const char *detail, const char *cove
 
 	lv_obj_t *label = lv_label_create(texts);
 	lv_label_set_text(label, name);
-	lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+	scrolltext_auto(label);
 	lv_obj_set_width(label, lv_pct(100));
 	lv_obj_set_height(label, lv_font_get_line_height(&font_ui_22));
 	lv_obj_add_style(label, &theme_style_text, 0);
@@ -750,7 +751,7 @@ static lv_obj_t *make_row(const char *name, const char *detail, const char *cove
 	if (detail && detail[0]) {
 		lv_obj_t *sub = lv_label_create(texts);
 		lv_label_set_text(sub, detail);
-		lv_label_set_long_mode(sub, LV_LABEL_LONG_DOT);
+		scrolltext_auto(sub);
 		lv_obj_set_width(sub, lv_pct(100));
 		lv_obj_set_height(sub, lv_font_get_line_height(&font_ui_18));
 		lv_obj_add_style(sub, &theme_style_text_dim, 0);

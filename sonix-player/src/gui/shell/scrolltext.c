@@ -534,3 +534,28 @@ void scrolltext_set(lv_obj_t *label, const char *text) {
 		free(line);
 	}
 }
+
+// ---------------------------------------------------------------------------
+// The light variant, for rows and titles (see scrolltext.h)
+//
+// The pace comes from LVGL's own speed encoding rather than a measured
+// duration: the label is given any text at any time by code that knows nothing
+// of this file, and a speed needs no measuring. Its ten-bit fields cap a pass
+// at about ten seconds, so a name wider than some 550 px goes past faster than
+// the player's title would -- a price worth paying for rows.
+// ---------------------------------------------------------------------------
+
+static void auto_park(lv_obj_t *label) { lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP); }
+
+static void auto_unpark(lv_obj_t *label) { lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR); }
+
+void scrolltext_auto(lv_obj_t *label) {
+	if (!label) {
+		return;
+	}
+	build_template();
+	lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+	lv_obj_set_style_anim(label, &scroll_template, LV_PART_MAIN);
+	lv_obj_set_style_anim_duration(label, lv_anim_speed_clamped(SCROLL_SPEED_PX_S, SCROLL_MIN_MS, 10000), 0);
+	animpark_watch(label, auto_park, auto_unpark);
+}

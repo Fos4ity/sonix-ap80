@@ -55,6 +55,10 @@
 #include "src/system/streaming/podcastsubs.h"
 #include "src/system/streaming/podcaststate.h"
 #include "src/system/streaming/tidalcache.h"
+#include "src/system/streaming/ytmcache.h"
+#include "src/system/streaming/ytm.h"
+#include "src/gui/streaming/streaming.h"
+#include "src/gui/streaming/ytmpage.h"
 #include "src/system/streaming/streamkeys.h"
 #include "src/system/lastfm/lastfm.h"
 #include "src/system/library/library.h"
@@ -1928,6 +1932,15 @@ static void test_switch_cb(lv_timer_t *t) {
 	fprintf(stderr, "test: iconpack_count=%d\n", iconpack_count());
 	if (bar) fprintf(stderr, "test: iconpack_set(%s)=%d\n", bar + 1, iconpack_set(bar + 1));
 }
+static void test_screen_cb(lv_timer_t *t) {
+	(void)t;
+	const char *which = getenv("SONIX_TEST_SCREEN");
+	if (which && strcmp(which, "ytm") == 0) {
+		switch_screen(ytm_screen);
+	} else {
+		switch_screen(streaming_screen);
+	}
+}
 #endif
 
 int main(int argc, char **argv) {
@@ -2063,6 +2076,7 @@ int main(int argc, char **argv) {
 	streamkeys_init();
 	qobuz_init();
 	tidal_init();
+	ytm_init();
 	lastfm_init();
 
 	lv_init();
@@ -2283,6 +2297,7 @@ int main(int argc, char **argv) {
 	const char *card_root = storage_sd_root();
 	qobuzcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	tidalcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
+	ytmcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	podcastcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	podcastsubs_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	podcaststate_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
@@ -2302,6 +2317,7 @@ int main(int argc, char **argv) {
 	// rather than to the local database.
 	library_forget_under(qobuzcache_dir());
 	library_forget_under(tidalcache_dir());
+	library_forget_under(ytmcache_dir());
 	if (!tls_available()) {
 		fprintf(stderr, "tls: unavailable; https radio stations cannot be opened\n");
 	}
@@ -2334,6 +2350,12 @@ int main(int argc, char **argv) {
 	if (getenv("SONIX_TEST_SWITCH")) {
 		lv_timer_t *tt = lv_timer_create(test_switch_cb, 4000, NULL);
 		lv_timer_set_repeat_count(tt, 1);
+	}
+	// Test hook: SONIX_TEST_SCREEN=streaming|ytm opens that page a few seconds
+	// in, so a screenshot shows it without clicking.
+	if (getenv("SONIX_TEST_SCREEN")) {
+		lv_timer_t *ts = lv_timer_create(test_screen_cb, 3000, NULL);
+		lv_timer_set_repeat_count(ts, 1);
 	}
 #endif
 

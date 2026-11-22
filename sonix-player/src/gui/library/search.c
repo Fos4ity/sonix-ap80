@@ -1,4 +1,5 @@
 #include "search.h"
+#include "src/gui/shell/scrolltext.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -541,14 +542,14 @@ static void row_create(row_t *row) {
 	lv_obj_set_flex_flow(texts, LV_FLEX_FLOW_COLUMN);
 
 	row->title = lv_label_create(texts);
-	lv_label_set_long_mode(row->title, LV_LABEL_LONG_DOT);
+	scrolltext_auto(row->title);
 	lv_obj_set_width(row->title, lv_pct(100));
 	lv_obj_set_height(row->title, lv_font_get_line_height(&font_ui_24));
 	lv_obj_add_style(row->title, &theme_style_text, 0);
 	lv_obj_set_style_text_font(row->title, &font_ui_24, 0);
 
 	row->subtitle = lv_label_create(texts);
-	lv_label_set_long_mode(row->subtitle, LV_LABEL_LONG_DOT);
+	scrolltext_auto(row->subtitle);
 	lv_obj_set_width(row->subtitle, lv_pct(100));
 	lv_obj_set_height(row->subtitle, lv_font_get_line_height(&font_ui_18));
 	lv_obj_add_style(row->subtitle, &theme_style_text_dim, 0);

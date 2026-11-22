@@ -241,6 +241,7 @@ iconpack_entry_t iconpack_table[] = {
 	{&icon_menu_sonixlink, "sonixlink", false},
 	{&icon_menu_dlna, "dlna", false},
 	{&icon_menu_tidal, "tidal", false},
+	{&icon_menu_ytmusic, "ytmusic", false},
 	{&icon_menu_qobuz, "qobuz", false},
 	{&icon_menu_radio, "radio", false},
 	{&icon_menu_podcast, "podcast", false},
@@ -259,6 +260,7 @@ iconpack_entry_t iconpack_table[] = {
 	{&icon_menu_metronome, "metronome", false},
 	{&icon_qobuz_badge, "qobuz-badge", false},
 	{&icon_tidal_badge, "tidal-badge", false},
+	{&icon_ytmusic_badge, "ytmusic-badge", false},
 	{&icon_podcast_badge, "podcast-badge", false},
 };
 const int iconpack_table_count = 255;

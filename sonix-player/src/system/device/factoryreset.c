@@ -13,6 +13,7 @@
 #include "src/system/streaming/qobuzcache.h"
 #include "src/system/streaming/podcastcache.h"
 #include "src/system/streaming/tidalcache.h"
+#include "src/system/streaming/ytmcache.h"
 #include "src/system/remote/dlna.h"
 #include "src/system/device/sysserver.h"
 #include "src/system/device/system.h"
@@ -175,6 +176,7 @@ void factoryreset_run(void) {
 	// must not leave streamed tracks behind.
 	qobuzcache_clear_on_exit();
 	tidalcache_clear_on_exit();
+	ytmcache_clear_on_exit();
 	podcastcache_clear_on_exit();
 	dlna_clear_on_exit();
 
@@ -246,6 +248,7 @@ static const char *const KEEP[] = {
 	"ebook_config.ini",
 	"ebook_config.ini.tmp",
 	"tidal_session.ini",
+	"ytmusic_session.ini",
 	"lastfm.session",
 };
 
