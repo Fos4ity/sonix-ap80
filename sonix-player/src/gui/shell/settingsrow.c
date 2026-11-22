@@ -241,7 +241,35 @@ static void fit_row(lv_obj_t *row) {
 	// "Version du systeme d'exploitation" at 24 px runs straight into the
 	// number beside it.
 	lv_obj_t *right = lv_obj_get_child(row, 1);
-	if (right) {
+	if (right && lv_obj_check_type(right, &lv_label_class)) {
+		// A long value on a narrow panel (360 px) would run into the name even
+		// with the name at its smallest size, so the value steps down too.
+		static lv_font_t *const VSTEPS[] = {&font_ui_24, &font_ui_22, &font_ui_20, &font_ui_18, &font_ui_16};
+		const size_t vcount = sizeof(VSTEPS) / sizeof(VSTEPS[0]);
+		const char *name = lv_label_get_text(label);
+		const char *val = lv_label_get_text(right);
+		if (name && val && val[0] && avail > 0) {
+			lv_point_t ns;
+			lv_text_get_size(&ns, name, &font_ui_20, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+			lv_font_t *pick = VSTEPS[vcount - 1];
+			int32_t vw = 0;
+			for (size_t i = 0; i < vcount; i++) {
+				lv_point_t vs;
+				lv_text_get_size(&vs, val, VSTEPS[i], 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+				vw = vs.x;
+				if (ns.x + ROW_LABEL_GAP + vs.x <= avail) {
+					pick = VSTEPS[i];
+					break;
+				}
+			}
+			if (lv_obj_get_style_text_font(right, LV_PART_MAIN) != pick) {
+				lv_obj_set_style_text_font(right, pick, 0);
+			}
+			avail -= vw + ROW_LABEL_GAP;
+		} else {
+			avail -= lv_obj_get_width(right) + ROW_LABEL_GAP;
+		}
+	} else if (right) {
 		avail -= lv_obj_get_width(right) + ROW_LABEL_GAP;
 	}
 

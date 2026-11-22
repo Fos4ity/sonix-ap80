@@ -82,6 +82,23 @@ static void add_tile(lv_obj_t *grid, const grid_entry_t *entry, int width, int h
 	// is not run through the theme's recolour.
 	lv_obj_t *icon = lv_image_create(tile);
 	lv_image_set_src(icon, entry->icon);
+	// A narrow panel (AP80 Pro Max, 360 px) leaves tiles too small for the
+	// artwork plus a wrapped caption: shrink the artwork into what is left
+	// under a one-line caption.
+	bool narrow = width < 200;
+	const lv_font_t *font = narrow ? &font_ui_20_bold : &font_ui_24_bold;
+	if (narrow) {
+		int line_h = lv_font_get_line_height(font);
+		int avail = height - 2 * 8 - 8 - line_h;
+		if (avail > width - 2 * 8) {
+			avail = width - 2 * 8;
+		}
+		if (avail < 24) {
+			avail = 24;
+		}
+		lv_obj_set_size(icon, avail, avail);
+		lv_image_set_inner_align(icon, LV_IMAGE_ALIGN_CONTAIN);
+	}
 
 	// The caption wraps rather than running out of the tile: a translated label
 	// such as "Album-Interpreten" does not fit on one line. Centred, because a
@@ -89,8 +106,12 @@ static void add_tile(lv_obj_t *grid, const grid_entry_t *entry, int width, int h
 	lv_obj_t *label = lv_label_create(tile);
 	lv_label_set_text(label, tr(entry->label));
 	lv_obj_add_style(label, &theme_style_text, 0);
-	lv_obj_set_style_text_font(label, &font_ui_24_bold, 0);
+	lv_obj_set_style_text_font(label, font, 0);
 	lv_obj_set_width(label, lv_pct(100));
+	if (narrow) {
+		lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+		lv_obj_set_height(label, lv_font_get_line_height(font));
+	}
 	lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
 
 	if (entry->target) {

@@ -1007,6 +1007,23 @@ void topbar_init(gui_config_t *cfg) {
 	lv_obj_set_pos(bat_bolt, 0, 0);
 	lv_obj_set_hidden(bat_bolt, true);
 
+	// A narrow panel (the AP80's 360 px): the full-size glyphs and 24 px numbers
+	// need more room than the bar has, and the left group then runs under the
+	// radios. Everything a size smaller and closer together.
+	if (cfg->screen_width < 400) {
+		lv_obj_set_style_pad_gap(container_left, 3, 0);
+		lv_obj_set_style_pad_gap(container_right, 3, 0);
+		lv_obj_t *icons[] = {vol_icon, hp_icon, play_icon, library_icon, sonixlink_icon, bt_icon, wifi_icon};
+		for (size_t i = 0; i < sizeof(icons) / sizeof(icons[0]); i++) {
+			lv_obj_set_size(icons[i], 22, 22);
+			lv_image_set_inner_align(icons[i], LV_IMAGE_ALIGN_CONTAIN);
+		}
+		lv_obj_set_style_text_font(vol_label, &font_ui_20, 0);
+		lv_obj_set_style_text_font(bat_label, &font_ui_20, 0);
+		lv_obj_set_width(container_left, LV_SIZE_CONTENT);
+		lv_obj_set_width(container_right, LV_SIZE_CONTENT);
+	}
+
 	// Clock, centred on the bar and independent of everything around it.
 	clock_label = clocklabel_create(top_bar, &font_ui_24, 24, &font_ui_14, 14);
 	lv_obj_add_style(clock_label, &theme_style_text, 0);

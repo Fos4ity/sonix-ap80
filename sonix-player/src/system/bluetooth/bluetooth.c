@@ -2359,10 +2359,17 @@ void bluetooth_power_down_stack(void) {
 	stop_process("bluealsa");
 	stop_process("bluetoothd");
 	stop_process("bt-agent");
+#ifdef SONIX_SD_RESOURCE_DIR
+	// AP80: Wi-Fi and Bluetooth share one chip (CYW43438). Taking the radio
+	// down here (hci down, patchram stop, rfkill 0) is followed by the Wi-Fi
+	// side going deaf to inbound traffic, so only the daemons are stopped.
+	fprintf(stderr, "bluetooth: AP80 keeps the BT radio powered (shared Wi-Fi chip)\n");
+#else
 	hci_down();
 	if (stop_process("brcm_patchram_plus")) {
 		write_file(BT_RFKILL, "0");
 	}
+#endif
 	fprintf(stderr, "bluetooth: the boot-time stack is down, about %ld KB back\n", freed);
 }
 

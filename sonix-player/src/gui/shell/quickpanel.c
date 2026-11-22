@@ -58,8 +58,10 @@
 // against the roughly 400 px the card leaves inside its padding, so a fifth
 // does not fit however tight the gap gets: the extra controls wrap onto a
 // second line rather than shrinking.
-#define CIRCLE_BUTTON_SIZE 88
-#define CIRCLE_BUTTON_GAP 14
+// 88/14 on the 480+ px panels; a 360 px panel (AP80 Pro Max) gets smaller ones
+// so four still fit on a line and two lines fit the card.
+static int CIRCLE_BUTTON_SIZE = 88;
+static int CIRCLE_BUTTON_GAP = 14;
 #define QP_BUTTONS_PER_LINE 4
 
 // How the sheet divides the screen up: a strip for the close hint at the
@@ -2018,6 +2020,11 @@ void quickpanel_init(gui_config_t *cfg) {
 		top_inset = 0; // a bar shorter than the padding leaves nothing to clear
 	}
 	int card_w = cfg->screen_width - 2 * cfg->padding;
+	if (card_w - 2 * CARD_PADDING < 4 * 88 + 3 * 14) {
+		CIRCLE_BUTTON_GAP = 8;
+		CIRCLE_BUTTON_SIZE = (card_w - 2 * CARD_PADDING - 3 * CIRCLE_BUTTON_GAP) / 4;
+		if (CIRCLE_BUTTON_SIZE > 64) CIRCLE_BUTTON_SIZE = 64;
+	}
 	int card_h = (content_h - top_inset - HINT_STRIP_H - CARD_GAP) / 2;
 	if (card_h < 160) {
 		card_h = 160; // floor for panels shorter than any shipped screen

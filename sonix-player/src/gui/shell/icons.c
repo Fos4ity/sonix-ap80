@@ -445,7 +445,7 @@ static const uint8_t icon_chevron_left_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_chevron_left = {
+lv_image_dsc_t icon_chevron_left = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -893,7 +893,7 @@ static const uint8_t icon_chevron_right_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_chevron_right = {
+lv_image_dsc_t icon_chevron_right = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -1341,7 +1341,7 @@ static const uint8_t icon_check_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_check = {
+lv_image_dsc_t icon_check = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -1789,7 +1789,7 @@ static const uint8_t icon_close_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_close = {
+lv_image_dsc_t icon_close = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -2105,7 +2105,7 @@ static const uint8_t icon_clear_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_clear = {
+lv_image_dsc_t icon_clear = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -2421,7 +2421,7 @@ static const uint8_t icon_eye_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_eye = {
+lv_image_dsc_t icon_eye = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -2737,7 +2737,7 @@ static const uint8_t icon_eye_off_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_eye_off = {
+lv_image_dsc_t icon_eye_off = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -3095,7 +3095,7 @@ static const uint8_t icon_folder_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_folder = {
+lv_image_dsc_t icon_folder = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -3497,7 +3497,7 @@ static const uint8_t icon_folder_corner_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_folder_corner = {
+lv_image_dsc_t icon_folder_corner = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -3899,7 +3899,7 @@ static const uint8_t icon_folder_root_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_folder_root = {
+lv_image_dsc_t icon_folder_root = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -4257,7 +4257,7 @@ static const uint8_t icon_file_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_file = {
+lv_image_dsc_t icon_file = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -4659,7 +4659,7 @@ static const uint8_t icon_music_settings_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_music_settings = {
+lv_image_dsc_t icon_music_settings = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -5061,7 +5061,7 @@ static const uint8_t icon_book_finished_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_book_finished = {
+lv_image_dsc_t icon_book_finished = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -5463,7 +5463,7 @@ static const uint8_t icon_audio_waveform_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_audio_waveform = {
+lv_image_dsc_t icon_audio_waveform = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -5865,7 +5865,7 @@ static const uint8_t icon_autoeq_update_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_autoeq_update = {
+lv_image_dsc_t icon_autoeq_update = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -6181,7 +6181,7 @@ static const uint8_t icon_repeat_all_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_repeat_all = {
+lv_image_dsc_t icon_repeat_all = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -6497,7 +6497,7 @@ static const uint8_t icon_repeat_one_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_repeat_one = {
+lv_image_dsc_t icon_repeat_one = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -6813,7 +6813,7 @@ static const uint8_t icon_repeat_off_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_repeat_off = {
+lv_image_dsc_t icon_repeat_off = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -7363,7 +7363,7 @@ static const uint8_t icon_play_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_play = {
+lv_image_dsc_t icon_play = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -7913,7 +7913,7 @@ static const uint8_t icon_pause_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_pause = {
+lv_image_dsc_t icon_pause = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -8315,7 +8315,7 @@ static const uint8_t icon_stop_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_stop = {
+lv_image_dsc_t icon_stop = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -8557,7 +8557,7 @@ static const uint8_t icon_play_status_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_play_status = {
+lv_image_dsc_t icon_play_status = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -8799,7 +8799,7 @@ static const uint8_t icon_pause_status_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_pause_status = {
+lv_image_dsc_t icon_pause_status = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -9041,7 +9041,7 @@ static const uint8_t icon_airplay_status_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airplay_status = {
+lv_image_dsc_t icon_airplay_status = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -9283,7 +9283,7 @@ static const uint8_t icon_sonixlink_status_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sonixlink_status = {
+lv_image_dsc_t icon_sonixlink_status = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -9525,7 +9525,7 @@ static const uint8_t icon_library_checking_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_library_checking = {
+lv_image_dsc_t icon_library_checking = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -9767,7 +9767,7 @@ static const uint8_t icon_library_checked_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_library_checked = {
+lv_image_dsc_t icon_library_checked = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -10169,7 +10169,7 @@ static const uint8_t icon_skip_back_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_skip_back = {
+lv_image_dsc_t icon_skip_back = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -10571,7 +10571,7 @@ static const uint8_t icon_skip_forward_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_skip_forward = {
+lv_image_dsc_t icon_skip_forward = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -11355,7 +11355,7 @@ static const uint8_t icon_play_large_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_play_large = {
+lv_image_dsc_t icon_play_large = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -12139,7 +12139,7 @@ static const uint8_t icon_pause_large_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_pause_large = {
+lv_image_dsc_t icon_pause_large = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -12743,7 +12743,7 @@ static const uint8_t icon_skip_back_large_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_skip_back_large = {
+lv_image_dsc_t icon_skip_back_large = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -13347,7 +13347,7 @@ static const uint8_t icon_skip_forward_large_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_skip_forward_large = {
+lv_image_dsc_t icon_skip_forward_large = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -18825,7 +18825,7 @@ static const uint8_t icon_music_note_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_music_note = {
+lv_image_dsc_t icon_music_note = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -24303,7 +24303,7 @@ static const uint8_t icon_radio_player_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_radio_player = {
+lv_image_dsc_t icon_radio_player = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -29781,7 +29781,7 @@ static const uint8_t icon_airplay_page_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airplay_page = {
+lv_image_dsc_t icon_airplay_page = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -35259,7 +35259,7 @@ static const uint8_t icon_dlna_page_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_dlna_page = {
+lv_image_dsc_t icon_dlna_page = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -35757,7 +35757,7 @@ static const uint8_t icon_battery_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_battery = {
+lv_image_dsc_t icon_battery = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -36255,7 +36255,7 @@ static const uint8_t icon_battery_charging_body_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_battery_charging_body = {
+lv_image_dsc_t icon_battery_charging_body = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -36753,7 +36753,7 @@ static const uint8_t icon_battery_charging_bolt_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_battery_charging_bolt = {
+lv_image_dsc_t icon_battery_charging_bolt = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -36995,7 +36995,7 @@ static const uint8_t icon_battery_small_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_battery_small = {
+lv_image_dsc_t icon_battery_small = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -37311,7 +37311,7 @@ static const uint8_t icon_volume_mute_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_volume_mute = {
+lv_image_dsc_t icon_volume_mute = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -37553,7 +37553,7 @@ static const uint8_t icon_headphones_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_headphones = {
+lv_image_dsc_t icon_headphones = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -37795,7 +37795,7 @@ static const uint8_t icon_usbaudioout_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_usbaudioout = {
+lv_image_dsc_t icon_usbaudioout = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -38111,7 +38111,7 @@ static const uint8_t icon_volume_low_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_volume_low = {
+lv_image_dsc_t icon_volume_low = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -38427,7 +38427,7 @@ static const uint8_t icon_volume_high_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_volume_high = {
+lv_image_dsc_t icon_volume_high = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -39489,7 +39489,7 @@ static const uint8_t icon_power_off_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_power_off = {
+lv_image_dsc_t icon_power_off = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -40551,7 +40551,7 @@ static const uint8_t icon_reboot_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_reboot = {
+lv_image_dsc_t icon_reboot = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -41613,7 +41613,7 @@ static const uint8_t icon_battery_warning_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_battery_warning = {
+lv_image_dsc_t icon_battery_warning = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -41971,7 +41971,7 @@ static const uint8_t icon_music2_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_music2 = {
+lv_image_dsc_t icon_music2 = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -42329,7 +42329,7 @@ static const uint8_t icon_artist_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_artist = {
+lv_image_dsc_t icon_artist = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -42879,7 +42879,7 @@ static const uint8_t icon_podcast_list_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_podcast_list = {
+lv_image_dsc_t icon_podcast_list = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -43237,7 +43237,7 @@ static const uint8_t icon_artist_album_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_artist_album = {
+lv_image_dsc_t icon_artist_album = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -43595,7 +43595,7 @@ static const uint8_t icon_genre_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_genre = {
+lv_image_dsc_t icon_genre = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -43953,7 +43953,7 @@ static const uint8_t icon_album_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_album = {
+lv_image_dsc_t icon_album = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -44355,7 +44355,7 @@ static const uint8_t icon_sort_az_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sort_az = {
+lv_image_dsc_t icon_sort_az = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -44757,7 +44757,7 @@ static const uint8_t icon_sort_za_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sort_za = {
+lv_image_dsc_t icon_sort_za = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -45159,7 +45159,7 @@ static const uint8_t icon_sort_date_old_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sort_date_old = {
+lv_image_dsc_t icon_sort_date_old = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -45561,7 +45561,7 @@ static const uint8_t icon_sort_date_new_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sort_date_new = {
+lv_image_dsc_t icon_sort_date_new = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -45963,7 +45963,7 @@ static const uint8_t icon_sort_year_asc_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sort_year_asc = {
+lv_image_dsc_t icon_sort_year_asc = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -46365,7 +46365,7 @@ static const uint8_t icon_sort_year_desc_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sort_year_desc = {
+lv_image_dsc_t icon_sort_year_desc = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -46767,7 +46767,7 @@ static const uint8_t icon_sort_played_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sort_played = {
+lv_image_dsc_t icon_sort_played = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -47169,7 +47169,7 @@ static const uint8_t icon_sort_series_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sort_series = {
+lv_image_dsc_t icon_sort_series = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -47571,7 +47571,7 @@ static const uint8_t icon_album_corner_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_album_corner = {
+lv_image_dsc_t icon_album_corner = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -50659,7 +50659,7 @@ static const uint8_t icon_album_big_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_album_big = {
+lv_image_dsc_t icon_album_big = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -51061,7 +51061,7 @@ static const uint8_t icon_circle_play_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_circle_play = {
+lv_image_dsc_t icon_circle_play = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -51377,7 +51377,7 @@ static const uint8_t icon_ellipsis_vertical_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_ellipsis_vertical = {
+lv_image_dsc_t icon_ellipsis_vertical = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -51779,7 +51779,7 @@ static const uint8_t icon_list_music_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_list_music = {
+lv_image_dsc_t icon_list_music = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -52181,7 +52181,7 @@ static const uint8_t icon_list_plus_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_list_plus = {
+lv_image_dsc_t icon_list_plus = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -52583,7 +52583,7 @@ static const uint8_t icon_star_plus_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_star_plus = {
+lv_image_dsc_t icon_star_plus = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -52985,7 +52985,7 @@ static const uint8_t icon_list_queue_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_list_queue = {
+lv_image_dsc_t icon_list_queue = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -53387,7 +53387,7 @@ static const uint8_t icon_list_x_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_list_x = {
+lv_image_dsc_t icon_list_x = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -53789,7 +53789,7 @@ static const uint8_t icon_star_x_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_star_x = {
+lv_image_dsc_t icon_star_x = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -54191,7 +54191,7 @@ static const uint8_t icon_search_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_search = {
+lv_image_dsc_t icon_search = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -54913,7 +54913,7 @@ static const uint8_t icon_wifi_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_wifi = {
+lv_image_dsc_t icon_wifi = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -55635,7 +55635,7 @@ static const uint8_t icon_bluetooth_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_bluetooth = {
+lv_image_dsc_t icon_bluetooth = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -56037,7 +56037,7 @@ static const uint8_t icon_wifi_zero_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_wifi_zero = {
+lv_image_dsc_t icon_wifi_zero = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -56439,7 +56439,7 @@ static const uint8_t icon_wifi_low_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_wifi_low = {
+lv_image_dsc_t icon_wifi_low = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -56841,7 +56841,7 @@ static const uint8_t icon_wifi_high_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_wifi_high = {
+lv_image_dsc_t icon_wifi_high = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -57243,7 +57243,7 @@ static const uint8_t icon_wifi_max_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_wifi_max = {
+lv_image_dsc_t icon_wifi_max = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -57559,7 +57559,7 @@ static const uint8_t icon_bluetooth_status_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_bluetooth_status = {
+lv_image_dsc_t icon_bluetooth_status = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -58007,7 +58007,7 @@ static const uint8_t icon_wifi_search_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_wifi_search = {
+lv_image_dsc_t icon_wifi_search = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -58455,7 +58455,7 @@ static const uint8_t icon_bluetooth_search_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_bluetooth_search = {
+lv_image_dsc_t icon_bluetooth_search = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -58903,7 +58903,7 @@ static const uint8_t icon_bluetooth_receiver_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_bluetooth_receiver = {
+lv_image_dsc_t icon_bluetooth_receiver = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -59305,7 +59305,7 @@ static const uint8_t icon_change_codec_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_change_codec = {
+lv_image_dsc_t icon_change_codec = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -60367,7 +60367,7 @@ static const uint8_t icon_bluetooth_connecting_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_bluetooth_connecting = {
+lv_image_dsc_t icon_bluetooth_connecting = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -61429,7 +61429,7 @@ static const uint8_t icon_headphones_big_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_headphones_big = {
+lv_image_dsc_t icon_headphones_big = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -61745,7 +61745,7 @@ static const uint8_t icon_sun_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sun = {
+lv_image_dsc_t icon_sun = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -62061,7 +62061,7 @@ static const uint8_t icon_shift_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_shift = {
+lv_image_dsc_t icon_shift = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -62377,7 +62377,7 @@ static const uint8_t icon_caps_lock_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_caps_lock = {
+lv_image_dsc_t icon_caps_lock = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -62693,7 +62693,7 @@ static const uint8_t icon_delete_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_delete = {
+lv_image_dsc_t icon_delete = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -63095,7 +63095,7 @@ static const uint8_t icon_space_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_space = {
+lv_image_dsc_t icon_space = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -63453,7 +63453,7 @@ static const uint8_t icon_chevron_up_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_chevron_up = {
+lv_image_dsc_t icon_chevron_up = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -63901,7 +63901,7 @@ static const uint8_t icon_chevron_down_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_chevron_down = {
+lv_image_dsc_t icon_chevron_down = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -64963,7 +64963,7 @@ static const uint8_t icon_control_center_line_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_control_center_line = {
+lv_image_dsc_t icon_control_center_line = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -65685,7 +65685,7 @@ static const uint8_t icon_mseb_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_mseb = {
+lv_image_dsc_t icon_mseb = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -66407,7 +66407,7 @@ static const uint8_t icon_equalizer_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_equalizer = {
+lv_image_dsc_t icon_equalizer = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -67129,7 +67129,7 @@ static const uint8_t icon_lineout_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_lineout = {
+lv_image_dsc_t icon_lineout = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -67851,7 +67851,7 @@ static const uint8_t icon_fade_track_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_fade_track = {
+lv_image_dsc_t icon_fade_track = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -68573,7 +68573,7 @@ static const uint8_t icon_low_gain_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_low_gain = {
+lv_image_dsc_t icon_low_gain = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -69295,7 +69295,7 @@ static const uint8_t icon_high_gain_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_high_gain = {
+lv_image_dsc_t icon_high_gain = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -70017,7 +70017,7 @@ static const uint8_t icon_airplay_quick_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airplay_quick = {
+lv_image_dsc_t icon_airplay_quick = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -70739,7 +70739,7 @@ static const uint8_t icon_peq_quick_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_peq_quick = {
+lv_image_dsc_t icon_peq_quick = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -71461,7 +71461,7 @@ static const uint8_t icon_sonixlink_quick_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sonixlink_quick = {
+lv_image_dsc_t icon_sonixlink_quick = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -72183,7 +72183,7 @@ static const uint8_t icon_dlna_quick_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_dlna_quick = {
+lv_image_dsc_t icon_dlna_quick = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -72905,7 +72905,7 @@ static const uint8_t icon_wifi_transfer_quick_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_wifi_transfer_quick = {
+lv_image_dsc_t icon_wifi_transfer_quick = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -73627,7 +73627,7 @@ static const uint8_t icon_sleep_music_quick_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sleep_music_quick = {
+lv_image_dsc_t icon_sleep_music_quick = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -74349,7 +74349,7 @@ static const uint8_t icon_sleep_audiobook_quick_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sleep_audiobook_quick = {
+lv_image_dsc_t icon_sleep_audiobook_quick = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -75071,7 +75071,7 @@ static const uint8_t icon_sleep_podcast_quick_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sleep_podcast_quick = {
+lv_image_dsc_t icon_sleep_podcast_quick = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -75793,7 +75793,7 @@ static const uint8_t icon_gapless_on_quick_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_gapless_on_quick = {
+lv_image_dsc_t icon_gapless_on_quick = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -76515,7 +76515,7 @@ static const uint8_t icon_gapless_off_quick_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_gapless_off_quick = {
+lv_image_dsc_t icon_gapless_off_quick = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -76873,7 +76873,7 @@ static const uint8_t icon_files_music_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_files_music = {
+lv_image_dsc_t icon_files_music = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -77231,7 +77231,7 @@ static const uint8_t icon_files_audiobook_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_files_audiobook = {
+lv_image_dsc_t icon_files_audiobook = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -77589,7 +77589,7 @@ static const uint8_t icon_files_playlist_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_files_playlist = {
+lv_image_dsc_t icon_files_playlist = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -77947,7 +77947,7 @@ static const uint8_t icon_playlist_overwrite_alert_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_playlist_overwrite_alert = {
+lv_image_dsc_t icon_playlist_overwrite_alert = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -78305,7 +78305,7 @@ static const uint8_t icon_files_image_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_files_image = {
+lv_image_dsc_t icon_files_image = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -78663,7 +78663,7 @@ static const uint8_t icon_files_text_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_files_text = {
+lv_image_dsc_t icon_files_text = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -79021,7 +79021,7 @@ static const uint8_t icon_files_update_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_files_update = {
+lv_image_dsc_t icon_files_update = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -79379,7 +79379,7 @@ static const uint8_t icon_files_game_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_files_game = {
+lv_image_dsc_t icon_files_game = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -79737,7 +79737,7 @@ static const uint8_t icon_files_book_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_files_book = {
+lv_image_dsc_t icon_files_book = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -80139,7 +80139,7 @@ static const uint8_t icon_trash_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_trash = {
+lv_image_dsc_t icon_trash = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -80541,7 +80541,7 @@ static const uint8_t icon_folder_new_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_folder_new = {
+lv_image_dsc_t icon_folder_new = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -80989,7 +80989,7 @@ static const uint8_t icon_grip_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_grip = {
+lv_image_dsc_t icon_grip = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -81391,7 +81391,7 @@ static const uint8_t icon_reorder_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_reorder = {
+lv_image_dsc_t icon_reorder = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -81749,7 +81749,7 @@ static const uint8_t icon_now_playing_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_now_playing = {
+lv_image_dsc_t icon_now_playing = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -82151,7 +82151,7 @@ static const uint8_t icon_select_mode_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_select_mode = {
+lv_image_dsc_t icon_select_mode = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -82599,7 +82599,7 @@ static const uint8_t icon_plus_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_plus = {
+lv_image_dsc_t icon_plus = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -83047,7 +83047,7 @@ static const uint8_t icon_minus_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_minus = {
+lv_image_dsc_t icon_minus = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -83449,7 +83449,7 @@ static const uint8_t icon_import_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_import = {
+lv_image_dsc_t icon_import = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -83897,7 +83897,7 @@ static const uint8_t icon_reset_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_reset = {
+lv_image_dsc_t icon_reset = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -85279,7 +85279,7 @@ static const uint8_t icon_circle_check_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_circle_check = {
+lv_image_dsc_t icon_circle_check = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -86661,7 +86661,7 @@ static const uint8_t icon_circle_alert_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_circle_alert = {
+lv_image_dsc_t icon_circle_alert = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -92139,7 +92139,7 @@ static const uint8_t icon_book_headphones_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_book_headphones = {
+lv_image_dsc_t icon_book_headphones = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -93521,7 +93521,7 @@ static const uint8_t icon_book_headphones_row_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_book_headphones_row = {
+lv_image_dsc_t icon_book_headphones_row = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -98999,7 +98999,7 @@ static const uint8_t icon_sd_card_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sd_card = {
+lv_image_dsc_t icon_sd_card = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -99101,7 +99101,7 @@ static const uint8_t icon_sd_card_badge_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_sd_card_badge = {
+lv_image_dsc_t icon_sd_card_badge = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -99203,7 +99203,7 @@ static const uint8_t icon_download_badge_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_download_badge = {
+lv_image_dsc_t icon_download_badge = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -99605,7 +99605,7 @@ static const uint8_t icon_download_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_download = {
+lv_image_dsc_t icon_download = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -99921,7 +99921,7 @@ static const uint8_t icon_wifi_off_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_wifi_off = {
+lv_image_dsc_t icon_wifi_off = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -102071,7 +102071,7 @@ static const uint8_t icon_folder_open_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_folder_open = {
+lv_image_dsc_t icon_folder_open = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -102473,7 +102473,7 @@ static const uint8_t icon_file_down_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_file_down = {
+lv_image_dsc_t icon_file_down = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -102651,7 +102651,7 @@ static const uint8_t icon_check_small_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_check_small = {
+lv_image_dsc_t icon_check_small = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -102893,7 +102893,7 @@ static const uint8_t icon_play_small_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_play_small = {
+lv_image_dsc_t icon_play_small = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -103135,7 +103135,7 @@ static const uint8_t icon_pause_small_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_pause_small = {
+lv_image_dsc_t icon_pause_small = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -108613,7 +108613,7 @@ static const uint8_t icon_podcast_cover_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_podcast_cover = {
+lv_image_dsc_t icon_podcast_cover = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -108929,7 +108929,7 @@ static const uint8_t icon_shuffle_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_shuffle = {
+lv_image_dsc_t icon_shuffle = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -109245,7 +109245,7 @@ static const uint8_t icon_shuffle_repeat_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_shuffle_repeat = {
+lv_image_dsc_t icon_shuffle_repeat = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -109647,7 +109647,7 @@ static const uint8_t icon_arrow_down_up_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_arrow_down_up = {
+lv_image_dsc_t icon_arrow_down_up = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -110005,7 +110005,7 @@ static const uint8_t icon_star_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_star = {
+lv_image_dsc_t icon_star = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -110363,7 +110363,7 @@ static const uint8_t icon_star_filled_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_star_filled = {
+lv_image_dsc_t icon_star_filled = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -110765,7 +110765,7 @@ static const uint8_t icon_star_corner_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_star_corner = {
+lv_image_dsc_t icon_star_corner = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -111123,7 +111123,7 @@ static const uint8_t icon_lyrics_search_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_lyrics_search = {
+lv_image_dsc_t icon_lyrics_search = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -111525,7 +111525,7 @@ static const uint8_t icon_radio_recent_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_radio_recent = {
+lv_image_dsc_t icon_radio_recent = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -111927,7 +111927,7 @@ static const uint8_t icon_radio_custom_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_radio_custom = {
+lv_image_dsc_t icon_radio_custom = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -112169,7 +112169,7 @@ static const uint8_t icon_radio_quality_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_radio_quality = {
+lv_image_dsc_t icon_radio_quality = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -112571,7 +112571,7 @@ static const uint8_t icon_refresh_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_refresh = {
+lv_image_dsc_t icon_refresh = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -113421,7 +113421,7 @@ static const uint8_t icon_prev_10_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_prev_10 = {
+lv_image_dsc_t icon_prev_10 = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -114271,7 +114271,7 @@ static const uint8_t icon_next_10_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_next_10 = {
+lv_image_dsc_t icon_next_10 = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -115121,7 +115121,7 @@ static const uint8_t icon_prev_30_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_prev_30 = {
+lv_image_dsc_t icon_prev_30 = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -115971,7 +115971,7 @@ static const uint8_t icon_next_30_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_next_30 = {
+lv_image_dsc_t icon_next_30 = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -116821,7 +116821,7 @@ static const uint8_t icon_prev_60_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_prev_60 = {
+lv_image_dsc_t icon_prev_60 = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -117671,7 +117671,7 @@ static const uint8_t icon_next_60_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_next_60 = {
+lv_image_dsc_t icon_next_60 = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -118073,7 +118073,7 @@ static const uint8_t icon_chapter_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_chapter = {
+lv_image_dsc_t icon_chapter = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -118475,7 +118475,7 @@ static const uint8_t icon_podcast_episodes_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_podcast_episodes = {
+lv_image_dsc_t icon_podcast_episodes = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -118877,7 +118877,7 @@ static const uint8_t icon_play_speed_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_play_speed = {
+lv_image_dsc_t icon_play_speed = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -119279,7 +119279,7 @@ static const uint8_t icon_zap_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_zap = {
+lv_image_dsc_t icon_zap = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -119681,7 +119681,7 @@ static const uint8_t icon_zap_off_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_zap_off = {
+lv_image_dsc_t icon_zap_off = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -120083,7 +120083,7 @@ static const uint8_t icon_qobuz_quality_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_qobuz_quality = {
+lv_image_dsc_t icon_qobuz_quality = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -120485,7 +120485,7 @@ static const uint8_t icon_log_out_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_log_out = {
+lv_image_dsc_t icon_log_out = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -120887,7 +120887,7 @@ static const uint8_t icon_swap_remap_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_swap_remap = {
+lv_image_dsc_t icon_swap_remap = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -121289,7 +121289,7 @@ static const uint8_t icon_save_state_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_save_state = {
+lv_image_dsc_t icon_save_state = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -121691,7 +121691,7 @@ static const uint8_t icon_load_state_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_load_state = {
+lv_image_dsc_t icon_load_state = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -121933,7 +121933,7 @@ static const uint8_t icon_loader_small_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_loader_small = {
+lv_image_dsc_t icon_loader_small = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -122995,7 +122995,7 @@ static const uint8_t icon_loader_big_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_loader_big = {
+lv_image_dsc_t icon_loader_big = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -123321,7 +123321,7 @@ static const uint8_t icon_airpods_hero_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_hero = {
+lv_image_dsc_t icon_airpods_hero = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -123757,7 +123757,7 @@ static const uint8_t icon_airpods_gen3_hero_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_gen3_hero = {
+lv_image_dsc_t icon_airpods_gen3_hero = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -124173,7 +124173,7 @@ static const uint8_t icon_airpods_gen4_hero_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_gen4_hero = {
+lv_image_dsc_t icon_airpods_gen4_hero = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -124639,7 +124639,7 @@ static const uint8_t icon_airpods_pro_hero_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_pro_hero = {
+lv_image_dsc_t icon_airpods_pro_hero = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -124935,7 +124935,7 @@ static const uint8_t icon_airpods_max_hero_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_max_hero = {
+lv_image_dsc_t icon_airpods_max_hero = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -125719,7 +125719,7 @@ static const uint8_t icon_airpod_left_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpod_left = {
+lv_image_dsc_t icon_airpod_left = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -126503,7 +126503,7 @@ static const uint8_t icon_airpod_right_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpod_right = {
+lv_image_dsc_t icon_airpod_right = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -127599,7 +127599,7 @@ static const uint8_t icon_airpod_gen3_left_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpod_gen3_left = {
+lv_image_dsc_t icon_airpod_gen3_left = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -128695,7 +128695,7 @@ static const uint8_t icon_airpod_gen3_right_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpod_gen3_right = {
+lv_image_dsc_t icon_airpod_gen3_right = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -129743,7 +129743,7 @@ static const uint8_t icon_airpod_gen4_left_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpod_gen4_left = {
+lv_image_dsc_t icon_airpod_gen4_left = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -130791,7 +130791,7 @@ static const uint8_t icon_airpod_gen4_right_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpod_gen4_right = {
+lv_image_dsc_t icon_airpod_gen4_right = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -132127,7 +132127,7 @@ static const uint8_t icon_airpod_pro_left_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpod_pro_left = {
+lv_image_dsc_t icon_airpod_pro_left = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -133463,7 +133463,7 @@ static const uint8_t icon_airpod_pro_right_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpod_pro_right = {
+lv_image_dsc_t icon_airpod_pro_right = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -134895,7 +134895,7 @@ static const uint8_t icon_airpods_case_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_case = {
+lv_image_dsc_t icon_airpods_case = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -136327,7 +136327,7 @@ static const uint8_t icon_airpods_case_wireless_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_case_wireless = {
+lv_image_dsc_t icon_airpods_case_wireless = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -138383,7 +138383,7 @@ static const uint8_t icon_airpods_gen3_case_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_gen3_case = {
+lv_image_dsc_t icon_airpods_gen3_case = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -140271,7 +140271,7 @@ static const uint8_t icon_airpods_gen4_case_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_gen4_case = {
+lv_image_dsc_t icon_airpods_gen4_case = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -142543,7 +142543,7 @@ static const uint8_t icon_airpods_pro_case_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_pro_case = {
+lv_image_dsc_t icon_airpods_pro_case = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -144143,7 +144143,7 @@ static const uint8_t icon_airpods_max_big_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_max_big = {
+lv_image_dsc_t icon_airpods_max_big = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -144293,7 +144293,7 @@ static const uint8_t icon_airpods_charge_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_charge = {
+lv_image_dsc_t icon_airpods_charge = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -144651,7 +144651,7 @@ static const uint8_t icon_airpods_noise_off_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_noise_off = {
+lv_image_dsc_t icon_airpods_noise_off = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -145009,7 +145009,7 @@ static const uint8_t icon_airpods_anc_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_anc = {
+lv_image_dsc_t icon_airpods_anc = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -145367,7 +145367,7 @@ static const uint8_t icon_airpods_transparency_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_transparency = {
+lv_image_dsc_t icon_airpods_transparency = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -145725,7 +145725,7 @@ static const uint8_t icon_airpods_adaptive_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_airpods_adaptive = {
+lv_image_dsc_t icon_airpods_adaptive = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -146387,7 +146387,7 @@ static const uint8_t icon_ebook_chapter_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_ebook_chapter = {
+lv_image_dsc_t icon_ebook_chapter = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -147049,7 +147049,7 @@ static const uint8_t icon_ebook_font_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_ebook_font = {
+lv_image_dsc_t icon_ebook_font = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -147711,7 +147711,7 @@ static const uint8_t icon_ebook_theme_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_ebook_theme = {
+lv_image_dsc_t icon_ebook_theme = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -148113,7 +148113,7 @@ static const uint8_t icon_ebook_turn_fast_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_ebook_turn_fast = {
+lv_image_dsc_t icon_ebook_turn_fast = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -148515,7 +148515,7 @@ static const uint8_t icon_ebook_turn_slide_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_ebook_turn_slide = {
+lv_image_dsc_t icon_ebook_turn_slide = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -148917,7 +148917,7 @@ static const uint8_t icon_ebook_turn_vertical_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_ebook_turn_vertical = {
+lv_image_dsc_t icon_ebook_turn_vertical = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -152005,7 +152005,7 @@ static const uint8_t icon_ebook_cover_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_ebook_cover = {
+lv_image_dsc_t icon_ebook_cover = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -152555,7 +152555,7 @@ static const uint8_t icon_ebook_cover_small_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_ebook_cover_small = {
+lv_image_dsc_t icon_ebook_cover_small = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -153003,7 +153003,7 @@ static const uint8_t icon_bookmark_data[] = {
 	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_bookmark = {
+lv_image_dsc_t icon_bookmark = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -154385,7 +154385,7 @@ static const uint8_t icon_bookmark_check_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_bookmark_check = {
+lv_image_dsc_t icon_bookmark_check = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -162935,7 +162935,7 @@ static const uint8_t icon_heart_data[] = {
 	0xff, 0xff, 0xff, 0x00,
 };
 
-const lv_image_dsc_t icon_heart = {
+lv_image_dsc_t icon_heart = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -163177,7 +163177,7 @@ static const uint8_t icon_quality_lossy_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_quality_lossy = {
+lv_image_dsc_t icon_quality_lossy = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -163419,7 +163419,7 @@ static const uint8_t icon_quality_cd_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_quality_cd = {
+lv_image_dsc_t icon_quality_cd = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -163661,7 +163661,7 @@ static const uint8_t icon_quality_hifi_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_quality_hifi = {
+lv_image_dsc_t icon_quality_hifi = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -163903,7 +163903,7 @@ static const uint8_t icon_quality_dsd_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_quality_dsd = {
+lv_image_dsc_t icon_quality_dsd = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -177253,7 +177253,7 @@ static const uint8_t icon_dac_page_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_dac_page = {
+lv_image_dsc_t icon_dac_page = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -190603,7 +190603,7 @@ static const uint8_t icon_sonixlink_page_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_sonixlink_page = {
+lv_image_dsc_t icon_sonixlink_page = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -203953,7 +203953,7 @@ static const uint8_t icon_bluetooth_receiver_page_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_bluetooth_receiver_page = {
+lv_image_dsc_t icon_bluetooth_receiver_page = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -209431,7 +209431,7 @@ static const uint8_t icon_menu_music_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_music = {
+lv_image_dsc_t icon_menu_music = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -213629,7 +213629,7 @@ static const uint8_t icon_menu_all_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_all = {
+lv_image_dsc_t icon_menu_all = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -217827,7 +217827,7 @@ static const uint8_t icon_menu_album_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_album = {
+lv_image_dsc_t icon_menu_album = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -222025,7 +222025,7 @@ static const uint8_t icon_menu_artist_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_artist = {
+lv_image_dsc_t icon_menu_artist = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -226223,7 +226223,7 @@ static const uint8_t icon_menu_album_artist_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_album_artist = {
+lv_image_dsc_t icon_menu_album_artist = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -230421,7 +230421,7 @@ static const uint8_t icon_menu_genre_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_genre = {
+lv_image_dsc_t icon_menu_genre = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -234619,7 +234619,7 @@ static const uint8_t icon_menu_year_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_year = {
+lv_image_dsc_t icon_menu_year = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -238817,7 +238817,7 @@ static const uint8_t icon_menu_favourites_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_favourites = {
+lv_image_dsc_t icon_menu_favourites = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -243015,7 +243015,7 @@ static const uint8_t icon_menu_most_played_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_most_played = {
+lv_image_dsc_t icon_menu_most_played = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -247213,7 +247213,7 @@ static const uint8_t icon_menu_explorer_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_explorer = {
+lv_image_dsc_t icon_menu_explorer = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -251411,7 +251411,7 @@ static const uint8_t icon_menu_playlist_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_playlist = {
+lv_image_dsc_t icon_menu_playlist = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -256889,7 +256889,7 @@ static const uint8_t icon_menu_streaming_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_streaming = {
+lv_image_dsc_t icon_menu_streaming = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -262367,7 +262367,7 @@ static const uint8_t icon_menu_wireless_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_wireless = {
+lv_image_dsc_t icon_menu_wireless = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -266565,7 +266565,7 @@ static const uint8_t icon_menu_wifi_settings_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_wifi_settings = {
+lv_image_dsc_t icon_menu_wifi_settings = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -270763,7 +270763,7 @@ static const uint8_t icon_menu_bluetooth_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_bluetooth = {
+lv_image_dsc_t icon_menu_bluetooth = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -274961,7 +274961,7 @@ static const uint8_t icon_menu_airplay_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_airplay = {
+lv_image_dsc_t icon_menu_airplay = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -279159,7 +279159,7 @@ static const uint8_t icon_menu_wifi_transfer_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_wifi_transfer = {
+lv_image_dsc_t icon_menu_wifi_transfer = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -283357,7 +283357,7 @@ static const uint8_t icon_menu_sonixlink_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_sonixlink = {
+lv_image_dsc_t icon_menu_sonixlink = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -287555,7 +287555,7 @@ static const uint8_t icon_menu_dlna_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_dlna = {
+lv_image_dsc_t icon_menu_dlna = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -291753,7 +291753,7 @@ static const uint8_t icon_menu_tidal_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_tidal = {
+lv_image_dsc_t icon_menu_tidal = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -295951,7 +295951,7 @@ static const uint8_t icon_menu_qobuz_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_qobuz = {
+lv_image_dsc_t icon_menu_qobuz = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -300149,7 +300149,7 @@ static const uint8_t icon_menu_radio_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_radio = {
+lv_image_dsc_t icon_menu_radio = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -304347,7 +304347,7 @@ static const uint8_t icon_menu_podcast_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_podcast = {
+lv_image_dsc_t icon_menu_podcast = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -309825,7 +309825,7 @@ static const uint8_t icon_menu_audiobooks_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_audiobooks = {
+lv_image_dsc_t icon_menu_audiobooks = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -314023,7 +314023,7 @@ static const uint8_t icon_menu_audiobook_library_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_audiobook_library = {
+lv_image_dsc_t icon_menu_audiobook_library = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -318221,7 +318221,7 @@ static const uint8_t icon_menu_audiobook_series_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_audiobook_series = {
+lv_image_dsc_t icon_menu_audiobook_series = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -322419,7 +322419,7 @@ static const uint8_t icon_menu_audiobook_author_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_audiobook_author = {
+lv_image_dsc_t icon_menu_audiobook_author = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -326617,7 +326617,7 @@ static const uint8_t icon_menu_audiobook_continue_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_audiobook_continue = {
+lv_image_dsc_t icon_menu_audiobook_continue = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -332095,7 +332095,7 @@ static const uint8_t icon_menu_settings_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_settings = {
+lv_image_dsc_t icon_menu_settings = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -337573,7 +337573,7 @@ static const uint8_t icon_menu_more_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_more = {
+lv_image_dsc_t icon_menu_more = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -341771,7 +341771,7 @@ static const uint8_t icon_menu_dac_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_dac = {
+lv_image_dsc_t icon_menu_dac = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -345969,7 +345969,7 @@ static const uint8_t icon_menu_gearboy_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_gearboy = {
+lv_image_dsc_t icon_menu_gearboy = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -350167,7 +350167,7 @@ static const uint8_t icon_menu_flappy_bird_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_flappy_bird = {
+lv_image_dsc_t icon_menu_flappy_bird = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -354365,7 +354365,7 @@ static const uint8_t icon_menu_books_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_books = {
+lv_image_dsc_t icon_menu_books = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -358563,7 +358563,7 @@ static const uint8_t icon_menu_file_explorer_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_file_explorer = {
+lv_image_dsc_t icon_menu_file_explorer = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -362761,7 +362761,7 @@ static const uint8_t icon_menu_metronome_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_menu_metronome = {
+lv_image_dsc_t icon_menu_metronome = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -363679,7 +363679,7 @@ static const uint8_t icon_qobuz_badge_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_qobuz_badge = {
+lv_image_dsc_t icon_qobuz_badge = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -364597,7 +364597,7 @@ static const uint8_t icon_tidal_badge_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_tidal_badge = {
+lv_image_dsc_t icon_tidal_badge = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,
@@ -365515,7 +365515,7 @@ static const uint8_t icon_podcast_badge_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
-const lv_image_dsc_t icon_podcast_badge = {
+lv_image_dsc_t icon_podcast_badge = {
 	.header = {
 		.magic = LV_IMAGE_HEADER_MAGIC,
 		.cf = LV_COLOR_FORMAT_ARGB8888,

@@ -8,6 +8,7 @@
 #include "src/system/audio/speed.h"
 #include "src/system/audio/swvolume.h"
 #include "src/system/audio/eq.h"
+#include "src/system/audio/pbe.h"
 #include "src/system/audio/decimate.h"
 #include "src/system/core/config.h"
 #include "src/system/device/power.h"
@@ -2981,6 +2982,7 @@ static void play_wav_file(const char *filepath) {
 			} else if (info.out_bits == 16) {
 				replaygain_process((short *)buffer, frames_read, info.channels);
 				eq_process((short *)buffer, frames_read, info.channels, info.sample_rate);
+				pbe_process((short *)buffer, frames_read, info.channels, info.sample_rate);
 				// Soundfield last, on the finished stereo pair -- the stock
 				// module sits at the end of the chain too, taking whatever the
 				// tone shaping left it and widening that.
@@ -2991,6 +2993,7 @@ static void play_wav_file(const char *filepath) {
 			} else {
 				replaygain_process_s32((int32_t *)buffer, frames_read, info.channels);
 				eq_process_s32((int32_t *)buffer, frames_read, info.channels, info.sample_rate);
+				pbe_process_s32((int32_t *)buffer, frames_read, info.channels, info.sample_rate);
 				soundfield_process_s32((int32_t *)buffer, frames_read, info.channels);
 				crossfeed_process_s32((int32_t *)buffer, frames_read, info.channels, info.sample_rate);
 				mono_process_s32((int32_t *)buffer, frames_read, info.channels);
@@ -3672,6 +3675,7 @@ static void play_decoded_file(const char *filepath, decode_format_t format) {
 				// actually hear.
 				replaygain_process_s32((int32_t *)buffer, (int)frames_read, channels);
 				eq_process_s32((int32_t *)buffer, (int)frames_read, channels, out_rate);
+				pbe_process_s32((int32_t *)buffer, (int)frames_read, channels, out_rate);
 				soundfield_process_s32((int32_t *)buffer, (int)frames_read, channels);
 				// Crossfeed after soundfield and before balance: one widens the
 				// image, this pulls it back inside the head, and balance stays
@@ -3698,6 +3702,7 @@ static void play_decoded_file(const char *filepath, decode_format_t format) {
 				replaygain_process((short *)buffer, (int)frames_read, channels);
 				// The graphic EQ, in place on the decoded block. A no-op when off.
 				eq_process((short *)buffer, (int)frames_read, channels, sample_rate);
+				pbe_process((short *)buffer, (int)frames_read, channels, sample_rate);
 				// ...then the stereo width, at the end of the chain.
 				soundfield_process((short *)buffer, (int)frames_read, channels);
 				// Crossfeed right after: what soundfield widened, this pulls

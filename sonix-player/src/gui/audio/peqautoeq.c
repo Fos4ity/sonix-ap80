@@ -21,6 +21,7 @@
 #include "src/gui/shell/theme.h"
 #include "src/gui/shell/toast.h"
 #include "src/system/audio/eq.h"
+#include "src/system/audio/peqtarget.h"
 #include "src/system/core/lang.h"
 #include "src/system/core/utils.h"
 #include "src/system/net/http.h"
@@ -581,8 +582,26 @@ static void *worker(void *user) {
 		if (download_index(job) && !clear_profile_cache()) {
 			snprintf(job->error, sizeof(job->error), "%s", tr("peq_autoeq_error_clear_profile_cache"));
 		}
-	} else {
-		download_profile(job);
+	} else if (download_profile(job) && peqtarget_get() == PEQTARGET_DIAMOND) {
+		// AutoEq's profile is for Harman; move it to Diamond beta here, off
+		// the interface thread (the fit takes a moment on this CPU).
+		peqtarget_form_t form = (strstr(job->selected.path, "in-ear") || strstr(job->selected.path, "earbud"))
+									? PEQTARGET_IN_EAR
+									: PEQTARGET_OVER_EAR;
+		size_t size = 0;
+		char *moved = peqtarget_retarget(job->profile_text, job->profile_size, form, &size);
+		if (moved) {
+			free(job->profile_text);
+			job->profile_text = moved;
+			job->profile_size = size;
+			size_t len = strlen(job->preset);
+			const char *tag = " (Diamond)";
+			if (len + strlen(tag) < sizeof(job->preset)) {
+				memcpy(job->preset + len, tag, strlen(tag) + 1);
+			}
+			fprintf(stderr, "autoeq: %s moved to Diamond beta (%s)\n", job->selected.name,
+					form == PEQTARGET_IN_EAR ? "in-ear" : "over-ear");
+		}
 	}
 
 	if (!gui_post(job_done, job)) {

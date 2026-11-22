@@ -30,7 +30,9 @@
 // take a deliberate gesture, not a stray tap.
 // ---------------------------------------------------------------------------
 
-#define SLIDE_WIDTH 380
+// 380 on the 480 px panels; narrower screens (AP80 Pro Max, 360 px) get a
+// pill that fits, set in powermenu_init().
+static int SLIDE_WIDTH = 380;
 #define SLIDE_HEIGHT 76
 #define SLIDE_KNOB 64
 // How far along (as a fraction of the track) the knob has to be on release.
@@ -198,7 +200,7 @@ static void make_slide(lv_obj_t *parent, slide_t *s, const lv_image_dsc_t *icon,
 	// The instruction, centred on the pill; it fades as the knob advances.
 	s->label = lv_label_create(s->pill);
 	lv_label_set_text(s->label, tr(text));
-	lv_obj_set_style_text_font(s->label, &font_ui_24, 0);
+	lv_obj_set_style_text_font(s->label, SLIDE_WIDTH < 380 ? &font_ui_20 : &font_ui_24, 0);
 	lv_obj_set_style_text_color(s->label, lv_color_white(), 0);
 	lv_obj_center(s->label);
 
@@ -254,6 +256,9 @@ static void make_slide(lv_obj_t *parent, slide_t *s, const lv_image_dsc_t *icon,
 }
 
 void powermenu_init(gui_config_t *cfg) {
+	if (cfg->screen_width - 2 * cfg->padding < 380) {
+		SLIDE_WIDTH = cfg->screen_width - 2 * cfg->padding;
+	}
 	panel = lv_obj_create(lv_layer_top());
 	lv_obj_set_size(panel, cfg->screen_width, cfg->screen_height);
 	lv_obj_align(panel, LV_ALIGN_TOP_LEFT, 0, 0);

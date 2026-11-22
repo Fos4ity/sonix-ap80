@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "fonts.h"
 
 #include "src/system/core/respath.h"
@@ -6,6 +7,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <dirent.h>
+#include <strings.h>
+#include <sys/stat.h>
 
 #include "lvgl/lvgl.h"
 #include "lvgl/src/display/lv_display_private.h"
@@ -167,6 +172,9 @@ static lv_font_t sets[2][UI_FONT_COUNT];
 static bool set_built[2];
 
 static const char *regular_file;
+// With a custom font: the built-in face, last in the chain, for what the
+// custom one lacks (Cyrillic, Greek, CJK).
+static const char *fallback_file;
 static const char *bold_file;
 
 static lv_font_t *open_face(const char *path, int size) {
@@ -241,6 +249,7 @@ static lv_font_t *open_chain(const ui_font_t *ui, int size) {
 	if (ui->bold && bold_file) {
 		head = open_face(bold_file, size);
 	}
+	if (getenv("SONIX_FONT_DEBUG")) fprintf(stderr, "fontdbg: size %d bold %d bold_file %s head %p\n", size, ui->bold, bold_file ? bold_file : "(none)", (void *)head);
 	if (!head) {
 		head = open_face(regular_file, size);
 	}
@@ -297,6 +306,13 @@ static lv_font_t *open_chain(const ui_font_t *ui, int size) {
 		}
 		if (again) {
 			tail->fallback = again;
+			tail = again;
+		}
+	}
+	if (fallback_file) {
+		lv_font_t *builtin = open_face(fallback_file, size);
+		if (builtin) {
+			tail->fallback = builtin;
 		}
 	}
 	return head;
@@ -325,9 +341,136 @@ static bool build_set(bool large) {
 	return true;
 }
 
+// ---------------------------------------------------------------------------
+// Custom fonts
+// ---------------------------------------------------------------------------
+
+#define CUSTOM_DIR FONT_DIR "/custom"
+#define CUSTOM_MAX_BYTES (8 * 1024 * 1024) // a full CJK face is ~10 MB; the player has little RAM
+
+static char custom_names[FONTS_CUSTOM_MAX][64];
+static int custom_count;
+static char custom_current[64];
+static char custom_regular[600], custom_bold[600];
+
+static bool is_font_file(const char *n) {
+	size_t l = strlen(n);
+	return l > 4 && (strcasecmp(n + l - 4, ".ttf") == 0 || strcasecmp(n + l - 4, ".otf") == 0);
+}
+
+static bool small_enough(const char *path) {
+	struct stat st;
+	return stat(path, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0 && st.st_size <= CUSTOM_MAX_BYTES;
+}
+
+int fonts_custom_count(void) {
+	custom_count = 0;
+	DIR *d = opendir(CUSTOM_DIR);
+	if (!d) {
+		return 0;
+	}
+	struct dirent *e;
+	while ((e = readdir(d)) && custom_count < FONTS_CUSTOM_MAX) {
+		if (e->d_name[0] == '.' || strlen(e->d_name) >= sizeof(custom_names[0])) {
+			continue;
+		}
+		char path[600];
+		snprintf(path, sizeof(path), "%s/%s", CUSTOM_DIR, e->d_name);
+		struct stat st;
+		if (stat(path, &st) != 0) {
+			continue;
+		}
+		if (S_ISDIR(st.st_mode) || is_font_file(e->d_name)) {
+			snprintf(custom_names[custom_count++], sizeof(custom_names[0]), "%s", e->d_name);
+		}
+	}
+	closedir(d);
+	// Alphabetical, so the order does not depend on the card.
+	for (int i = 1; i < custom_count; i++) {
+		for (int j = i; j > 0 && strcasecmp(custom_names[j - 1], custom_names[j]) > 0; j--) {
+			char t[64];
+			memcpy(t, custom_names[j], sizeof(t));
+			memcpy(custom_names[j], custom_names[j - 1], sizeof(t));
+			memcpy(custom_names[j - 1], t, sizeof(t));
+		}
+	}
+	return custom_count;
+}
+
+const char *fonts_custom_name(int index) {
+	return index >= 0 && index < custom_count ? custom_names[index] : "";
+}
+
+const char *fonts_get_custom(void) { return custom_current; }
+
+// Fills custom_regular / custom_bold for `name`. False when there is no
+// usable regular face.
+static bool resolve_custom(const char *name) {
+	custom_regular[0] = custom_bold[0] = 0;
+	if (!name || !name[0] || strchr(name, '/')) {
+		return false;
+	}
+	char path[600];
+	snprintf(path, sizeof(path), "%s/%s", CUSTOM_DIR, name);
+	struct stat st;
+	if (stat(path, &st) != 0) {
+		return false;
+	}
+	if (!S_ISDIR(st.st_mode)) {
+		if (!is_font_file(name) || !small_enough(path)) {
+			return false;
+		}
+		snprintf(custom_regular, sizeof(custom_regular), "%s", path);
+		return true;
+	}
+	DIR *d = opendir(path);
+	if (!d) {
+		return false;
+	}
+	struct dirent *e;
+	while ((e = readdir(d))) {
+		if (e->d_name[0] == '.' || !is_font_file(e->d_name)) {
+			continue;
+		}
+		char file[600];
+		snprintf(file, sizeof(file), "%s/%s", path, e->d_name);
+		if (!small_enough(file)) {
+			continue;
+		}
+		bool bold = strcasestr(e->d_name, "bold") != NULL;
+		char *slot = bold ? custom_bold : custom_regular;
+		// Prefer a file named "regular" when there are several.
+		if (!slot[0] || (!bold && strcasestr(e->d_name, "regular"))) {
+			snprintf(slot, sizeof(custom_regular), "%s", file);
+		}
+	}
+	closedir(d);
+	if (!custom_regular[0] && custom_bold[0]) {
+		memcpy(custom_regular, custom_bold, sizeof(custom_regular));
+	}
+	return custom_regular[0] != 0;
+}
+
+// Sets regular_file / bold_file to the custom font, or the built-in faces.
+static void choose_main_faces(const char *name) {
+	if (resolve_custom(name)) {
+		regular_file = custom_regular;
+		bold_file = custom_bold[0] ? custom_bold : NULL;
+		snprintf(custom_current, sizeof(custom_current), "%s", name);
+		fallback_file = first_present(FONT_DEFAULT_FILES);
+	} else {
+		fallback_file = NULL;
+		regular_file = first_present(FONT_DEFAULT_FILES);
+		bold_file = first_present(FONT_BOLD_FILES);
+		custom_current[0] = 0;
+	}
+}
+
 bool fonts_init(void) {
-	regular_file = first_present(FONT_DEFAULT_FILES);
-	bold_file = first_present(FONT_BOLD_FILES);
+	choose_main_faces(config_get("ui", "font", ""));
+	if (!regular_file) {
+		choose_main_faces("");
+	}
 	for (size_t i = 0; i < SCRIPT_COUNT; i++) {
 		scripts[i].regular = first_present(scripts[i].regular_files);
 		scripts[i].bold = first_present(scripts[i].bold_files);
@@ -444,6 +587,8 @@ static void rescale_labels(lv_obj_t *obj, const int32_t *old_line) {
 	}
 }
 
+static void apply_set(bool large);
+
 bool fonts_set_large_text(bool large) {
 	if (large == large_text) {
 		return true;
@@ -451,7 +596,60 @@ bool fonts_set_large_text(bool large) {
 	if (!build_set(large)) {
 		return false;
 	}
+	apply_set(large);
+	fprintf(stderr, "fonts: %s text\n", large ? "large" : "normal");
+	return true;
+}
 
+bool fonts_set_custom(const char *name) {
+	if (!name) name = "";
+	if (strcmp(name, custom_current) == 0) {
+		return true;
+	}
+	char old[64];
+	const char *old_regular = regular_file, *old_bold = bold_file, *old_fallback = fallback_file;
+	snprintf(old, sizeof(old), "%s", custom_current);
+	char keep_regular[600], keep_bold[600];
+	snprintf(keep_regular, sizeof(keep_regular), "%s", custom_regular);
+	snprintf(keep_bold, sizeof(keep_bold), "%s", custom_bold);
+
+	choose_main_faces(name);
+	if (name[0] && !custom_current[0]) {
+		// Not usable: back to what was there.
+		regular_file = old_regular == custom_regular ? custom_regular : old_regular;
+		memcpy(custom_regular, keep_regular, sizeof(custom_regular));
+		memcpy(custom_bold, keep_bold, sizeof(custom_bold));
+		bold_file = old_bold;
+		fallback_file = old_fallback;
+		snprintf(custom_current, sizeof(custom_current), "%s", old);
+		return false;
+	}
+	// Both sets are drawn from the old face: build them again. The old heap
+	// fonts stay alive, as everywhere here (see the top of this file).
+	lv_font_t saved[2][UI_FONT_COUNT];
+	bool saved_built[2] = {set_built[0], set_built[1]};
+	memcpy(saved, sets, sizeof(saved));
+	set_built[0] = set_built[1] = false;
+	if (!build_set(large_text)) {
+		memcpy(sets, saved, sizeof(saved));
+		set_built[0] = saved_built[0];
+		set_built[1] = saved_built[1];
+		regular_file = old_regular;
+		bold_file = old_bold;
+		fallback_file = old_fallback;
+		memcpy(custom_regular, keep_regular, sizeof(custom_regular));
+		memcpy(custom_bold, keep_bold, sizeof(custom_bold));
+		snprintf(custom_current, sizeof(custom_current), "%s", old);
+		return false;
+	}
+	apply_set(large_text);
+	config_set("ui", "font", custom_current);
+	config_save();
+	fprintf(stderr, "fonts: now %s\n", custom_current[0] ? custom_current : "built-in");
+	return true;
+}
+
+static void apply_set(bool large) {
 	int32_t old_line[UI_FONT_COUNT];
 	for (size_t i = 0; i < UI_FONT_COUNT; i++) {
 		old_line[i] = lv_font_get_line_height(ui_fonts[i].font);
@@ -470,8 +668,6 @@ bool fonts_set_large_text(bool large) {
 	for (int i = 0; i < change_callback_count; i++) {
 		change_callbacks[i]();
 	}
-	fprintf(stderr, "fonts: %s text\n", large ? "large" : "normal");
-	return true;
 }
 
 void fonts_set_language(const char *name) {

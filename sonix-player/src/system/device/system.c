@@ -1794,6 +1794,15 @@ static void *input_thread_func(void *arg) {
 			continue;
 		}
 
+		// AP80 Pro Max: the scroll wheel ("ring keys") reports KEY_LEFT and
+		// KEY_RIGHT per detent. It is the volume control there, as on the
+		// stock firmware, so it is read as the volume keys it stands in for.
+		if (ev.code == KEY_RIGHT) {
+			ev.code = KEY_VOLUMEUP;
+		} else if (ev.code == KEY_LEFT) {
+			ev.code = KEY_VOLUMEDOWN;
+		}
+
 		log_key_event(node, &ev);
 
 		// The headphone remote reports a press it never releases as the device
@@ -2007,7 +2016,7 @@ void input_host_button(int code, bool down) {
 // these threads ignore.
 #ifndef HOST_BUILD
 static void start_builtin_input_threads(void) {
-	static const char *const NAMES[] = {"md-gpio-keys", "jz adc keyboard"};
+	static const char *const NAMES[] = {"md-gpio-keys", "jz adc keyboard", "ring keys", "sa-ring-keys"};
 	const char *touch = panel_touch_device();
 	int found = 0;
 

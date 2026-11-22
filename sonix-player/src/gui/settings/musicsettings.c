@@ -29,6 +29,7 @@
 #include "src/system/audio/audio.h"
 #include "src/system/bluetooth/bluetooth.h"
 #include "src/system/audio/eq.h"
+#include "src/system/audio/pbe.h"
 #include "src/system/playback/device_state.h"
 #include "src/system/decode/decode.h"
 #include "src/system/audio/replaygain.h"
@@ -385,6 +386,210 @@ static void build_soundfield_page(gui_config_t *cfg) {
 
 	soundfield_refresh();
 	switcher_attach_back_gesture(soundfield_screen);
+}
+
+
+// ---------------------------------------------------------------------------
+// Rockbox bass: perceptual bass enhancement (PBE) and the Bass / Treble tone
+// controls, ported from Rockbox's DSP. The engine is in src/system/audio/pbe.c.
+// ---------------------------------------------------------------------------
+
+static lv_obj_t *rbbass_screen;
+static lv_obj_t *pbe_switch, *pbe_card, *pbe_value, *pbe_slider;
+static lv_obj_t *pbe_precut_value, *pbe_precut_slider, *pbe_precut_card;
+static lv_obj_t *tone_bass_value, *tone_bass_slider, *tone_treble_value, *tone_treble_slider;
+static int pbe_last_strength = 25; // what the switch turns back on to (Rockbox users often run 25 %)
+
+// Steps as Rockbox's settings_list.c has them: PBE in 25 %, precut in 0.1 dB.
+#define PBE_STEP 25
+#define PBE_STEPS (PBE_STRENGTH_MAX / PBE_STEP + 1)
+#define PRECUT_STEPS (PBE_PRECUT_MAX - PBE_PRECUT_MIN + 1)
+
+static lv_obj_t *sr_pill[SURROUND_DELAYS], *sr_detail[5];
+static lv_obj_t *sr_bal_value, *sr_bal_slider, *sr_fx1_value, *sr_fx1_slider, *sr_fx2_value, *sr_fx2_slider;
+static lv_obj_t *sr_side_switch, *sr_mix_value, *sr_mix_slider;
+static lv_obj_t *afr_pill[4];
+static lv_obj_t *rbdsp_switch;
+
+static void rbdsp_master_cb(lv_event_t *e) {
+	(void)e;
+	rbdsp_set_enabled(lv_obj_has_state(rbdsp_switch, LV_STATE_CHECKED));
+}
+#define TONE_STEPS (TONE_MAX - TONE_MIN + 1)
+
+static void rbbass_labels(void) {
+	int s = pbe_get_strength();
+	lv_label_set_text_fmt(pbe_value, "%d%%", s > 0 ? s : pbe_last_strength);
+	int p = pbe_get_precut();
+	lv_label_set_text_fmt(pbe_precut_value, "%s%d.%d dB", p < 0 ? "-" : "", (p < 0 ? -p : p) / 10, (p < 0 ? -p : p) % 10);
+	lv_label_set_text_fmt(tone_bass_value, "%+d dB", tone_get_bass());
+	lv_label_set_text_fmt(tone_treble_value, "%+d dB", tone_get_treble());
+	lv_label_set_text_fmt(sr_bal_value, "%d%%", surround_get_balance());
+	lv_label_set_text_fmt(sr_fx1_value, "%d Hz", surround_get_fx1());
+	lv_label_set_text_fmt(sr_fx2_value, "%d Hz", surround_get_fx2());
+	lv_label_set_text_fmt(sr_mix_value, "%d%%", surround_get_mix());
+}
+
+static void rbbass_refresh(void) {
+	bool on = pbe_get_strength() > 0;
+	if (on) {
+		lv_obj_add_state(pbe_switch, LV_STATE_CHECKED);
+	} else {
+		lv_obj_remove_state(pbe_switch, LV_STATE_CHECKED);
+	}
+	settingsrow_toggle_slider_expanded(pbe_card, on);
+	lv_obj_set_hidden(pbe_precut_card, !on);
+	for (int i = 0; i < SURROUND_DELAYS; i++) settingsrow_pill_active(sr_pill[i], surround_get_delay() == surround_delay_table[i]);
+	for (int i = 0; i < 5; i++) lv_obj_set_hidden(sr_detail[i], surround_get_delay() == 0);
+	if (surround_get_side_only()) {
+		lv_obj_add_state(sr_side_switch, LV_STATE_CHECKED);
+	} else {
+		lv_obj_remove_state(sr_side_switch, LV_STATE_CHECKED);
+	}
+	for (int i = 0; i < 4; i++) settingsrow_pill_active(afr_pill[i], afr_get() == i);
+	rbbass_labels();
+}
+
+static void sr_delay_cb(lv_event_t *e) {
+	surround_set_delay((int)(intptr_t)lv_event_get_user_data(e));
+	rbbass_refresh();
+}
+static void sr_bal_cb(lv_event_t *e) { (void)e; surround_set_balance((int)lv_slider_get_value(sr_bal_slider)); rbbass_labels(); }
+static void sr_fx1_cb(lv_event_t *e) { (void)e; surround_set_fx1(600 + 200 * (int)lv_slider_get_value(sr_fx1_slider)); rbbass_labels(); }
+static void sr_fx2_cb(lv_event_t *e) { (void)e; surround_set_fx2(40 + 40 * (int)lv_slider_get_value(sr_fx2_slider)); rbbass_labels(); }
+static void sr_mix_cb(lv_event_t *e) { (void)e; surround_set_mix(5 * (int)lv_slider_get_value(sr_mix_slider)); rbbass_labels(); }
+static void sr_side_cb(lv_event_t *e) {
+	(void)e;
+	surround_set_side_only(lv_obj_has_state(sr_side_switch, LV_STATE_CHECKED));
+}
+static void afr_cb(lv_event_t *e) {
+	afr_set((int)(intptr_t)lv_event_get_user_data(e));
+	rbbass_refresh();
+}
+
+static void pbe_toggle_cb(lv_event_t *e) {
+	(void)e;
+	bool on = lv_obj_has_state(pbe_switch, LV_STATE_CHECKED);
+	if (!on && pbe_get_strength() > 0) {
+		pbe_last_strength = pbe_get_strength();
+	}
+	pbe_set_strength(on ? pbe_last_strength : 0);
+	lv_slider_set_value(pbe_slider, pbe_last_strength / PBE_STEP, LV_ANIM_OFF);
+	rbbass_refresh();
+}
+
+static void pbe_slider_cb(lv_event_t *e) {
+	(void)e;
+	int v = (int)lv_slider_get_value(pbe_slider) * PBE_STEP;
+	if (v <= 0) {
+		v = PBE_STEP; // the switch is what turns it off
+		lv_slider_set_value(pbe_slider, 1, LV_ANIM_OFF);
+	}
+	pbe_last_strength = v;
+	pbe_set_strength(v);
+	rbbass_labels();
+}
+
+static void pbe_precut_cb(lv_event_t *e) {
+	(void)e;
+	pbe_set_precut(PBE_PRECUT_MIN + (int)lv_slider_get_value(pbe_precut_slider));
+	rbbass_labels();
+}
+
+static void tone_bass_cb(lv_event_t *e) {
+	(void)e;
+	tone_set_bass(TONE_MIN + (int)lv_slider_get_value(tone_bass_slider));
+	rbbass_labels();
+}
+
+static void tone_treble_cb(lv_event_t *e) {
+	(void)e;
+	tone_set_treble(TONE_MIN + (int)lv_slider_get_value(tone_treble_slider));
+	rbbass_labels();
+}
+
+static void build_rbbass_page(gui_config_t *cfg) {
+	rbbass_screen = lv_obj_create(NULL);
+	lv_obj_t *container = settingsrow_page(rbbass_screen, cfg, "Rockbox DSP");
+	// Master switch: off means none of the effects below are heard.
+	settingsrow_toggle(container, "Rockbox DSP", &rbdsp_switch, rbdsp_master_cb);
+	if (rbdsp_enabled()) {
+		lv_obj_add_state(rbdsp_switch, LV_STATE_CHECKED);
+	}
+	lv_obj_t *master_note = lv_label_create(container);
+	lv_label_set_long_mode(master_note, LV_LABEL_LONG_WRAP);
+	lv_obj_set_width(master_note, lv_pct(100));
+	lv_obj_add_style(master_note, &theme_style_text_dim, 0);
+	lv_obj_set_style_text_font(master_note, &font_ui_22, 0);
+	lv_label_set_text(master_note, "Turns all Rockbox effects on this page on or off. While it is off, nothing below changes the sound.");
+
+	settingsrow_heading(container, "Bass / Treble");
+
+	if (pbe_get_strength() > 0) {
+		pbe_last_strength = pbe_get_strength();
+	}
+	pbe_card = settingsrow_toggle_slider(container, "PBE (Perceptual Bass Enhancement)", PBE_STEPS, &pbe_switch, &pbe_value,
+										 &pbe_slider, pbe_toggle_cb, pbe_slider_cb);
+	{
+		// The long name scrolls beside the switch instead of running under it.
+		lv_obj_update_layout(pbe_card);
+		lv_obj_t *name = settingsrow_name_label(pbe_card);
+		int32_t w = lv_obj_get_content_width(pbe_card) - lv_obj_get_width(pbe_switch) - 12;
+		lv_label_set_long_mode(name, LV_LABEL_LONG_SCROLL_CIRCULAR);
+		lv_obj_set_width(name, w > 40 ? w : 40);
+	}
+	lv_slider_set_value(pbe_slider, pbe_last_strength / PBE_STEP, LV_ANIM_OFF);
+
+	pbe_precut_card = settingsrow_slider(container, "PBE precut", PRECUT_STEPS, &pbe_precut_value, &pbe_precut_slider,
+										 pbe_precut_cb);
+	lv_slider_set_value(pbe_precut_slider, pbe_get_precut() - PBE_PRECUT_MIN, LV_ANIM_OFF);
+
+	settingsrow_slider(container, "Bass (200 Hz)", TONE_STEPS, &tone_bass_value, &tone_bass_slider, tone_bass_cb);
+	lv_slider_set_value(tone_bass_slider, tone_get_bass() - TONE_MIN, LV_ANIM_OFF);
+	settingsrow_slider(container, "Treble (3.5 kHz)", TONE_STEPS, &tone_treble_value, &tone_treble_slider,
+					   tone_treble_cb);
+	lv_slider_set_value(tone_treble_slider, tone_get_treble() - TONE_MIN, LV_ANIM_OFF);
+
+	settingsrow_heading(container, "Haas surround");
+	lv_obj_t *pills;
+	settingsrow_pills(container, "Surround", &pills);
+	for (int i = 0; i < SURROUND_DELAYS; i++) {
+		char t[16];
+		int ms = surround_delay_table[i];
+		if (ms) {
+			snprintf(t, sizeof(t), "%d ms", ms);
+		} else {
+			snprintf(t, sizeof(t), "Off");
+		}
+		sr_pill[i] = settingsrow_pill_text(pills, t, ms, sr_delay_cb);
+	}
+	sr_detail[0] = settingsrow_slider(container, "Balance", 100, &sr_bal_value, &sr_bal_slider, sr_bal_cb);
+	lv_slider_set_value(sr_bal_slider, surround_get_balance(), LV_ANIM_OFF);
+	sr_detail[1] = settingsrow_slider(container, "fx1 (high)", 38, &sr_fx1_value, &sr_fx1_slider, sr_fx1_cb);
+	lv_slider_set_value(sr_fx1_slider, (surround_get_fx1() - 600) / 200, LV_ANIM_OFF);
+	sr_detail[2] = settingsrow_slider(container, "fx2 (low)", 10, &sr_fx2_value, &sr_fx2_slider, sr_fx2_cb);
+	lv_slider_set_value(sr_fx2_slider, (surround_get_fx2() - 40) / 40, LV_ANIM_OFF);
+	sr_detail[3] = settingsrow_toggle(container, "Side only", &sr_side_switch, sr_side_cb);
+	sr_detail[4] = settingsrow_slider(container, "Mix", 21, &sr_mix_value, &sr_mix_slider, sr_mix_cb);
+	lv_slider_set_value(sr_mix_slider, surround_get_mix() / 5, LV_ANIM_OFF);
+
+	settingsrow_heading(container, "AFR (Auditory Fatigue Reduction)");
+	settingsrow_pills(container, "AFR", &pills);
+	static const char *afr_names[4] = {"Off", "Weak", "Moderate", "Strong"};
+	for (int i = 0; i < 4; i++) afr_pill[i] = settingsrow_pill_text(pills, afr_names[i], i, afr_cb);
+
+	lv_obj_t *note = lv_label_create(container);
+	lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
+	lv_obj_set_width(note, lv_pct(100));
+	lv_obj_add_style(note, &theme_style_text_dim, 0);
+	lv_obj_set_style_text_font(note, &font_ui_22, 0);
+	lv_label_set_text(note, "Rockbox's perceptual bass enhancement: the low band is delayed against the rest so the "
+							"bass sounds fuller, with Rockbox's own EQ curve on top. Lower the precut if it clips. "
+							"Haas surround widens the stage by delaying bands of one side; AFR softens 3 and 8 kHz "
+							"for long listening. Same order and values as Rockbox.");
+
+	rbbass_refresh();
+	switcher_attach_back_gesture(rbbass_screen);
 }
 
 // ---------------------------------------------------------------------------
@@ -1937,6 +2142,10 @@ void musicsettings_init(gui_config_t *cfg) {
 	build_mseb_page(cfg);
 	mseb_row = settingsrow_add(container, "mseb", NULL, switch_screen_cb, mseb_screen);
 
+	// Rockbox's DSP effects, next to the other sound processing.
+	build_rbbass_page(cfg);
+	settingsrow_add(container, "Rockbox DSP", NULL, switch_screen_cb, rbbass_screen);
+
 	settingsrow_heading(container, "musicsettings_section_effects");
 	build_soundfield_page(cfg);
 	soundfield_row = settingsrow_add(container, "musicsettings_soundfield", NULL, switch_screen_cb, soundfield_screen);
@@ -1945,6 +2154,7 @@ void musicsettings_init(gui_config_t *cfg) {
 	// pulls it back inside the head.
 	build_crossfeed_page(cfg);
 	crossfeed_row = settingsrow_add(container, "musicsettings_crossfeed", NULL, switch_screen_cb, crossfeed_screen);
+
 
 	build_balance_page(cfg);
 	balance_row = settingsrow_add(container, "musicsettings_balance_mono", NULL, switch_screen_cb, balance_screen);
@@ -2005,3 +2215,5 @@ void musicsettings_init(gui_config_t *cfg) {
 	bit_perfect_hold(bit_perfect_on);
 	bit_perfect_paint();
 }
+
+lv_obj_t *musicsettings_rockbox_screen(void) { return rbbass_screen; }

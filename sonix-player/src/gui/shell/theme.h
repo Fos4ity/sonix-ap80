@@ -90,4 +90,12 @@ void theme_set_dark(bool dark);
 bool theme_dynamic_tint(void);
 void theme_set_dynamic_tint(bool on);
 
+// Compas skins: .theme files (name, screen, card, list_row, text_primary,
+// text_muted) dropped into <resource>/themes. A chosen skin replaces the
+// dark/light palette's colours; the accent stays Sonix's. -1 is no skin.
+int theme_skin_count(void);
+const char *theme_skin_name(int index);
+int theme_get_skin(void);
+void theme_set_skin(int index);
+
 #endif // THEME_H

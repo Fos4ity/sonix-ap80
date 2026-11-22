@@ -1,3 +1,9 @@
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
 #include "wifitransfer.h"
 
 #include "src/system/core/respath.h"
@@ -493,6 +499,12 @@ static bool install_page(const char *web_root) {
 	if (fclose(f) != 0) {
 		ok = false;
 	}
+	// fopen("w") keeps the mode of a file that was already there. If an older
+	// index.html was 0755, thttpd sees an executable that is not a CGI and
+	// answers 403, so the page is always set to plain 0644.
+	if (chmod(page, 0644) != 0) {
+		printf("wifitransfer: cannot chmod %s: %s\n", page, strerror(errno));
+	}
 
 	printf("wifitransfer: %s <- our page (%zu bytes, accent #%06x, %d testi in %s): %s\n", page, len,
 		   (unsigned)accent_rgb, translated, lang_current(), ok ? "ok" : "FAILED");
@@ -677,8 +689,63 @@ static void stop_server(void) {
 	unbind_card();
 }
 
+// The AP80's CYW43438 (cywdhd) sleeps between beacons in power-save mode and
+// then misses unsolicited traffic: ARP, ping and a browser's first SYN never
+// reach a server here, while connections the player opens itself (radio) work.
+// While the transfer page is up the radio stays fully awake: first through
+// cfg80211's wireless-extensions shim (the same thing as "iw set power_save
+// off"), then through the driver's own "wl PM 0" ioctl.
+#define SONIX_SIOCSIWPOWER 0x8B2C
+struct sonix_iwreq {
+	char ifname[IFNAMSIZ];
+	union {
+		struct {
+			int value;
+			unsigned char fixed;
+			unsigned char disabled;
+			unsigned short flags;
+		} power;
+		char pad[16];
+	} u;
+};
+
+struct sonix_wl_ioctl {
+	unsigned int cmd;
+	void *buf;
+	unsigned int len;
+	unsigned char set;
+	unsigned int used;
+	unsigned int needed;
+};
+
+static void wifi_power_save_off(void) {
+	int fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0) {
+		return;
+	}
+	struct sonix_iwreq wrq;
+	memset(&wrq, 0, sizeof(wrq));
+	snprintf(wrq.ifname, sizeof(wrq.ifname), "%s", "wlan0");
+	wrq.u.power.disabled = 1;
+	int r1 = ioctl(fd, SONIX_SIOCSIWPOWER, &wrq);
+	int e1 = r1 < 0 ? errno : 0;
+
+	int pm = 0;
+	struct sonix_wl_ioctl wl = {.cmd = 86 /* WLC_SET_PM */, .buf = &pm, .len = sizeof(pm), .set = 1};
+	struct ifreq ifr;
+	memset(&ifr, 0, sizeof(ifr));
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", "wlan0");
+	ifr.ifr_data = (char *)&wl;
+	int r2 = ioctl(fd, SIOCDEVPRIVATE, &ifr);
+	int e2 = r2 < 0 ? errno : 0;
+	close(fd);
+	printf("wifitransfer: Wi-Fi power save off: wext %s, wl PM 0 %s\n", r1 == 0 ? "ok" : strerror(e1),
+		   r2 == 0 ? "ok" : strerror(e2));
+}
+
 static bool start_server(void) {
 	bind_card();
+	wifi_power_save_off();
 
 	if (process_running("thttpd")) {
 		return true; // already up; nothing to do

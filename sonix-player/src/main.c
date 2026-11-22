@@ -39,6 +39,8 @@
 #include "src/system/core/lang.h"
 #include "src/system/device/led.h"
 #include "src/system/audio/eq.h"
+#include "src/system/audio/pbe.h"
+#include "src/gui/shell/iconpack.h"
 #include "src/system/audio/headset.h"
 #include "src/system/input/keymap.h"
 #include "src/system/streaming/qobuz.h"
@@ -1338,6 +1340,16 @@ static uint8_t *rot_page;		   // the RAM page LVGL draws into while rotated
 static lv_area_t rot_frame_dirty;
 static lv_area_t rot_page_pending[2];
 
+// AP80 Pro Max: /dev/fb0 is 480 columns wide but only the centre 360 are on
+// the glass (the Rockbox port says the same: FB_STRIDE_MISMATCH 480). LVGL
+// then draws a 360-wide picture into its own RAM page, and the flush copies
+// it into the framebuffer FB_XOFF columns in, the same way the rotated path
+// copies. fb_xoff 0 everywhere else.
+static int32_t fb_xoff;
+static int32_t disp_w; // the width LVGL draws: fb_var.xres, or 360 on the AP80
+static uint8_t *off_page;
+static int32_t fb_stride_px; // framebuffer line length in pixels
+
 static void area_clear(lv_area_t *a) {
 	a->x1 = 1;
 	a->y1 = 1;
@@ -1372,7 +1384,7 @@ static void area_merge(lv_area_t *into, const lv_area_t *add) {
 static void area_set_full(lv_area_t *a) {
 	a->x1 = 0;
 	a->y1 = 0;
-	a->x2 = (int32_t)fb_var.xres - 1;
+	a->x2 = disp_w - 1;
 	a->y2 = (int32_t)fb_var.yres - 1;
 }
 
@@ -1394,10 +1406,33 @@ static void blit_rotated_180(uint16_t *dst, const uint16_t *src, const lv_area_t
 	}
 }
 
+// Copies one dirty rectangle of a disp_w-wide RAM page into a framebuffer
+// page whose lines are fb_var.xres wide, fb_xoff columns in, turned through
+// 180 degrees when rotated.
+static void blit_offset(uint16_t *dst, const uint16_t *src, const lv_area_t *area, bool rotated) {
+	int32_t width = disp_w, height = (int32_t)fb_var.yres, stride = fb_stride_px;
+	int32_t x1 = area->x1 < 0 ? 0 : area->x1;
+	int32_t y1 = area->y1 < 0 ? 0 : area->y1;
+	int32_t x2 = area->x2 >= width ? width - 1 : area->x2;
+	int32_t y2 = area->y2 >= height ? height - 1 : area->y2;
+
+	for (int32_t y = y1; y <= y2; y++) {
+		const uint16_t *src_row = src + (size_t)y * width;
+		if (rotated) {
+			uint16_t *dst_row = dst + (size_t)(height - 1 - y) * stride + fb_xoff;
+			for (int32_t x = x1; x <= x2; x++) {
+				dst_row[width - 1 - x] = src_row[x];
+			}
+		} else {
+			memcpy(dst + (size_t)y * stride + fb_xoff + x1, src_row + x1, (size_t)(x2 - x1 + 1) * 2);
+		}
+	}
+}
+
 static void fb_pan_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px) {
 	bool second_page;
 
-	if (fb_rotated) {
+	if (fb_rotated || fb_xoff) {
 		// Collect this frame's damage; the copy happens once, on the last
 		// area, into the page that is NOT on screen.
 		area_merge(&rot_frame_dirty, area);
@@ -1414,8 +1449,13 @@ static void fb_pan_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *
 		area_merge(&redraw, &rot_frame_dirty);
 
 		if (!area_is_empty(&redraw)) {
-			blit_rotated_180((uint16_t *)(fb_mem + (second_page ? fb_page_size : 0)), (const uint16_t *)px, &redraw,
-							 (int32_t)fb_var.xres, (int32_t)fb_var.yres);
+			if (fb_xoff) {
+				blit_offset((uint16_t *)(fb_mem + (second_page ? fb_page_size : 0)), (const uint16_t *)px, &redraw,
+							fb_rotated);
+			} else {
+				blit_rotated_180((uint16_t *)(fb_mem + (second_page ? fb_page_size : 0)), (const uint16_t *)px,
+								 &redraw, (int32_t)fb_var.xres, (int32_t)fb_var.yres);
+			}
 		}
 
 		area_clear(&rot_page_pending[target]);
@@ -1464,7 +1504,12 @@ static lv_display_t *try_panned_display(void) {
 	// LVGL renders with a stride of xres * bytespp; a padded framebuffer line
 	// would shear the picture, so refuse and fall back.
 	uint32_t bytespp = fb_var.bits_per_pixel / 8;
-	if (bytespp != 2 || fix.line_length != fb_var.xres * bytespp) {
+	// AP80 Pro Max: 480-pixel lines, of which the centre 360 are visible,
+	// whether the driver reports xres 480 or 360.
+	bool ap80_fb = bytespp == 2 && fix.line_length == 480 * 2 && fb_var.yres == 640 &&
+				   (fb_var.xres == 480 || fb_var.xres == 360);
+	fb_stride_px = bytespp ? (int32_t)(fix.line_length / bytespp) : 0;
+	if (!ap80_fb && (bytespp != 2 || fix.line_length != fb_var.xres * bytespp)) {
 		printf("fb: not 16 bits with a tight stride, so no page flipping\n");
 		close(fb_fd);
 		fb_fd = -1;
@@ -1473,7 +1518,9 @@ static lv_display_t *try_panned_display(void) {
 
 	// Ask for two pages.
 	fb_var.yres_virtual = fb_var.yres * 2;
-	fb_var.xres_virtual = fb_var.xres;
+	if (!ap80_fb) {
+		fb_var.xres_virtual = fb_var.xres;
+	}
 	fb_var.yoffset = 0;
 	if (ioctl(fb_fd, FBIOPUT_VSCREENINFO, &fb_var) < 0) {
 		close(fb_fd);
@@ -1498,7 +1545,22 @@ static lv_display_t *try_panned_display(void) {
 		return NULL;
 	}
 
-	lv_display_t *disp = lv_display_create((int32_t)fb_var.xres, (int32_t)fb_var.yres);
+	fb_stride_px = (int32_t)(fix.line_length / bytespp);
+	disp_w = (int32_t)fb_var.xres;
+	fb_xoff = 0;
+	if (ap80_fb) {
+		disp_w = 360;
+		fb_xoff = (fb_stride_px - disp_w) / 2; // 60: the visible centre
+		const char *xo = getenv("SONIX_FB_XOFF");
+		if (xo) {
+			int v = atoi(xo);
+			if (v >= 0 && v + disp_w <= fb_stride_px) {
+				fb_xoff = v;
+			}
+		}
+	}
+
+	lv_display_t *disp = lv_display_create(disp_w, (int32_t)fb_var.yres);
 	if (!disp) {
 		munmap(fb_mem, fb_page_size * 2);
 		close(fb_fd);
@@ -1507,8 +1569,27 @@ static lv_display_t *try_panned_display(void) {
 	}
 
 	lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
-	lv_display_set_buffers(disp, fb_mem, fb_mem + fb_page_size, (uint32_t)fb_page_size,
-						   LV_DISPLAY_RENDER_MODE_DIRECT);
+	if (fb_xoff) {
+		size_t off_size = (size_t)disp_w * fb_var.yres * 2;
+		off_page = calloc(1, off_size);
+		if (!off_page) {
+			fprintf(stderr, "fb: no memory for the offset page\n");
+			lv_display_delete(disp);
+			munmap(fb_mem, fb_page_size * 2);
+			close(fb_fd);
+			fb_fd = -1;
+			return NULL;
+		}
+		memset(fb_mem, 0, fb_page_size * 2);
+		area_clear(&rot_frame_dirty);
+		area_set_full(&rot_page_pending[0]);
+		area_set_full(&rot_page_pending[1]);
+		lv_display_set_buffers(disp, off_page, NULL, (uint32_t)off_size, LV_DISPLAY_RENDER_MODE_DIRECT);
+		printf("fb: drawing %dx%u, copied %d columns in\n", (int)disp_w, fb_var.yres, (int)fb_xoff);
+	} else {
+		lv_display_set_buffers(disp, fb_mem, fb_mem + fb_page_size, (uint32_t)fb_page_size,
+							   LV_DISPLAY_RENDER_MODE_DIRECT);
+	}
 	lv_display_set_flush_cb(disp, fb_pan_flush_cb);
 	fb_display = disp;
 
@@ -1632,7 +1713,13 @@ void display_set_rotated(bool rotated) {
 		return;
 	}
 
-	if (rotated) {
+	if (fb_xoff) {
+		// Already drawing into a RAM page: only the copy changes.
+		fb_rotated = rotated;
+		area_clear(&rot_frame_dirty);
+		area_set_full(&rot_page_pending[0]);
+		area_set_full(&rot_page_pending[1]);
+	} else if (rotated) {
 		if (!rot_page) {
 			rot_page = malloc(fb_page_size);
 		}
@@ -1661,9 +1748,9 @@ void display_set_rotated(bool rotated) {
 	// the top-left corner of the glass to the bottom-right of the screen.
 	if (fb_touch) {
 		if (fb_rotated) {
-			lv_evdev_set_calibration(fb_touch, (int)fb_var.xres - 1, (int)fb_var.yres - 1, 0, 0);
+			lv_evdev_set_calibration(fb_touch, (int)disp_w - 1, (int)fb_var.yres - 1, 0, 0);
 		} else {
-			lv_evdev_set_calibration(fb_touch, 0, 0, (int)fb_var.xres - 1, (int)fb_var.yres - 1);
+			lv_evdev_set_calibration(fb_touch, 0, 0, (int)disp_w - 1, (int)fb_var.yres - 1);
 		}
 	}
 
@@ -1829,6 +1916,20 @@ static void limit_realtime_share(void) {
 }
 #endif
 
+#ifdef HOST_BUILD
+static void test_switch_cb(lv_timer_t *t) {
+	(void)t;
+	char buf[200];
+	snprintf(buf, sizeof(buf), "%s", getenv("SONIX_TEST_SWITCH"));
+	char *bar = strchr(buf, '|');
+	if (bar) *bar = 0;
+	fprintf(stderr, "test: fonts_custom_count=%d\n", fonts_custom_count());
+	fprintf(stderr, "test: fonts_set_custom(%s)=%d\n", buf, fonts_set_custom(buf));
+	fprintf(stderr, "test: iconpack_count=%d\n", iconpack_count());
+	if (bar) fprintf(stderr, "test: iconpack_set(%s)=%d\n", bar + 1, iconpack_set(bar + 1));
+}
+#endif
+
 int main(int argc, char **argv) {
 	// Before anything at all -- before the signal guards, before the allocator
 	// is tuned, before a display is opened. thttpd runs this same binary as the
@@ -1838,6 +1939,8 @@ int main(int argc, char **argv) {
 	if (webcgi_should_run(argc, argv)) {
 		return webcgi_main();
 	}
+	setvbuf(stdout, NULL, _IOLBF, 0);
+	fprintf(stderr, "MARK main\n");
 
 	// On this device dying means rebooting (see above).
 	install_signal_guards();
@@ -1934,6 +2037,7 @@ int main(int argc, char **argv) {
 	playlist_set_mode((playback_mode_t)config_get_int("player", "playback_mode", 0));
 	// The equalizer's bands and switch, before any playback can start.
 	eq_init();
+	pbe_init();
 	// Gapless playback, before anything can start: the engine reads this at
 	// the end of every track.
 	audio_set_gapless(config_get_int("audio", "gapless", 0) != 0);
@@ -1975,6 +2079,8 @@ int main(int argc, char **argv) {
 	// interface points at is filled in here, from /usr/resource/sonix/fonts through
 	// FreeType -- the stock player's own mechanism. Without default.otf there
 	// is no drawing so much as an error message, so that is fatal.
+	iconpack_init(); // the saved icon pack, before any widget takes an icon
+	fprintf(stderr, "MARK fonts_init\n");
 	if (!fonts_init()) {
 #ifdef HOST_BUILD
 		fprintf(stderr, "fonts: no default.otf in usr/resource/sonix/fonts or assets/fonts --\n"
@@ -2143,7 +2249,9 @@ int main(int argc, char **argv) {
 
 		char db_path[600];
 		snprintf(db_path, sizeof(db_path), "%s/.local/library.db", db_root);
+		fprintf(stderr, "MARK library_open\n");
 		library_open(db_path);
+		fprintf(stderr, "MARK library_open done\n");
 		// The same file the app downloads: one index, served as it is.
 		sonixlink_set_db_path(db_path);
 
@@ -2217,7 +2325,17 @@ int main(int argc, char **argv) {
 	// they are built, and read before this they all say off, 0 minutes.
 	sleeptimer_init();
 
+	fprintf(stderr, "MARK gui_init\n");
 	gui_init(&gui_cfg);
+	fprintf(stderr, "MARK gui_init done\n");
+#ifdef HOST_BUILD
+	// Test hook: SONIX_TEST_SWITCH="font|pack" switches both a few seconds in,
+	// the way a tap in Appearance does, so the live change can be checked.
+	if (getenv("SONIX_TEST_SWITCH")) {
+		lv_timer_t *tt = lv_timer_create(test_switch_cb, 4000, NULL);
+		lv_timer_set_repeat_count(tt, 1);
+	}
+#endif
 
 	// "Rotate screen", as it was left. After gui_init so there are screens to
 	// redraw, and before the first frame the user sees.
@@ -2390,6 +2508,13 @@ int main(int argc, char **argv) {
 	while (running) {
 		ui_heartbeat++;
 		uint32_t time_till_next = lv_timer_handler();
+		{
+			static int marked;
+			if (marked < 2) {
+				marked++;
+				fprintf(stderr, "MARK frame %d\n", marked);
+			}
+		}
 		power_keep_animations_paused();
 		if (time_till_next > MAIN_LOOP_MAX_SLEEP_MS) {
 			time_till_next = MAIN_LOOP_MAX_SLEEP_MS; // also catches LV_NO_TIMER_READY

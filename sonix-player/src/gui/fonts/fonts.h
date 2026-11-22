@@ -88,6 +88,20 @@ void fonts_register_change(void (*cb)(void));
 // measured with the right faces.
 void fonts_set_language(const char *name);
 
+// Your own fonts (Settings -> Appearance -> Font). Each one is a folder in
+// SONIX_RESOURCE_DIR "/fonts/custom/<name>/" holding a .ttf or .otf (a file
+// with "bold" in its name is used for the bold sizes), or a single
+// .ttf/.otf file put straight into fonts/custom. The scripts it lacks still
+// come from the Korean, Thai, Arabic and Japanese faces. Stored as [ui] font;
+// empty is the built-in MiSans.
+#define FONTS_CUSTOM_MAX 24
+int fonts_custom_count(void);			 // rescans the folder
+const char *fonts_custom_name(int index); // valid until the next rescan
+const char *fonts_get_custom(void);		 // "" for the built-in font
+// Switches the running interface to `name` ("" = built-in) and saves it.
+// False, changing nothing, when the file cannot be opened.
+bool fonts_set_custom(const char *name);
+
 // For the developer options page: which font files are in use, e.g.
 // "default.otf, bold.otf, Korean + Thai + Arabic". Never NULL.
 const char *fonts_summary(void);

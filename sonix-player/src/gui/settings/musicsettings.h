@@ -47,4 +47,8 @@ void musicsettings_set_high_gain(bool enabled);
 bool musicsettings_gapless_enabled(void);
 void musicsettings_set_gapless_enabled(bool enabled);
 
+// The Rockbox DSP page (PBE, bass/treble, Haas surround, AFR), which the main
+// Settings list opens from a row of its own.
+lv_obj_t *musicsettings_rockbox_screen(void);
+
 #endif /* MUSICSETTINGS_H */

@@ -1,6 +1,7 @@
 #include "appearance.h"
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "lvgl/lvgl.h"
 
@@ -8,8 +9,11 @@
 #include "src/gui/nowplaying/player.h"
 #include "src/gui/settings/bootlogopage.h"
 #include "src/gui/shell/corners.h"
+#include "src/gui/shell/iconpack.h"
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
+#include "src/gui/shell/toast.h"
+#include <string.h>
 #include "src/gui/shell/theme.h"
 #include "src/gui/shell/topbar.h"
 #include "src/system/core/config.h"
@@ -51,9 +55,112 @@ static void rounded_corners_cb(lv_event_t *e) {
 
 // The accent's hue spread over the backgrounds and cards. theme_set_dynamic_tint
 // repaints the interface itself, including this page.
+static bool appearance_czech(void) {
+	const char *l = lang_current();
+	return l && strncmp(l, "\xC4\x8C" "e", 3) == 0; // "Čeština"
+}
+
+static void sync_tint_toggle(void) {
+	if (!tint_toggle) return;
+	if (theme_dynamic_tint()) {
+		lv_obj_add_state(tint_toggle, LV_STATE_CHECKED);
+	} else {
+		lv_obj_remove_state(tint_toggle, LV_STATE_CHECKED);
+	}
+}
+
 static void dynamic_tint_cb(lv_event_t *e) {
 	(void)e;
-	theme_set_dynamic_tint(lv_obj_has_state(tint_toggle, LV_STATE_CHECKED));
+	bool on = lv_obj_has_state(tint_toggle, LV_STATE_CHECKED);
+	bool had_skin = theme_get_skin() >= 0;
+	theme_set_dynamic_tint(on); // switches a Compas skin off
+	if (on && had_skin) toast_success(appearance_czech() ? "Compas skin vypnut" : "Compas skin turned off");
+}
+
+// Settings -> Appearance -> Font: a tap steps through the built-in font and
+// every font in resource/fonts/custom, applied at once.
+static lv_obj_t *font_value;
+
+static void refresh_font_row(void) {
+	if (!font_value) return;
+	const char *cur = fonts_get_custom();
+	lv_label_set_text(font_value, cur[0] ? cur : "MiSans");
+}
+
+static void font_next_cb(lv_event_t *e) {
+	(void)e;
+	if (switcher_back_drag_active()) {
+		return;
+	}
+	int n = fonts_custom_count();
+	if (n == 0) {
+		toast_error(appearance_czech() ? "Žádné fonty v sonix/resource/fonts/custom" : "No fonts in sonix/resource/fonts/custom");
+		return;
+	}
+	// The list is: built-in, then each custom font; step to the next.
+	const char *cur = fonts_get_custom();
+	int at = -1;
+	for (int i = 0; i < n; i++) {
+		if (strcmp(fonts_custom_name(i), cur) == 0) at = i;
+	}
+	for (int step = 1; step <= n + 1; step++) {
+		int next = (at + 1 + step) % (n + 1) - 1; // -1 = built-in
+		char name[64];
+		snprintf(name, sizeof(name), "%s", next < 0 ? "" : fonts_custom_name(next));
+		if (fonts_set_custom(name)) {
+			// Say which one: several of the sans-serif fonts look alike.
+			char msg[96];
+			snprintf(msg, sizeof(msg), "%s: %s", appearance_czech() ? "P\xC3\xADsmo" : "Font", name[0] ? name : "MiSans");
+			toast_success(msg);
+			break;
+		}
+		toast_error(appearance_czech() ? "Font nejde otevřít (max 8 MB, .ttf/.otf)" : "Cannot open that font (max 8 MB, .ttf/.otf)");
+	}
+	refresh_font_row();
+}
+
+// Settings -> Appearance -> Icons: a tap steps through the built-in icons and
+// every pack in resource/icons.
+static lv_obj_t *iconpack_value;
+
+static void refresh_iconpack_row(void) {
+	if (!iconpack_value) return;
+	const char *cur = iconpack_current();
+	lv_label_set_text(iconpack_value, cur[0] ? cur : "Sonix");
+}
+
+static void iconpack_next_cb(lv_event_t *e) {
+	(void)e;
+	if (switcher_back_drag_active()) {
+		return;
+	}
+	int n = iconpack_count();
+	if (n == 0) {
+		toast_error(appearance_czech() ? "Žádné sady v sonix/resource/icons" : "No packs in sonix/resource/icons");
+		return;
+	}
+	const char *cur = iconpack_current();
+	int at = -1;
+	for (int i = 0; i < n; i++) {
+		if (strcmp(iconpack_name(i), cur) == 0) at = i;
+	}
+	for (int step = 1; step <= n + 1; step++) {
+		int next = (at + 1 + step) % (n + 1) - 1; // -1 = built-in
+		char name[64];
+		snprintf(name, sizeof(name), "%s", next < 0 ? "" : iconpack_name(next));
+		int replaced = iconpack_set(name);
+		if (replaced >= 0) {
+			char msg[96];
+			if (name[0]) {
+				snprintf(msg, sizeof(msg), "%s: %s (%d)", appearance_czech() ? "Ikony" : "Icons", name, replaced);
+			} else {
+				snprintf(msg, sizeof(msg), "%s: Sonix", appearance_czech() ? "Ikony" : "Icons");
+			}
+			toast_success(msg);
+			break;
+		}
+	}
+	refresh_iconpack_row();
 }
 
 static void refresh_text_size_pills(void) {
@@ -79,11 +186,74 @@ static void text_size_cb(lv_event_t *e) {
 
 // Paints the pair: the active choice is the filled accent button, the other a
 // quiet neutral, like libadwaita's suggested-action beside a regular button.
+static lv_obj_t *skin_toggle;
+static lv_obj_t *skin_value;
+static int skin_last = 0; // the skin the toggle brings back
+
+static void refresh_skin_row(void) {
+	int idx = theme_get_skin();
+	if (skin_toggle) {
+		if (idx >= 0) {
+			lv_obj_add_state(skin_toggle, LV_STATE_CHECKED);
+		} else {
+			lv_obj_remove_state(skin_toggle, LV_STATE_CHECKED);
+		}
+	}
+	if (skin_value) {
+		int show = idx >= 0 ? idx : skin_last;
+		lv_label_set_text(skin_value, theme_skin_count() ? theme_skin_name(show) : "\xE2\x80\x94");
+	}
+}
+
+static void skin_toggle_cb(lv_event_t *e) {
+	(void)e;
+	bool on = lv_obj_has_state(skin_toggle, LV_STATE_CHECKED);
+	if (on && theme_skin_count() == 0) {
+		lv_obj_remove_state(skin_toggle, LV_STATE_CHECKED);
+		return;
+	}
+	bool had_tint = theme_dynamic_tint();
+	theme_set_skin(on ? skin_last : -1); // switches the dynamic tint off
+	sync_tint_toggle();
+	if (on && had_tint) toast_success(appearance_czech() ? "Dynamický odstín vypnut" : "Dynamic tint turned off");
+}
+
+// A tap on the row steps to the next skin, and switches skins on.
+static void skin_next_cb(lv_event_t *e) {
+	(void)e;
+	int n = theme_skin_count();
+	if (n == 0) {
+		return;
+	}
+	int idx = theme_get_skin();
+	skin_last = idx >= 0 ? (idx + 1) % n : skin_last;
+	bool had_tint = theme_dynamic_tint();
+	theme_set_skin(skin_last);
+	sync_tint_toggle();
+	refresh_skin_row();
+	if (had_tint) toast_success(appearance_czech() ? "Dynamický odstín vypnut" : "Dynamic tint turned off");
+}
+
 static void refresh_buttons(void) {
 	bool dark = theme_is_dark();
 
 	lv_obj_t *on = dark ? btn_dark : btn_light;
 	lv_obj_t *off = dark ? btn_light : btn_dark;
+
+	if (theme_get_skin() >= 0) {
+		on = NULL; // a skin is neither of the two
+	}
+	if (theme_get_skin() >= 0) {
+		lv_obj_set_style_bg_color(btn_dark, theme()->surface_pressed, 0);
+		lv_obj_set_style_text_color(lv_obj_get_child(btn_dark, 0), theme()->text_primary, 0);
+		lv_obj_set_style_bg_color(btn_light, theme()->surface_pressed, 0);
+		lv_obj_set_style_text_color(lv_obj_get_child(btn_light, 0), theme()->text_primary, 0);
+		refresh_skin_row();
+		sync_tint_toggle();
+		return;
+	}
+	refresh_skin_row();
+	sync_tint_toggle();
 
 	lv_obj_set_style_bg_color(on, theme()->accent, 0);
 	lv_obj_set_style_text_color(lv_obj_get_child(on, 0), lv_color_white(), 0);
@@ -227,6 +397,14 @@ void appearance_init(gui_config_t *cfg) {
 	btn_dark = make_choice(row, "appearance_dark", true);
 	btn_light = make_choice(row, "appearance_light", false);
 
+	// Compas skins from <resource>/themes: a switch, and a row that steps
+	// through them on each tap.
+	if (theme_get_skin() >= 0) {
+		skin_last = theme_get_skin();
+	}
+	settingsrow_toggle(container, "Compas skin", &skin_toggle, skin_toggle_cb);
+	settingsrow_add(container, "Skin", &skin_value, skin_next_cb, NULL);
+
 	// A second card: where the clock sits in the status bar.
 	lv_obj_t *clock_card = lv_obj_create(container);
 	lv_obj_set_width(clock_card, lv_pct(100));
@@ -311,7 +489,9 @@ void appearance_init(gui_config_t *cfg) {
 	lv_obj_set_width(tint_note, lv_pct(100));
 	lv_obj_add_style(tint_note, &theme_style_text_dim, 0);
 	lv_obj_set_style_text_font(tint_note, &font_ui_22, 0);
-	lv_label_set_text(tint_note, tr("appearance_dynamic_tint_note"));
+	lv_label_set_text_fmt(tint_note, "%s %s", tr("appearance_dynamic_tint_note"),
+						  appearance_czech() ? "Nejde spolu s Compas skinem: zapnutí jedno vypne druhé."
+										  : "Not together with a Compas skin: turning one on turns the other off.");
 
 	// The picture shown while the player boots, which follows the theme and
 	// the accent unless one of the user's own is chosen.
@@ -319,6 +499,12 @@ void appearance_init(gui_config_t *cfg) {
 
 	// How big the small text on every page is: the secondary lines, notes,
 	// clocks and counters. See fonts.c for which sizes grow and by how much.
+	settingsrow_add(container, appearance_czech() ? "P\xC3\xADsmo" : "Font", &font_value, font_next_cb, NULL);
+	refresh_font_row();
+
+	settingsrow_add(container, appearance_czech() ? "Ikony" : "Icons", &iconpack_value, iconpack_next_cb, NULL);
+	refresh_iconpack_row();
+
 	lv_obj_t *text_size_pills;
 	settingsrow_pills(container, "appearance_text_size", &text_size_pills);
 	text_size_pill[FONTS_TEXT_NORMAL] =

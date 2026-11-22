@@ -45,6 +45,18 @@ static const sysinfo_model_t MODELS[] = {
 		.one_flank = true,
 		.media_keys_swapped = false,
 	},
+	{
+		.name = "Hidizs AP80 Pro Max",
+		.panel_width = 360,
+		.panel_height = 640,
+		.update_stem = "ap80max",
+		.serial_prefix = "AP80",
+		.pmic_charger = true,
+		.cs43131 = false,
+		.tap_wake = false,
+		.one_flank = false,
+		.media_keys_swapped = false,
+	},
 };
 
 // ---------------------------------------------------------------------------

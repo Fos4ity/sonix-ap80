@@ -3,8 +3,13 @@
 #include "src/system/device/bootlogo.h"
 #include "src/system/core/config.h"
 
+#include "src/system/core/respath.h"
+
+#include <ctype.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 lv_style_t theme_style_screen;
 lv_style_t theme_style_panel;
@@ -145,8 +150,150 @@ static lv_color_t tint_with(lv_color_t c, lv_color_t accent, float strength) {
 }
 
 // Points `active` at the chosen preset, or at a tinted copy of it.
+// ---- Compas skins ----
+#define SKIN_MAX 48
+typedef struct {
+	char name[64];
+	theme_palette_t pal;
+} skin_t;
+static skin_t *skins;
+static int skin_count;
+static int skin_index = -1;
+static theme_palette_t skin_palette;
+
+static uint8_t mix8(uint8_t a, uint8_t b, int pct) { return (uint8_t)((a * (100 - pct) + b * pct) / 100); }
+
+static lv_color_t mix(lv_color_t a, lv_color_t b, int pct) {
+	return lv_color_make(mix8(a.red, b.red, pct), mix8(a.green, b.green, pct), mix8(a.blue, b.blue, pct));
+}
+
+static lv_color_t hex_color(uint32_t v) { return lv_color_make((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF); }
+
+static bool parse_skin(const char *path, skin_t *out) {
+	FILE *f = fopen(path, "r");
+	if (!f) {
+		return false;
+	}
+	uint32_t c[5];
+	bool have[5] = {false};
+	static const char *const KEYS[5] = {"screen", "card", "list_row", "text_primary", "text_muted"};
+	char line[256];
+	out->name[0] = 0;
+	while (fgets(line, sizeof(line), f)) {
+		char *p = line;
+		while (isspace((unsigned char)*p)) {
+			p++;
+		}
+		if (*p == '#' || !*p) {
+			continue;
+		}
+		char *eq = strchr(p, '=');
+		if (!eq) {
+			continue;
+		}
+		*eq = 0;
+		char *key = p;
+		char *val = eq + 1;
+		char *end = key + strlen(key);
+		while (end > key && isspace((unsigned char)end[-1])) {
+			*--end = 0;
+		}
+		while (isspace((unsigned char)*val)) {
+			val++;
+		}
+		end = val + strlen(val);
+		while (end > val && isspace((unsigned char)end[-1])) {
+			*--end = 0;
+		}
+		if (strcmp(key, "name") == 0) {
+			snprintf(out->name, sizeof(out->name), "%s", val);
+			continue;
+		}
+		for (int i = 0; i < 5; i++) {
+			if (strcmp(key, KEYS[i]) == 0) {
+				c[i] = (uint32_t)strtoul(val, NULL, 0) & 0xFFFFFF;
+				have[i] = true;
+			}
+		}
+	}
+	fclose(f);
+	for (int i = 0; i < 5; i++) {
+		if (!have[i]) {
+			return false;
+		}
+	}
+	if (!out->name[0]) {
+		const char *b = strrchr(path, '/');
+		snprintf(out->name, sizeof(out->name), "%s", b ? b + 1 : path);
+		char *dot = strrchr(out->name, '.');
+		if (dot) {
+			*dot = 0;
+		}
+	}
+	lv_color_t screen = hex_color(c[0]);
+	lv_color_t card = hex_color(c[1]);
+	lv_color_t row = hex_color(c[2]);
+	lv_color_t text = hex_color(c[3]);
+	int lum = (int)(screen.red * 299 + screen.green * 587 + screen.blue * 114) / 1000;
+	bool dark = lum < 128;
+	out->pal.screen_bg = screen;
+	out->pal.surface = row;
+	out->pal.surface_pressed = mix(row, text, 12);
+	out->pal.panel = card;
+	out->pal.cover_bg = card;
+	out->pal.text_primary = text;
+	out->pal.text_secondary = hex_color(c[4]);
+	out->pal.dark = dark;
+	return true;
+}
+
+static int skin_cmp(const void *a, const void *b) {
+	return strcasecmp(((const skin_t *)a)->name, ((const skin_t *)b)->name);
+}
+
+static void load_skins(void) {
+	const char *dir = SONIX_RESOURCE_DIR "/themes";
+	DIR *d = opendir(dir);
+	if (!d) {
+		return;
+	}
+	skins = calloc(SKIN_MAX, sizeof(*skins));
+	if (!skins) {
+		closedir(d);
+		return;
+	}
+	struct dirent *e;
+	while ((e = readdir(d)) && skin_count < SKIN_MAX) {
+		size_t n = strlen(e->d_name);
+		if (n < 7 || strcmp(e->d_name + n - 6, ".theme") != 0) {
+			continue;
+		}
+		char path[512];
+		snprintf(path, sizeof(path), "%s/%s", dir, e->d_name);
+		if (parse_skin(path, &skins[skin_count])) {
+			skin_count++;
+		}
+	}
+	closedir(d);
+	qsort(skins, (size_t)skin_count, sizeof(*skins), skin_cmp);
+	printf("theme: %d Compas skin(s) in %s\n", skin_count, dir);
+}
+
+int theme_skin_count(void) { return skin_count; }
+
+const char *theme_skin_name(int index) {
+	return (index >= 0 && index < skin_count) ? skins[index].name : "";
+}
+
+int theme_get_skin(void) { return skin_index; }
+
 static void rebuild_active(void) {
 	theme_palette_t *base = dark_selected ? &palette_dark : &palette_light;
+	if (skin_index >= 0 && skin_index < skin_count) {
+		skin_palette = skins[skin_index].pal;
+		skin_palette.accent = palette_dark.accent;
+		base = &skin_palette;
+	}
 
 	if (!dynamic_tint) {
 		active = base;
@@ -235,6 +382,17 @@ void theme_init(void) {
 
 	dynamic_tint = config_get_bool("ui", "dynamic_tint", false);
 
+	load_skins();
+	const char *saved_skin = config_get("ui", "compas_skin", "");
+	for (int i = 0; saved_skin && saved_skin[0] && i < skin_count; i++) {
+		if (strcmp(skins[i].name, saved_skin) == 0) {
+			skin_index = i;
+		}
+	}
+	if (skin_index >= 0) {
+		dynamic_tint = false;
+	}
+
 	rebuild_active();
 	apply_palette();
 
@@ -279,6 +437,11 @@ const theme_palette_t *theme(void) { return active; }
 bool theme_is_dark(void) { return active->dark; }
 
 void theme_set_dark(bool dark) {
+	if (skin_index >= 0) {
+		dark_selected = !dark; // theme_toggle drops the skin and flips to `dark`
+		theme_toggle();
+		return;
+	}
 	if (active->dark == dark) {
 		return;
 	}
@@ -374,7 +537,33 @@ static void refresh_all(void) {
 	}
 }
 
+void theme_set_skin(int index) {
+	if (index < -1 || index >= skin_count) {
+		index = -1;
+	}
+	if (index == skin_index) {
+		return;
+	}
+	skin_index = index;
+	if (index >= 0 && dynamic_tint) {
+		// A skin brings its own colours: the tint would repaint them.
+		dynamic_tint = false;
+		config_set_bool("ui", "dynamic_tint", false);
+	}
+	rebuild_active();
+	apply_palette();
+	config_set("ui", "compas_skin", index >= 0 ? skins[index].name : "");
+	config_save();
+	bootlogo_follow(active->dark, accent_index);
+	refresh_all();
+}
+
 void theme_toggle(void) {
+	if (skin_index >= 0) {
+		// Picking dark or light leaves the skin.
+		skin_index = -1;
+		config_set("ui", "compas_skin", "");
+	}
 	dark_selected = !dark_selected;
 	rebuild_active();
 	apply_palette();
@@ -413,6 +602,11 @@ void theme_set_dynamic_tint(bool on) {
 		return;
 	}
 	dynamic_tint = on;
+	if (on && skin_index >= 0) {
+		// The tint is drawn over Sonix's own palette, not over a skin.
+		skin_index = -1;
+		config_set("ui", "compas_skin", "");
+	}
 	rebuild_active();
 	apply_palette();
 

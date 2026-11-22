@@ -1,5 +1,6 @@
 #include "peqsettings.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +15,7 @@
 #include "src/gui/shell/theme.h"
 #include "src/gui/shell/toast.h"
 #include "src/system/audio/eq.h"
+#include "src/system/audio/peqtarget.h"
 #include "src/system/core/lang.h"
 
 // The page behind the PEQ gear: save the parametric chain under a name and
@@ -315,6 +317,24 @@ static void build_list_page(gui_config_t *cfg) {
 	switcher_attach_back_gesture(list_screen);
 }
 
+// Which target AutoEq downloads are fitted to.
+static lv_obj_t *target_pill[2];
+
+static void refresh_target_pills(void) {
+	peqtarget_t t = peqtarget_get();
+	settingsrow_pill_active(target_pill[0], t == PEQTARGET_HARMAN);
+	settingsrow_pill_active(target_pill[1], t == PEQTARGET_DIAMOND);
+}
+
+static void target_cb(lv_event_t *e) {
+	peqtarget_t t = (peqtarget_t)(intptr_t)lv_event_get_user_data(e);
+	bool changed = t != peqtarget_get();
+	peqtarget_set(t);
+	refresh_target_pills();
+	// The target only shapes the next download; say so, or the switch looks dead.
+	if (changed) toast_success("Applies to the next AutoEQ download: search your headphones again.");
+}
+
 void peqsettings_init(gui_config_t *cfg) {
 	config = cfg;
 
@@ -327,6 +347,12 @@ void peqsettings_init(gui_config_t *cfg) {
 	// or the one AutoEq built for a pair of headphones.
 	settingsrow_action(container, "save_preset", open_name_dialog_cb, NULL);
 	settingsrow_add(container, "load_preset", NULL, open_preset_list_cb, NULL);
+
+	lv_obj_t *pills = NULL;
+	settingsrow_pills(container, "AutoEQ target", &pills);
+	target_pill[0] = settingsrow_pill_text(pills, "Harman", PEQTARGET_HARMAN, target_cb);
+	target_pill[1] = settingsrow_pill_text(pills, "Diamond \xCE\xB2", PEQTARGET_DIAMOND, target_cb);
+	refresh_target_pills();
 
 	build_list_page(cfg);
 	build_name_dialog(cfg);

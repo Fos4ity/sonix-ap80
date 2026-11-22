@@ -1,6 +1,7 @@
 #define _GNU_SOURCE 1
 
 #include "tls.h"
+#include "src/system/core/respath.h"
 
 #include "src/system/core/config.h"
 
@@ -205,6 +206,14 @@ static bool load_ca(SSL_CTX *ctx) {
 			snprintf(ca_source, sizeof(ca_source), "%s", candidate);
 			return true;
 		}
+	}
+
+	// The SD build ships Mozilla's bundle next to its other resources, because
+	// the AP80's rootfs has none and nothing may be written there.
+	if (file_exists(SONIX_RESOURCE_DIR "/cacert.pem") &&
+		api.SSL_CTX_load_verify_locations(ctx, SONIX_RESOURCE_DIR "/cacert.pem", NULL) == 1) {
+		snprintf(ca_source, sizeof(ca_source), "%s", SONIX_RESOURCE_DIR "/cacert.pem");
+		return true;
 	}
 
 	// This OpenSSL's own OPENSSLDIR is "/etc/ssl", so these two are where it
