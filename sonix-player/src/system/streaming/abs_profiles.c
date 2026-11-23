@@ -52,6 +52,15 @@ static const char *store_path(void) {
 	const char *env = getenv("SONIX_AUDIOBOOKSHELF_PROFILES");
 	if (env && env[0]) return env;
 #ifndef HOST_BUILD
+	// Beside HiBy OS (AP80 Pro Max) nothing may go into the player's own
+	// memory: the profiles sit next to device_config.ini, on the card.
+	static char beside[600];
+	const char *cfg = config_path();
+	const char *slash = cfg ? strrchr(cfg, '/') : NULL;
+	if (slash && strncmp(cfg, "/usr/data/", 10) != 0) {
+		snprintf(beside, sizeof(beside), "%.*s/audiobookshelf_profiles.ini", (int)(slash - cfg), cfg);
+		return beside;
+	}
 	return ABS_PROFILES_FILE;
 #endif
 	return NULL;
