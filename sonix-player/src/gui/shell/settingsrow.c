@@ -216,6 +216,15 @@ static void fit_row_label(lv_obj_t *label, int32_t width) {
 			if (lv_obj_get_style_text_font(label, LV_PART_MAIN) != STEPS[i]) {
 				lv_obj_set_style_text_font(label, STEPS[i], 0);
 			}
+			// Still too long at the smallest size (a 360 px panel with a wide
+			// font: "Operating system version" ran under its value): the name
+			// takes the width it has and breaks into a second line, which the
+			// row is tall enough for.
+			int32_t want = size.x > width ? width : LV_SIZE_CONTENT;
+			if (lv_obj_get_style_width(label, LV_PART_MAIN) != want) {
+				lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+				lv_obj_set_width(label, want);
+			}
 			return;
 		}
 	}

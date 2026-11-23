@@ -2283,14 +2283,23 @@ void quickpanel_init(gui_config_t *cfg) {
 
 	// Repeat/shuffle pinned left, the star pinned right, transport centred
 	// between them: the player's arrangement.
-	lv_obj_t *repeat_btn = make_flat_button(transport, 56, repeat_cb);
+	// On a narrow panel (360 px, the AP80) the five do not fit at full size:
+	// repeat and the star ended up touching previous and next. There the two
+	// skip buttons and the two side ones are smaller, the play disc is not.
+	bool narrow = lv_display_get_horizontal_resolution(NULL) < 440;
+	const int side_size = narrow ? 40 : 56;
+	const int skip_size = narrow ? 52 : 76;
+	if (narrow) {
+		lv_obj_set_style_pad_column(transport, 0, 0);
+	}
+	lv_obj_t *repeat_btn = make_flat_button(transport, side_size, repeat_cb);
 	np_repeat_btn = repeat_btn;
 	lv_obj_set_ignore_layout(repeat_btn, true);
 	lv_obj_align(repeat_btn, LV_ALIGN_LEFT_MID, 0, 0);
 	np_repeat_icon = lv_image_create(repeat_btn);
 	lv_obj_center(np_repeat_icon);
 
-	lv_obj_t *prev_btn = make_flat_button(transport, 76, prev_cb);
+	lv_obj_t *prev_btn = make_flat_button(transport, skip_size, prev_cb);
 	np_prev_btn = prev_btn;
 	np_star_icon = NULL; // really created further down, once the star button exists
 	lv_obj_t *prev_icon = lv_image_create(prev_btn);
@@ -2311,7 +2320,7 @@ void quickpanel_init(gui_config_t *cfg) {
 	lv_obj_add_style(np_play_icon, &theme_style_icon, 0);
 	lv_obj_center(np_play_icon);
 
-	lv_obj_t *next_btn = make_flat_button(transport, 76, next_cb);
+	lv_obj_t *next_btn = make_flat_button(transport, skip_size, next_cb);
 	np_next_btn = next_btn;
 	lv_obj_t *next_icon = lv_image_create(next_btn);
 	// The look of the three while a station connects; see the refresh.
@@ -2324,7 +2333,7 @@ void quickpanel_init(gui_config_t *cfg) {
 	lv_obj_set_style_image_recolor_opa(next_icon, LV_OPA_COVER, 0);
 	lv_obj_center(next_icon);
 
-	lv_obj_t *star_btn = make_flat_button(transport, 56, star_cb);
+	lv_obj_t *star_btn = make_flat_button(transport, side_size, star_cb);
 	np_star_btn = star_btn;
 	lv_obj_set_ignore_layout(star_btn, true);
 	lv_obj_align(star_btn, LV_ALIGN_RIGHT_MID, 0, 0);

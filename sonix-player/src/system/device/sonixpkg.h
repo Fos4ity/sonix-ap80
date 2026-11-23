@@ -28,7 +28,7 @@
 
 // The version of the SD card package this binary belongs to. The release tag
 // is "ap80-v" followed by it; bump it together with the tag.
-#define SONIXPKG_VERSION "1.4"
+#define SONIXPKG_VERSION "1.5"
 
 #define SONIXPKG_REPO "Fos4ity/sonix-ap80"
 #define SONIXPKG_TAG_PREFIX "ap80-v"

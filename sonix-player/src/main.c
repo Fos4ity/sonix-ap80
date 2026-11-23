@@ -1954,6 +1954,12 @@ static void test_screen_cb(lv_timer_t *t) {
 		switch_screen(settings_screen);
 	} else if (which && strcmp(which, "player") == 0) {
 		switch_screen(player_screen);
+	} else if (which && strcmp(which, "about") == 0) {
+		extern lv_obj_t *sysinfo_screen;
+		switch_screen(sysinfo_screen);
+	} else if (which && strcmp(which, "quick") == 0) {
+		extern void quickpanel_open(void);
+		quickpanel_open();
 	} else if (which && strcmp(which, "system") == 0) {
 		extern lv_obj_t *systempage_screen;
 		switch_screen(systempage_screen);
@@ -2188,7 +2194,6 @@ int main(int argc, char **argv) {
 	// interface points at is filled in here, from /usr/resource/sonix/fonts through
 	// FreeType -- the stock player's own mechanism. Without default.otf there
 	// is no drawing so much as an error message, so that is fatal.
-	iconpack_init(); // the saved icon pack, before any widget takes an icon
 	fprintf(stderr, "MARK fonts_init\n");
 	if (!fonts_init()) {
 #ifdef HOST_BUILD
@@ -2223,6 +2228,13 @@ int main(int argc, char **argv) {
 #endif
 	// The start screen instead of a black one while the rest comes up.
 	splash_show();
+
+	// The saved icon pack, before any other widget takes an icon. After the
+	// start screen and not before the fonts as it used to be: reading a pack
+	// of ~190 pictures from the card takes about three seconds on the AP80,
+	// and those were three seconds of black screen.
+	iconpack_init();
+	splash_step(25);
 
 	// Nothing in HiBy OS mounts the microSD on its own: mdev has no rule for
 	// mmcblk, and sys_server -- the daemon that does the mounting -- only acts
