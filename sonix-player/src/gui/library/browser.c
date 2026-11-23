@@ -33,6 +33,8 @@
 #include "src/system/playback/playlist.h"
 #include "src/system/core/lang.h"
 #include "src/system/core/utils.h"
+#include "src/gui/shell/azindex.h"
+#include "src/system/library/library.h"
 
 // ---------------------------------------------------------------------------
 // A windowed list.
@@ -93,6 +95,7 @@ lv_obj_t *browser_screen;
 static lv_obj_t *file_list; // the scrolling viewport
 static lv_obj_t *list_body; // as tall as the whole list; the rows live in here
 static lv_timer_t *thumb_timer;
+static azindex_t *az_index;
 
 static lv_style_t style_list_btn;
 static lv_style_t style_list_error;
@@ -449,6 +452,7 @@ static void list_scroll_cb(lv_event_t *e) {
 	(void)e;
 
 	window_update();
+	azindex_flash(az_index);
 
 	if (thumb_timer) {
 		lv_timer_resume(thumb_timer);
@@ -1406,6 +1410,7 @@ static void browser_open_dir(const char *path) {
 	shown.pool_used = 0;
 	lv_obj_set_height(list_body, ROW_PITCH);
 	lv_obj_scroll_to_y(file_list, 0, LV_ANIM_OFF);
+	azindex_set_rows(az_index, NULL, 0, false);
 
 	clear_message();
 	set_message("reading");
@@ -1422,6 +1427,32 @@ static void browser_open_dir(const char *path) {
 
 // Takes the finished listing over from the reader thread. Runs on the UI
 // thread, from the list tick.
+// Where each letter starts in the list on screen, so the A-Z strip can jump
+// to it. The list is sorted folders first, then files, each group alphabetically,
+// so a letter may appear in both groups; the first row that carries it is the one
+// the strip lands on.
+static void browser_rebuild_index(void) {
+	if (!az_index) {
+		return;
+	}
+	if (shown.count < AZINDEX_MIN_ROWS) {
+		azindex_set_rows(az_index, NULL, 0, false);
+		return;
+	}
+
+	int first[LIBRARY_INDEX_BUCKETS];
+	for (int i = 0; i < LIBRARY_INDEX_BUCKETS; i++) {
+		first[i] = -1;
+	}
+	for (size_t i = 0; i < shown.count; i++) {
+		int bucket = library_index_slot(library_index_letter(entry_name(i)));
+		if (first[bucket] < 0) {
+			first[bucket] = (int)i;
+		}
+	}
+	azindex_set_rows(az_index, first, (int)shown.count, false);
+}
+
 static void adopt_listing(void) {
 	// The rows point into `shown`, which is about to change hands. Park them
 	// first -- while `shown` is still the listing their indices refer to --
@@ -1492,6 +1523,8 @@ static void adopt_listing(void) {
 	}
 
 	update_corner_buttons();
+	browser_rebuild_index();
+	azindex_flash(az_index);
 
 	fprintf(stderr, "browser: '%s': %zu entries, %d row widgets, %zu KB of names\n", current_path, shown.count,
 			ROW_POOL, shown.pool_used / 1024);
@@ -1670,6 +1703,7 @@ void browser_init(gui_config_t *cfg) {
 	lv_obj_set_style_pad_ver(file_list, 0, 0);
 	lv_obj_set_flex_grow(file_list, 1);
 	lv_obj_set_scroll_dir(file_list, LV_DIR_VER);
+	lv_obj_set_scrollbar_mode(file_list, LV_SCROLLBAR_MODE_AUTO);
 	lv_obj_add_event_cb(file_list, list_scroll_cb, LV_EVENT_SCROLL, NULL);
 
 	// As tall as the entire list. This is what gives the viewport something to
@@ -1692,6 +1726,10 @@ void browser_init(gui_config_t *cfg) {
 	// swipe-back drag can start on.
 	player_sheet_attach_drag(file_list, true);
 	switcher_attach_back_gesture(file_list);
+
+	// A-Z strip down the right edge, like the Artist/Album lists: it appears
+	// while the list moves and jumps to a letter on tap or slide.
+	az_index = azindex_create(browser_screen, cfg, file_list, ROW_PITCH, window_update);
 
 	// Artwork is decoded on one thread, directories are read on another; the
 	// interface thread only ever draws.
