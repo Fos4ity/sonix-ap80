@@ -28,7 +28,7 @@
 
 // The version of the SD card package this binary belongs to. The release tag
 // is "ap80-v" followed by it; bump it together with the tag.
-#define SONIXPKG_VERSION "1.3"
+#define SONIXPKG_VERSION "1.4"
 
 #define SONIXPKG_REPO "Fos4ity/sonix-ap80"
 #define SONIXPKG_TAG_PREFIX "ap80-v"
@@ -39,6 +39,10 @@
 // SONIX_UPDATE_ROOT=<folder holding sonix/ and sonix.sh> turns it on for
 // testing (the host build included).
 bool sonixpkg_active(void);
+
+// The running program's full path, also on the AP80 where /proc/self/exe
+// reads "/sonix/sonix_player" for a program on the card. False when unknown.
+bool sonixpkg_exe_path(char *out, size_t size);
 
 // The card root (the folder holding sonix/ and sonix.sh); "" when not active.
 const char *sonixpkg_root(void);

@@ -23,6 +23,7 @@
 #include "src/gui/nowplaying/player.h"
 #include "src/gui/settings/fwupdate.h"
 #include "src/gui/shell/splash.h"
+#include "src/system/device/sonixpkg.h"
 #include "src/gui/settings/powersettings.h"
 #include "src/gui/settings/settings.h"
 #include "src/system/device/adb.h"
@@ -1966,14 +1967,15 @@ static void test_screen_cb(lv_timer_t *t) {
 // The folder the running program sits in, when that is on the SD card
 // (/data/mnt/sd_0/sonix on the AP80). False anywhere else.
 static bool sonix_dir_on_card(char *out, size_t size) {
+	// Not readlink("/proc/self/exe") alone: on the AP80 it reads
+	// "/sonix/sonix_player" for a program on the card (see sonixpkg_exe_path),
+	// and the settings silently stayed in /usr/data.
 	char exe[512];
-	ssize_t n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
-	if (n <= 0) {
+	if (!sonixpkg_exe_path(exe, sizeof(exe))) {
 		return false;
 	}
-	exe[n] = '\0';
 	char *slash = strrchr(exe, '/');
-	if (!slash || strncmp(exe, "/data/mnt/", 10) != 0) {
+	if (!slash || strstr(exe, "/mnt/") == NULL) {
 		return false;
 	}
 	*slash = '\0';

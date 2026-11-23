@@ -26,6 +26,47 @@
 static char root[512];
 static bool root_known;
 
+// The running program's full path. /proc/self/exe is not enough on the AP80:
+// for a program on the card (vfat, mounted at /usr/data/mnt/sd_0 and reached
+// through the /data symlink) the kernel gives "/sonix/sonix_player", the path
+// inside the card. So the name it was started by (/proc/self/cmdline) and the
+// card's usual places are tried too, and the one that is the same file as
+// /proc/self/exe (device and inode) wins.
+bool sonixpkg_exe_path(char *out, size_t size) {
+	struct stat self;
+	if (stat("/proc/self/exe", &self) != 0) {
+		return false;
+	}
+	char candidates[4][512];
+	int count = 0;
+
+	FILE *f = fopen("/proc/self/cmdline", "rb");
+	if (f) {
+		size_t n = fread(candidates[count], 1, sizeof(candidates[0]) - 1, f);
+		fclose(f);
+		candidates[count][n] = '\0'; // argv[0] ends at the first NUL anyway
+		if (candidates[count][0] == '/') {
+			count++;
+		}
+	}
+	ssize_t n = readlink("/proc/self/exe", candidates[count], sizeof(candidates[0]) - 1);
+	if (n > 0) {
+		candidates[count][n] = '\0';
+		count++;
+	}
+	snprintf(candidates[count++], sizeof(candidates[0]), "/data/mnt/sd_0/sonix/sonix_player");
+	snprintf(candidates[count++], sizeof(candidates[0]), "/usr/data/mnt/sd_0/sonix/sonix_player");
+
+	for (int i = 0; i < count; i++) {
+		struct stat st;
+		if (stat(candidates[i], &st) == 0 && st.st_dev == self.st_dev && st.st_ino == self.st_ino) {
+			snprintf(out, size, "%s", candidates[i]);
+			return true;
+		}
+	}
+	return false;
+}
+
 static void find_root(void) {
 	if (root_known) {
 		return;
@@ -43,13 +84,12 @@ static void find_root(void) {
 	}
 	// <card>/sonix/sonix_player -> <card>
 	char exe[512];
-	ssize_t n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
-	if (n <= 0) {
+	if (!sonixpkg_exe_path(exe, sizeof(exe))) {
+		printf("update: cannot tell where the program is; no updates\n");
 		return;
 	}
-	exe[n] = '\0';
-	if (strncmp(exe, "/data/mnt/", 10) != 0) {
-		return;
+	if (strstr(exe, "/mnt/") == NULL) {
+		return; // not on the card
 	}
 	char *slash = strrchr(exe, '/');
 	if (!slash) {
@@ -62,6 +102,7 @@ static void find_root(void) {
 	}
 	*slash = '\0';
 	snprintf(root, sizeof(root), "%s", exe);
+	printf("update: Sonix package on the card at %s\n", root);
 }
 
 bool sonixpkg_active(void) {

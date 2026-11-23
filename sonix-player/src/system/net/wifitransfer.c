@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "wifitransfer.h"
+#include "src/system/device/sonixpkg.h"
 
 #include "src/system/core/respath.h"
 
@@ -253,12 +254,10 @@ static void unbind_card(void) {
 // never shadows the firmware's own.
 static void link_self_as_cgi(const char *web_root) {
 	char exe[PATH_MAX];
-	ssize_t len = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
-	if (len <= 0) {
+	if (!sonixpkg_exe_path(exe, sizeof(exe))) {
 		printf("wifitransfer: cannot find my own path; the listing falls back to the firmware's\n");
 		return;
 	}
-	exe[len] = '\0';
 
 	char to[PATH_MAX];
 	snprintf(to, sizeof(to), "%s/sonix-list", web_root);
