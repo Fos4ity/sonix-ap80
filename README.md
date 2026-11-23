@@ -1,13 +1,11 @@
 # Sonix Player for the Hidizs AP80 Pro Max
 
-A fork of [Sonix Player](https://github.com/Tartarus6/sonix-player) that runs on the
-**Hidizs AP80 Pro Max** as a **third player**, next to the original HiBy OS and
-[Rockbox](https://www.rockbox.org). You pick which one starts in the boot menu.
+Run [Sonix Player](https://github.com/Tartarus6/sonix-player), a modern music
+player, on the **Hidizs AP80 Pro Max**, as a third choice next to the original
+HiBy OS and [Rockbox](https://www.rockbox.org). When you switch the player on, a
+small menu lets you pick which one starts.
 
-Sonix lives entirely on the **SD card**. The only thing that changes in the player
-itself is the boot menu, which gets one more entry: **SONIX**.
-
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/Fos4)
+**Only for the AP80 Pro Max.** Not for the AP80, AP80 Pro or AP80 Pro-X.
 
 > [!CAUTION]
 > **Use at your own risk.** This is a hobby project. It has **not been thoroughly
@@ -15,12 +13,6 @@ itself is the boot menu, which gets one more entry: **SONIX**.
 > menu, can damage your player or leave it unable to start. The author gives
 > **no warranty** and is **not responsible for any damage** to your device, your
 > data or anything else. If you are not comfortable with that, do not install it.
-
-> **This repository contains source code, patches and scripts only**, no firmware.
-> Ready-made files (the SD card package and a pre-patched firmware update file, the
-> same kind Rockbox offers) are on the
-> [Releases](https://github.com/Fos4ity/sonix-ap80/releases) page. You can also
-> build everything yourself, see below.
 
 | Home | Rockbox DSP | PEQdB target | YouTube Music |
 |:---:|:---:|:---:|:---:|
@@ -32,7 +24,86 @@ itself is the boot menu, which gets one more entry: **SONIX**.
 
 Screenshots come from the PC simulator at the AP80's resolution (360x640).
 
-## What this fork adds
+## Install
+
+You need the player, its microSD card, a card reader and a computer. Download the
+files from the latest [release](https://github.com/Fos4ity/sonix-ap80/releases).
+
+**1. Put Sonix on the card.** Unzip `sonix-ap80-sdcard.zip` to the **root of the
+SD card**. Then check: `sonix.sh` and the `sonix` folder must sit directly on the
+card (for example `E:\sonix.sh`). Windows' *Extract All* and macOS first put
+everything into a folder called `sonix-ap80-sdcard`; if that happened, move its
+contents up to the card root. Your music and other files are not touched.
+
+**2. Start it.** Which way depends on what your player shows when you switch it on:
+
+| Your player starts with | Do this | Flashing? |
+|---|---|---|
+| a menu with ROCKBOX / TOOLS / HIBY PLAYER (you installed Rockbox) | In the menu choose **TOOLS > Run script > sonix.sh**. Done. Optionally do the next row too, to get a SONIX entry. | No |
+| straight into HiBy OS (no menu) | Flash the boot menu, below. | Yes, once |
+
+**Flashing the boot menu.** Charge the player. Keep a copy of your original
+firmware file. Copy `ap80max-v12-sonix-patched.upt` to the root of the card and
+**rename it to `ap80max.upt`**. In HiBy OS go to *System Settings > Firmware
+Update > via SD Card > Update System Firmware > OK* and wait until it restarts.
+The menu now shows SONIX. Rename or delete `ap80max.upt` on the card afterwards.
+
+The file contains **HiBy firmware 1.2** plus the boot menu: whatever version your
+player has now is replaced by 1.2. Your music and the card are not touched.
+
+## Using it
+
+Every time you switch the player on you get **10 seconds** to choose, then your
+last choice starts again. The menu only offers what is really on the card:
+
+| Menu entry | Shown when the card has | |
+|---|---|---|
+| HIBY PLAYER | always | the original firmware |
+| TOOLS | always | Rockbox's tools: Run script, Recovery, Restart... |
+| SONIX | `sonix.sh` | starts `sonix/sonix_player` |
+| ROCKBOX | `.rockbox/rockbox.ap80max` from a [Rockbox build](https://www.rockbox.org/wiki/HidizsPort) | |
+
+The `.rockbox` folder in the SD card package holds only a short note, not Rockbox,
+so it does not add the ROCKBOX entry. You do **not** need Rockbox to use Sonix.
+
+Sonix keeps its things on the card, in the `sonix` folder: the program, its
+settings, sign-ins to streaming services and its log (`sonix_player.log`,
+overwritten at every start). It does
+not touch HiBy OS's settings. Only Wi-Fi networks are kept by the player's system
+itself, so HiBy OS and Sonix share them. Remove the card, or the `sonix` folder,
+and the player works as before, with HiBy OS from the menu.
+
+**YouTube Music** works without an account: Wi-Fi is all it needs. What it shows
+follows the language you pick in Sonix (English: US). Signing in (likes, your
+playlists) needs your own Google OAuth client, see
+[ap80/BUILD.md](ap80/BUILD.md#streaming-keys); without one there is no sign-in button.
+
+## If something goes wrong
+
+- **Sonix does not appear in the menu:** `sonix.sh` is not in the root of the card (see step 1).
+- **HiBy OS stays on the menu picture:** switch off and on and pick HIBY PLAYER right
+  away. The player has little memory and HiBy OS needs a large block of it.
+- **The card does not show up on the computer** after you used *ADB start* in TOOLS:
+  restart the player.
+- **Sonix misbehaves:** right after it happens, leave Sonix and send `sonix/sonix_player.log`
+  and `sonix/sonix_log.txt` from the card with your report. Both are overwritten
+  at the next start.
+
+### Going back
+
+1. Delete `.rockbox/rb_bl_mode.txt` and `sonix/rb_bl_mode.txt` from the card (the
+   last choice of this boot menu). An older menu does not know the SONIX entry: it
+   would show TOOLS and wait for a key instead of starting a player.
+2. Install the original firmware from [Hidizs](https://www.hidizs.net), or Rockbox's
+   patched file, the same way as the boot menu above.
+3. Delete `sonix.sh` and the `sonix` folder from the card if you no longer want them.
+
+If the player shows nothing at all: put the original `ap80max.upt` in the root of
+the card and switch the player on while holding **Power + Next**; this should start
+the firmware update from the card. We have not needed this ourselves, so we cannot
+confirm it.
+
+## What you get
 
 Everything Sonix already does is described in [FEATURES.md](FEATURES.md) and in the
 original [README](README.sonix.md). On top of that:
@@ -47,10 +118,14 @@ original [README](README.sonix.md). On top of that:
   from Harman to the [PEQdB](https://peqdb.com/) "Diamond β" curve. *PEQ > gear icon > AutoEQ target.*
 - **Skins.** Colour skins in the simple `.theme` format used by
   [Compas player](https://github.com/Starnished66/compas-player), with an
-  optional accent colour. Two are included: Nothing and Nothing Light.
+  optional accent colour. 23 are included: Nothing and Nothing Light made for
+  this port, and 21 from Compas player (Arctic Glass, Game Boy, Terminal...).
 - **Fonts and icon packs.** 13 fonts and 6 icon packs to choose from, with previews.
-- **YouTube Music.** Search, albums, artists, playlists and playback. Signing in
-  (likes, your playlists) is optional.
+- **YouTube Music.** Search, albums, artists, playlists and playback, with no
+  account: Wi-Fi is all it needs. The catalogue follows the language you pick in
+  Sonix (English: US). Signing in (likes, your playlists) needs your own Google
+  OAuth client, see [ap80/BUILD.md](ap80/BUILD.md#streaming-keys); without one
+  there is no sign-in button.
 - **Small fixes for the narrow screen**: scrolling labels, Flappy Bird, the top bar.
 
 ## How it works
@@ -64,44 +139,9 @@ power on
          └── SONIX         runs sonix.sh from the SD card  ← added by this fork
 ```
 
-`sonix.sh` starts `sonix/sonix_player` from the card. Remove the card, or delete
-the `sonix` folder, and the player is exactly as it was before.
-
-## Quick install (from the release)
-
-No PC tools needed, only a card reader.
-
-1. Download `sonix-ap80-sdcard.zip` from
-   [Releases](https://github.com/Fos4ity/sonix-ap80/releases) and unzip it to the
-   **root of the SD card**. You get `sonix.sh`, a `sonix` folder and a `.rockbox` folder.
-2. **If you already run Rockbox** on the player: choose
-   **TOOLS > Run script > sonix.sh** in the boot menu. Done, nothing was flashed.
-3. **If you want SONIX in the boot menu**, or you do not have Rockbox at all: download
-   `ap80max-v12-sonix-patched.upt`, put it in the root of the SD card renamed to
-   `ap80max.upt`, and in HiBy OS go to
-   *System Settings > Firmware Update > via SD Card > Update System Firmware > OK*.
-   After the restart pick SONIX. Then delete `ap80max.upt` from the card.
-
-Step 3 flashes the player. Read the warning at the top first.
-
-### What has to be on the SD card
-
-| Boot menu entry | Needs on the card | If it is missing |
-|---|---|---|
-| HIBY PLAYER | nothing | always there |
-| TOOLS | nothing | always there |
-| SONIX | `sonix.sh` and the `sonix` folder | the entry is not shown |
-| ROCKBOX | the `.rockbox` folder from a [Rockbox build](https://www.rockbox.org/wiki/HidizsPort) | the entry is not shown |
-
-You do **not** need Rockbox to use Sonix, and you do not need either of them to
-use HiBy OS. The menu only offers what is really on the card. With an empty card,
-or no card, it shows TOOLS and HIBY PLAYER and starts HiBy OS.
-
-You always get 10 seconds to choose. Then the menu starts your last choice. The
-first time, that is Rockbox if it is on the card, else Sonix, else HiBy OS. The
-choice is remembered on the card (in `.rockbox`, or in `sonix` when there is no
-`.rockbox` folder). If the remembered player is removed from the card, the menu
-goes back to what is there.
+This repository holds **source code, patches and scripts only**, no firmware.
+The ready-made files are on the [Releases](https://github.com/Fos4ity/sonix-ap80/releases)
+page; you can also build everything yourself.
 
 ## Build it yourself
 
@@ -145,19 +185,8 @@ player's firmware. Read [ap80/BUILD.md](ap80/BUILD.md), it is short:
 Put the resulting file on the SD card as `ap80max.upt` and install it in HiBy OS:
 *System Settings > Firmware Update > via SD Card*.
 
-### Going back
-
-Install the original firmware from [Hidizs](https://www.hidizs.net) the same way,
-then delete `sonix.sh` and the `sonix` folder from the card.
-
-### Warning
-
-Flashing firmware can leave a player that does not start. Keep the original
-`ap80max.upt` somewhere safe before you begin. Step 3 needs no flashing at all.
-
-Everything here is provided **as is, with no warranty**, as the GPL says. It was
-not thoroughly tested. The author is not responsible for any damage. You install
-it at your own risk.
+Going back is the same as for the ready-made files, see [Going back](#going-back).
+Everything here is provided **as is, with no warranty**, as the GPL says.
 
 ## What is in this repository
 
@@ -192,7 +221,7 @@ This fork stands on other people's work. Thank you.
 | Compiler toolchain | Rockbox, `rockboxdev.sh` (already used by Sonix) | the Rockbox team | GPL v2 or later |
 | "Diamond β" target curve | [PEQdB](https://peqdb.com/) | sharur (S. Chala, *An Optimized Headphone Target Response Curve*) | curve values only |
 | Headphone corrections | [AutoEq](https://github.com/jaakkopasanen/AutoEq) (already used by Sonix) | Jaakko Pasanen | MIT |
-| Skin file format | [Compas player](https://github.com/Starnished66/compas-player) | Starnished66 and the Compas contributors | GPL v3 (format only, no code taken) |
+| Skin file format and 21 skins | [Compas player](https://github.com/Starnished66/compas-player) | Starnished66 and the Compas contributors | GPL v3 (format and `.theme` files, no code taken; see `themes/CREDITS.txt`) |
 | Icons | [Lucide](https://lucide.dev), [Phosphor](https://phosphoricons.com) | their contributors | ISC, MIT |
 | Fonts | Inter, Lexend, Nunito, Noto Sans, Source Sans 3, Atkinson Hyperlegible, Comfortaa, JetBrains Mono, Merriweather, Oswald, Quicksand, Space Grotesk, Doto | their designers | SIL OFL 1.1 (licence file next to each font) |
 
@@ -204,6 +233,8 @@ Not affiliated with Hidizs, HiBy, Rockbox, Google, Nothing or the Sonix authors.
 All product names belong to their owners.
 
 ## Support
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/Fos4)
 
 If this port is useful to you, you can
 [buy me a coffee](https://buymeacoffee.com/Fos4). It is entirely optional.

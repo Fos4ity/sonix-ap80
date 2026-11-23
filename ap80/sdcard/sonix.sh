@@ -9,6 +9,8 @@ echo "start $(date)" > $LOG #
 killall bluealsa bt-agent bluetoothd >> $LOG 2>&1 #
 ulimit -s 1024 #
 export MALLOC_ARENA_MAX=1 #
+# Sonix's own log, written on every start (overwritten each time).  #
+export SONIX_LOG=$SD/sonix/sonix_player.log #
 chmod +x $SD/sonix/sonix_player 2>/dev/null #
 cd /tmp #
 $SD/sonix/sonix_player >> $LOG 2>&1 #

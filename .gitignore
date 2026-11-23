@@ -30,6 +30,7 @@ sonix-player/freetype-*
 sonix-player/opus-1.4.tar.gz
 sonix-player/opusfile-0.12.tar.gz
 sonix-player/wavpack-5.6.0.tar.bz2
+sonix-player/wavpack-5.6.0.tar.xz
 sonix-player/libogg-1.3.5.tar.gz
 sonix-player/freetype-2.13.3.tar.xz
 
@@ -39,3 +40,6 @@ sonix-packer/sonix_player
 sonix-packer/r3proii_original.upt
 sonix-packer/r1_original.upt
 sonix-packer/sonix_launch
+
+# Output of ap80/make_sdcard.sh
+ap80/out/

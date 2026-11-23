@@ -1,7 +1,10 @@
-This folder is here so that the boot menu of the Hidizs AP80 Pro Max can remember
-which player you started last (it writes rb_bl_mode.txt into it).
+This folder is where Rockbox lives, if you install it:
+https://www.rockbox.org/wiki/HidizsPort
 
-It is also where Rockbox lives, if you install it: https://www.rockbox.org/wiki/HidizsPort
-You can leave this file here or delete it. Keep the folder.
+On its own it does not add ROCKBOX to the boot menu: that entry appears only
+once Rockbox itself (.rockbox/rockbox.ap80max) is here. The boot menu of the
+Hidizs AP80 Pro Max writes your last choice into this folder (rb_bl_mode.txt).
+Without the folder it keeps that choice in sonix/ instead, so you can delete
+this file or the whole folder if you do not use Rockbox.
 
 Sonix for the AP80 Pro Max: https://github.com/Fos4ity/sonix-ap80

@@ -200,9 +200,12 @@ OPUSFILE_SRC = $(CURDIR)/opusfile-$(OPUSFILE_VER)
 OPUSFILE_LIB = $(AUDIO_PREFIX)/lib/libopusfile.a
 
 WAVPACK_VER = 5.6.0
-WAVPACK_TARBALL = wavpack-$(WAVPACK_VER).tar.bz2
-WAVPACK_URL = https://www.wavpack.com/$(WAVPACK_TARBALL)
-WAVPACK_URL_MIRROR = https://github.com/dbry/WavPack/releases/download/$(WAVPACK_VER)/$(WAVPACK_TARBALL)
+# GitHub first: wavpack.com answers scripts with a "one moment" page instead of
+# the archive, which wget saves as if it were the download. GitHub's release
+# carries the .tar.xz only.
+WAVPACK_TARBALL = wavpack-$(WAVPACK_VER).tar.xz
+WAVPACK_URL = https://github.com/dbry/WavPack/releases/download/$(WAVPACK_VER)/$(WAVPACK_TARBALL)
+WAVPACK_URL_MIRROR = https://www.wavpack.com/$(WAVPACK_TARBALL)
 WAVPACK_SRC = $(CURDIR)/wavpack-$(WAVPACK_VER)
 WAVPACK_LIB = $(AUDIO_PREFIX)/lib/libwavpack.a
 

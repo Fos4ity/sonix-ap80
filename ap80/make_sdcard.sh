@@ -23,8 +23,8 @@ cp -r "$repo/sonix-packer/assets/R3PII/usr/resource/sonix/." "$out/sonix/resourc
 # ... then the AP80 extras on top (system-info.json, custom fonts, icon packs, skins)
 cp -r "$here/sdcard/sonix-resource-overlay/." "$out/sonix/resource/"
 
-# The boot menu stores the last choice in .rockbox/rb_bl_mode.txt, so the folder
-# has to exist even when Rockbox itself is not installed.
+# A note in .rockbox: where Rockbox goes, and why the folder alone does not add
+# ROCKBOX to the boot menu. The menu keeps its last choice there, or in sonix/.
 mkdir -p "$out/.rockbox"
 cp "$here/sdcard/rockbox-folder-note.txt" "$out/.rockbox/sonix-ap80-note.txt"
 cp "$repo/LICENSE" "$out/sonix/LICENSE.txt"

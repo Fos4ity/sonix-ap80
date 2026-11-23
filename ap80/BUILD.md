@@ -20,7 +20,7 @@ Packages needed on Debian / Ubuntu, besides the ones in the original
 
 ```
 sudo apt install libtool-bin texinfo libgmp-dev libmpfr-dev libmpc-dev \
-                 gtk-doc-tools gettext autopoint libglib2.0-dev-bin
+                 gtk-doc-tools gettext autopoint libglib2.0-dev-bin gawk bison flex
 ```
 
 Two warnings are expected and harmless: `format-truncation` in `theme.c` and `fonts.c`.
@@ -35,9 +35,11 @@ The card ends up like this:
 
 ```
 sonix.sh                         started by the boot menu
-.rockbox/                        the boot menu remembers the last choice here
+.rockbox/                        only a note; Rockbox goes here if you install it
 sonix/
 ├── sonix_player                 the program
+├── device_config.ini            Sonix's settings (written by Sonix, not in the package)
+├── sonix_player.log             Sonix's log, overwritten at every start
 └── resource/
     ├── components/              system-info.json says "Hidizs AP80 Pro Max"
     ├── fonts/  fonts/custom/    Sonix's fonts, and the extra ones
@@ -47,7 +49,15 @@ sonix/
     └── cacert.pem               root certificates for HTTPS
 ```
 
-Sonix writes its log to `sonix/sonix_log.txt`.
+On the AP80 Pro Max Sonix runs beside HiBy OS, which it recognises by
+`/usr/bin/hiby_player` still being installed. In that case it keeps its settings,
+the reader's file and the streaming sessions in `sonix/` on the card instead of
+`/usr/data`, does not clear HiBy OS's data on its first start, and its factory
+reset removes only its own files. Settings an earlier build left in `/usr/data`
+are copied to the card once; the originals are not changed.
+
+Sonix writes its log to `sonix/sonix_player.log` (`sonix.sh` sets `SONIX_LOG`);
+`sonix/sonix_log.txt` holds what the start script itself saw.
 
 ### Skins
 
