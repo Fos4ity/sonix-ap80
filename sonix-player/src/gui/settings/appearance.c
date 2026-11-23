@@ -743,7 +743,7 @@ void appearance_init(gui_config_t *cfg) {
 	// From SonixOS HUE: ready-made palettes (each with its own wallpaper), a
 	// wallpaper of your own, and how the player and the menus are drawn.
 	lv_obj_t *preset_pills;
-	settingsrow_pills(container, appearance_czech() ? "Motiv" : "Theme preset", &preset_pills);
+	settingsrow_pills(container, appearance_czech() ? "Barevný motiv" : "Colour theme", &preset_pills);
 	lv_obj_set_flex_flow(preset_pills, LV_FLEX_FLOW_ROW_WRAP);
 	for (int i = 0; i < THEME_PRESET_COUNT; i++) {
 		btn_preset[i] = settingsrow_pill(preset_pills, theme_preset_name(i), i, preset_pick_cb);

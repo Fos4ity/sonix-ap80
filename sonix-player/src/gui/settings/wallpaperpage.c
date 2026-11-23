@@ -7,6 +7,7 @@
 #include "src/gui/shell/theme.h"
 #include "src/gui/shell/toast.h"
 #include "src/system/core/config.h"
+#include "src/system/core/lang.h"
 #include "src/system/core/utils.h"
 
 #include <dirent.h>
@@ -234,10 +235,10 @@ static void load_done(void *user) {
 		theme_apply_wallpaper_pixels(job->pixels, job->w, job->h,
 									 job->update_saved_path ? job->save_path : NULL);
 		if (!job->silent_toast) {
-			toast_success("Wallpaper updated");
+			toast_success(tr("Wallpaper updated"));
 		}
 	} else if (!job->silent_toast) {
-		toast_error("Could not load image");
+		toast_error(tr("Could not load image"));
 	}
 	paint_checks();
 	free(job);
@@ -279,14 +280,14 @@ static void start_load(const char *load_path, const char *save_path, bool update
 	if (pthread_create(&thread, NULL, load_worker, job) != 0) {
 		free(job);
 		if (!silent_toast) {
-			toast_error("Could not load image");
+			toast_error(tr("Could not load image"));
 		}
 		return;
 	}
 	pthread_detach(thread);
 	busy = true;
 	if (!silent_toast) {
-		toast_busy("Loading wallpaper...");
+		toast_busy(tr("Loading wallpaper..."));
 	}
 }
 
@@ -332,7 +333,7 @@ static void reset_transform_cb(lv_event_t *e) {
 	theme_set_wallpaper_transform(100, 0, 0);
 	sync_slider_labels();
 	rerender_current();
-	toast_success("Position & scale reset");
+	toast_success(tr("Position & scale reset"));
 }
 
 static void entry_cb(lv_event_t *e) {
@@ -375,7 +376,7 @@ static void default_cb(lv_event_t *e) {
 	}
 	theme_set_wallpaper_file("", panel_w, panel_h);
 	paint_checks();
-	toast_success("Default wallpaper");
+	toast_success(tr("Default wallpaper"));
 }
 
 static void none_cb(lv_event_t *e) {
@@ -385,7 +386,7 @@ static void none_cb(lv_event_t *e) {
 	}
 	theme_set_wallpaper_file("none", panel_w, panel_h);
 	paint_checks();
-	toast_success("Wallpaper disabled");
+	toast_success(tr("Wallpaper disabled"));
 }
 
 static lv_obj_t *add_check(lv_obj_t *row) {
@@ -404,7 +405,7 @@ static lv_obj_t *add_note(lv_obj_t *parent, const char *text) {
 	lv_obj_set_width(note, lv_pct(100));
 	lv_obj_add_style(note, &theme_style_text_dim, 0);
 	lv_obj_set_style_text_font(note, &font_ui_22, 0);
-	lv_label_set_text(note, text);
+	lv_label_set_text(note, tr(text));
 	return note;
 }
 

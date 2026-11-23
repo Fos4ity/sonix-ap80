@@ -8,6 +8,7 @@
 #include <linux/input.h>
 #include <signal.h>
 #include <stdint.h>
+#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2005,6 +2006,22 @@ static void test_switch_cb(lv_timer_t *t) {
 static void test_screen_cb(lv_timer_t *t) {
 	(void)t;
 	const char *which = getenv("SONIX_TEST_SCREEN");
+	// SONIX_TEST_PRESET=<n> picks a colour theme first, as a tap would.
+	if (getenv("SONIX_TEST_PRESET")) {
+		theme_set_preset(atoi(getenv("SONIX_TEST_PRESET")));
+	}
+	// SONIX_TEST_SCREEN=page:<name> opens any screen exported as <name>_screen
+	// (looked up in the program itself, so new pages need no hook here).
+	if (which && strncmp(which, "page:", 5) == 0) {
+		char sym[96];
+		snprintf(sym, sizeof(sym), "%s_screen", which + 5);
+		lv_obj_t **scr = (lv_obj_t **)dlsym(RTLD_DEFAULT, sym);
+		if (scr && *scr) {
+			switch_screen(*scr);
+			return;
+		}
+		fprintf(stderr, "test: no screen %s\n", sym);
+	}
 	if (which && strcmp(which, "ytm") == 0) {
 		switch_screen(ytm_screen);
 	} else if (which && strcmp(which, "ytm_search") == 0) {

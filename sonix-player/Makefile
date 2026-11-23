@@ -150,7 +150,7 @@ TARGET_CXXFLAGS = $(TARGET_CFLAGS) $(GB_CFLAGS)
 # Target only. On the host they ask for a static libstdc++ that most
 # distributions do not ship, and the link fails with "cannot find -lstdc++".
 GB_LDFLAGS = -static-libstdc++ -static-libgcc
-HOST_LDFLAGS = $(shell sdl2-config --libs) -lpthread -lm -ldl -lasound $(shell pkg-config --libs freetype2) \
+HOST_LDFLAGS = $(shell sdl2-config --libs) -lpthread -lm -ldl -rdynamic -lasound $(shell pkg-config --libs freetype2) \
 			   $(shell pkg-config --libs opusfile wavpack)
 #
 # --gc-sections: the other half of -ffunction-sections (see TARGET_CFLAGS).
