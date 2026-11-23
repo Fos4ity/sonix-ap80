@@ -297,6 +297,7 @@ static const char *const KEEP[] = {
 	"tidal_session.ini",
 	"ytmusic_session.ini",
 	"lastfm.session",
+	"listenbrainz.session",
 };
 
 static bool kept(const char *name) {

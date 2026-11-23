@@ -64,7 +64,9 @@
 #include "src/gui/streaming/ytmpage.h"
 #include "src/system/streaming/streamkeys.h"
 #include "src/system/lastfm/lastfm.h"
+#include "src/system/listenbrainz/listenbrainz.h"
 #include "src/system/library/library.h"
+#include "src/system/library/playcount.h"
 #include "src/system/core/logging.h"
 #include "src/system/playback/playlist.h"
 #include "src/system/library/playlists.h"
@@ -2178,7 +2180,10 @@ int main(int argc, char **argv) {
 	qobuz_init();
 	tidal_init();
 	ytm_init();
+	// Upstream switched Last.fm off for lack of keys; here it stays, it only
+	// does anything once the user's own keys are in streaming-keys.ini.
 	lastfm_init();
+	listenbrainz_init();
 
 	lv_init();
 
@@ -2472,6 +2477,10 @@ int main(int argc, char **argv) {
 		lv_timer_set_repeat_count(ts, 1);
 	}
 #endif
+
+	// Following what is played, for the play counts and the scrobblers. Its
+	// own timer, so it runs whichever settings pages are built.
+	playcount_init();
 
 	// "Rotate screen", as it was left. After gui_init so there are screens to
 	// redraw, and before the first frame the user sees.

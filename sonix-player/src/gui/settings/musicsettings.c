@@ -18,6 +18,7 @@
 #include "src/gui/nowplaying/coverflow.h"
 #include "src/gui/settings/artistexceptions.h"
 #include "src/gui/settings/lastfmsettings.h"
+#include "src/gui/settings/listenbrainzsettings.h"
 #include "src/gui/library/medialist.h"
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
@@ -2103,8 +2104,13 @@ void musicsettings_init(gui_config_t *cfg) {
 	build_nowplaying_page(cfg);
 	settingsrow_add(container, "musicsettings_now_playing", NULL, switch_screen_cb, nowplaying_screen);
 
+	// Upstream hides Last.fm because its release has no keys. The AP80 build
+	// keeps it: with the user's own keys in streaming-keys.ini it works.
 	lastfmsettings_init(cfg);
 	settingsrow_add(container, "lastfm", NULL, switch_screen_cb, lastfmsettings_screen());
+
+	listenbrainzsettings_init(cfg);
+	settingsrow_add(container, "listenbrainz", NULL, switch_screen_cb, listenbrainzsettings_screen());
 
 	settingsrow_heading(container, "musicsettings_section_playback");
 	build_playback_page(cfg);
