@@ -35,4 +35,27 @@ if [ ! -f "$out/sonix/resource/cacert.pem" ]; then
         || echo "Could not download cacert.pem. Put Mozilla's CA bundle at sonix/resource/cacert.pem yourself." >&2
 fi
 
+# The release asset, zipped with Python: names like Čeština.ini get the UTF-8
+# flag, so Windows' own unzip and the updater in Sonix read them right.
+# (Info-ZIP on Linux stores the bytes without the flag; Windows then garbles them.)
+python3 - "$out" "$out/../sonix-ap80-sdcard.zip" <<'PY'
+import os, sys, zipfile
+src, dst = sys.argv[1], os.path.abspath(sys.argv[2])
+with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+    for top in ("sonix.sh", "sonix", ".rockbox"):
+        path = os.path.join(src, top)
+        if os.path.isfile(path):
+            z.write(path, top)
+            continue
+        for root, dirs, files in os.walk(path):
+            dirs.sort()
+            for name in sorted(files):
+                full = os.path.join(root, name)
+                z.write(full, os.path.relpath(full, src).replace(os.sep, "/"))
+bad = [i.filename for i in zipfile.ZipFile(dst).infolist()
+       if not i.filename.isascii() and not i.flag_bits & 0x800]
+sys.exit("names without the UTF-8 flag: %s" % bad if bad else 0)
+PY
+
 echo "Done. Copy the contents of $out to the root of the SD card."
+echo "Release asset: $(cd "$out/.." && pwd)/sonix-ap80-sdcard.zip"
