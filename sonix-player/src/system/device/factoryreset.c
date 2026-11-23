@@ -189,7 +189,7 @@ void factoryreset_run(void) {
 			static const char *const NAMES[] = {"device_config.ini", "ebook_config.ini", "tidal_session.ini",
 												"ytmusic_session.ini", "lastfm.session",
 												"listenbrainz.session", "audiobookshelf_profiles.ini",
-												"device_config.ini.browser"};
+												"device_config.ini.browser", "device_config.ini.subsonic-account"};
 			for (size_t i = 0; i < sizeof(NAMES) / sizeof(NAMES[0]); i++) {
 				snprintf(path, sizeof(path), "%s/%s", dir, NAMES[i]);
 				if (unlink(path) == 0) {
