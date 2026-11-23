@@ -48,6 +48,7 @@
 #include "src/gui/shell/iconpack.h"
 #include "src/system/audio/headset.h"
 #include "src/system/input/keymap.h"
+#include "src/system/streaming/abs_cover.h"
 #include "src/system/streaming/abs_profiles.h"
 #include "src/system/streaming/abs_download.h"
 #include "src/system/streaming/audiobookshelf.h"
@@ -2555,6 +2556,9 @@ int main(int argc, char **argv) {
 	tidalcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	ytmcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	podcastcache_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
+	// §9.3: the authenticated Audiobookshelf cover cache lives beside the
+	// other streaming caches, on the same card with the same lifecycle.
+	abs_cover_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	podcastsubs_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	podcaststate_set_root(card_root && card_root[0] ? card_root : gui_cfg.sd_root_path);
 	// And where a track arriving over DLNA lands: same card, same reason.
