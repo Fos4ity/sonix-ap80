@@ -1957,6 +1957,65 @@ static void test_screen_cb(lv_timer_t *t) {
 }
 #endif
 
+#ifndef HOST_BUILD
+// The folder the running program sits in, when that is on the SD card
+// (/data/mnt/sd_0/sonix on the AP80). False anywhere else.
+static bool sonix_dir_on_card(char *out, size_t size) {
+	char exe[512];
+	ssize_t n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+	if (n <= 0) {
+		return false;
+	}
+	exe[n] = '\0';
+	char *slash = strrchr(exe, '/');
+	if (!slash || strncmp(exe, "/data/mnt/", 10) != 0) {
+		return false;
+	}
+	*slash = '\0';
+	snprintf(out, size, "%s", exe);
+	return true;
+}
+
+// Earlier AP80 builds kept the settings in /usr/data. The first start with
+// the settings on the card copies them over once, so nothing is lost; the
+// originals are only read, never changed or deleted.
+static void adopt_internal_settings(const char *card_config) {
+	struct stat st;
+	if (stat(card_config, &st) == 0) {
+		return;
+	}
+	char dir[512];
+	snprintf(dir, sizeof(dir), "%s", card_config);
+	char *slash = strrchr(dir, '/');
+	if (!slash) {
+		return;
+	}
+	*slash = '\0';
+	static const char *const NAMES[] = {"device_config.ini", "ebook_config.ini", "tidal_session.ini",
+										"ytmusic_session.ini", "lastfm.session"};
+	for (size_t i = 0; i < sizeof(NAMES) / sizeof(NAMES[0]); i++) {
+		char from[128], to[640];
+		snprintf(from, sizeof(from), "/usr/data/%s", NAMES[i]);
+		snprintf(to, sizeof(to), "%s/%s", dir, NAMES[i]);
+		FILE *in = fopen(from, "rb");
+		if (!in) {
+			continue;
+		}
+		FILE *out = fopen(to, "wb");
+		if (out) {
+			char buf[4096];
+			size_t got;
+			while ((got = fread(buf, 1, sizeof(buf), in)) > 0) {
+				fwrite(buf, 1, got, out);
+			}
+			fclose(out);
+			printf("settings: copied %s to the card\n", from);
+		}
+		fclose(in);
+	}
+}
+#endif
+
 int main(int argc, char **argv) {
 	// Before anything at all -- before the signal guards, before the allocator
 	// is tuned, before a display is opened. thttpd runs this same binary as the
@@ -2017,6 +2076,21 @@ int main(int argc, char **argv) {
 	// SONIX_CONFIG points it somewhere else for the host build and for testing.
 	const char *config_file = getenv("SONIX_CONFIG");
 #ifndef HOST_BUILD
+	// Beside the stock firmware (AP80 Pro Max, started from the card by the
+	// boot menu) nothing goes into the player's memory: the settings, the
+	// reader's file and the streaming sessions live in the program's own folder
+	// on the card. The card is there, since the program itself is on it.
+	static char card_config[512], card_ebook[560];
+	if (!config_file && factoryreset_beside_stock() && sonix_dir_on_card(card_config, sizeof(card_config))) {
+		snprintf(card_ebook, sizeof(card_ebook), "%s/ebook_config.ini", card_config);
+		size_t n = strlen(card_config);
+		snprintf(card_config + n, sizeof(card_config) - n, "/device_config.ini");
+		adopt_internal_settings(card_config);
+		config_file = card_config;
+		if (!getenv("SONIX_EBOOK_CONFIG")) {
+			setenv("SONIX_EBOOK_CONFIG", card_ebook, 0);
+		}
+	}
 	if (!config_file) {
 		config_file = "/usr/data/device_config.ini";
 	}

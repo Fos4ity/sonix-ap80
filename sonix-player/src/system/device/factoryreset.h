@@ -28,4 +28,11 @@ bool factoryreset_supported(void);
 // is there. Call before the card is mounted and before either radio starts.
 void factoryreset_clear_stock_data(bool first_start);
 
+// Whether this player runs beside the stock firmware instead of replacing it:
+// started from the SD card by a boot menu (Hidizs AP80 Pro Max), with the stock
+// player still installed. Then the stock firmware's data in /usr/data is not
+// ours to touch: no first-start erase, no stock factory reset, and our own
+// settings live on the card next to the program, not in the player's memory.
+bool factoryreset_beside_stock(void);
+
 #endif /* FACTORYRESET_H */

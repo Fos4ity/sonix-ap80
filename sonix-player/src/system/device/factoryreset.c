@@ -141,7 +141,23 @@ static bool write_flag(void) {
 
 #endif /* !HOST_BUILD */
 
+// The Sonix firmware packer removes the stock player from the rootfs; when it
+// is still there, the stock firmware is the one installed and Sonix is a guest.
+#define STOCK_PLAYER_BIN "/usr/bin/hiby_player"
+
+bool factoryreset_beside_stock(void) {
+#ifdef HOST_BUILD
+	return false;
+#else
+	struct stat st;
+	return stat(STOCK_PLAYER_BIN, &st) == 0;
+#endif
+}
+
 bool factoryreset_supported(void) {
+	if (factoryreset_beside_stock()) {
+		return false; // the stock reset would wipe the stock firmware's data
+	}
 	struct stat st;
 	return stat(RECOVERY_SCRIPT, &st) == 0 && stat(RECOVERY_INIT, &st) == 0;
 }
@@ -152,6 +168,37 @@ void factoryreset_run(void) {
 		   EBOOK_CONFIG_FILE);
 #else
 	printf("factoryreset: starting the reset\n");
+
+	if (factoryreset_beside_stock()) {
+		// Beside the stock firmware the reset is ours alone: this player's
+		// settings, which live on the card (see main.c), and nothing of the
+		// stock firmware's. No recovery note, and the card stays mounted: the
+		// program itself runs from it. The reboot lands in the boot menu.
+		audio_stop();
+		const char *cfg = config_path();
+		char dir[512], path[600];
+		snprintf(dir, sizeof(dir), "%s", cfg ? cfg : "");
+		char *slash = strrchr(dir, '/');
+		if (slash) {
+			*slash = '\0';
+			static const char *const NAMES[] = {"device_config.ini", "ebook_config.ini", "tidal_session.ini",
+												"ytmusic_session.ini", "lastfm.session"};
+			for (size_t i = 0; i < sizeof(NAMES) / sizeof(NAMES[0]); i++) {
+				snprintf(path, sizeof(path), "%s/%s", dir, NAMES[i]);
+				if (unlink(path) == 0) {
+					printf("factoryreset: %s deleted\n", path);
+				}
+			}
+		}
+		sync();
+		int rc = system("reboot");
+		(void)rc;
+		sleep(10);
+		reboot(RB_AUTOBOOT);
+		for (;;) {
+			sleep(1);
+		}
+	}
 
 	if (!factoryreset_supported()) {
 		// Not a reason to stop: the configuration is deleted anyway and the
@@ -297,7 +344,7 @@ static void clear_folder(const char *folder) {
 }
 
 void factoryreset_clear_stock_data(bool first_start) {
-	if (!first_start) {
+	if (!first_start || factoryreset_beside_stock()) {
 		return;
 	}
 
