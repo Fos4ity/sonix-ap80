@@ -1,0 +1,13 @@
+Skins in this folder
+====================
+
+Nothing.theme, Nothing-Light.theme
+    Made for this AP80 port.
+
+All other .theme files
+    From Compas player, https://github.com/Starnished66/compas-player
+    by Starnished66 and the Compas contributors, licensed under the
+    GNU General Public License v3 (the same licence as Sonix Player).
+    Taken unchanged from its plugins_examples/Themes folder and its theme
+    candidates (pull request 151, commit 3ee258d4). Sonix reads the colours;
+    keys it does not know (home tiles, icons) are ignored.
