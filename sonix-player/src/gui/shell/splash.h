@@ -8,6 +8,8 @@
 // lv_refr_now() -- the main loop is not running yet, so nothing animates on
 // its own. splash_finish() fades it out over the first page.
 
+#define SPLASH_STYLES 3
+
 void splash_show(void);
 
 // 0..100: how far the start has come. Redraws at once.

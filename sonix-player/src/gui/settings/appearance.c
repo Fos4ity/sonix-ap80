@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "lvgl/lvgl.h"
+#include "src/gui/shell/splash.h"
 
 #include "src/gui/fonts/fonts.h"
 #include "src/gui/nowplaying/player.h"
@@ -255,6 +256,50 @@ static void nothing_toggle_cb(lv_event_t *e) {
 
 
 // A tap on the row steps to the next skin, and switches skins on.
+static lv_obj_t *splash_value;
+static lv_obj_t *splash_toggle;
+
+// The one shown when they do not take turns, in splash.c's order.
+static void refresh_splash_row(void) {
+	static const char *const cs[] = {"Dlaždice", "Deska", "Minimal"};
+	static const char *const en[] = {"Tile", "Record", "Minimal"};
+	int s = (int)config_get_int("ui", "splash_style", 0);
+	if (s < 0 || s >= SPLASH_STYLES) {
+		s = 0;
+	}
+	bool random = config_get_bool("ui", "splash_random", true);
+	if (random) {
+		lv_label_set_text(splash_value, appearance_czech() ? "Náhodně" : "Random");
+	} else {
+		lv_label_set_text(splash_value, (appearance_czech() ? cs : en)[s]);
+	}
+	if (random) {
+		lv_obj_add_state(splash_toggle, LV_STATE_CHECKED);
+	} else {
+		lv_obj_remove_state(splash_toggle, LV_STATE_CHECKED);
+	}
+}
+
+static void splash_toggle_cb(lv_event_t *e) {
+	(void)e;
+	config_set_bool("ui", "splash_random", lv_obj_has_state(splash_toggle, LV_STATE_CHECKED));
+	config_save();
+	refresh_splash_row();
+}
+
+// A tap picks the next one and makes it the only one.
+static void splash_next_cb(lv_event_t *e) {
+	(void)e;
+	int s = (int)config_get_int("ui", "splash_style", 0);
+	if (!config_get_bool("ui", "splash_random", true)) {
+		s = (s + 1) % SPLASH_STYLES;
+	}
+	config_set_int("ui", "splash_style", s);
+	config_set_bool("ui", "splash_random", false);
+	config_save();
+	refresh_splash_row();
+}
+
 static void skin_next_cb(lv_event_t *e) {
 	(void)e;
 	int n = theme_skin_count();
@@ -451,6 +496,12 @@ void appearance_init(gui_config_t *cfg) {
 	}
 	settingsrow_toggle(container, "Compas skin", &skin_toggle, skin_toggle_cb);
 	settingsrow_add(container, "Skin", &skin_value, skin_next_cb, NULL);
+	// The start screen: one of the three, or a different one each start.
+	settingsrow_toggle(container, appearance_czech() ? "Střídat úvodní obrazovky" : "Rotate start screens",
+					   &splash_toggle, splash_toggle_cb);
+	settingsrow_add(container, appearance_czech() ? "Úvodní obrazovka" : "Start screen",
+					&splash_value, splash_next_cb, NULL);
+	refresh_splash_row();
 	// Shown only when the Nothing skin is on the card.
 	if (nothing_skin_index(NOTHING_SKIN) >= 0) {
 		settingsrow_toggle(container, appearance_czech() ? "Preset Nothing" : "Nothing preset",

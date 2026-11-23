@@ -49,7 +49,21 @@ void splash_show(void) {
 	lv_obj_set_clickable(splash, true); // nothing underneath takes a tap yet
 
 	const char *style_env = getenv("SONIX_SPLASH_STYLE");
+	// [ui] splash_random (the default) picks a different one of the three at
+	// every start; switched off, [ui] splash_style: 0 tile, 1 record, 2 minimal.
 	int style = style_env ? atoi(style_env) : (int)config_get_int("ui", "splash_style", 0);
+	if (!style_env && config_get_bool("ui", "splash_random", true)) {
+		int last = (int)config_get_int("ui", "splash_last", -1);
+		style = (int)lv_rand(0, SPLASH_STYLES - 1);
+		if (style == last) {
+			style = (style + 1 + (int)lv_rand(0, SPLASH_STYLES - 2)) % SPLASH_STYLES;
+		}
+		config_set_int("ui", "splash_last", style);
+		config_save();
+	}
+	if (style < 0 || style >= SPLASH_STYLES) {
+		style = 0;
+	}
 	const sysinfo_model_t *model = sysinfo_model();
 	const char *model_name = model && model->name ? model->name : NULL;
 
