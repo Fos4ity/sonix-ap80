@@ -1082,7 +1082,13 @@ static bool track_is_playable(const char *path) {
 		fprintf(stderr, "ytm: '%s' -- growfile says %d, the cache says %d: THEY DISAGREE\n", path, growing,
 				downloading);
 	}
-	return growing || downloading;
+	// Only a file growfile follows can be opened. Between the request and the
+	// first bytes (a second or two on Wi-Fi) the cache already counts the track
+	// as downloading but the file is still empty: opening it then fails ("does
+	// not open", error -129), the track "ends" and the queue skips on, which on
+	// the AP80 looked like a player stuck on "Downloading". Not ready yet: the
+	// caller asks for it and restarts the queue here once the bytes arrive.
+	return growing;
 }
 
 // The "downloading" notice must go through gui_post.

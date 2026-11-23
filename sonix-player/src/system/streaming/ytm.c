@@ -57,7 +57,32 @@
 
 static char web_remix_version[48];
 static char hl[8] = "en";
-static char gl[8] = "US";
+static char gl[8]; // [ytmusic] gl in the config; empty: follow the UI language, see region()
+
+// The region YouTube Music tailors its catalogue to (new releases, charts,
+// what is offered at all). Nobody should get another country's: with no
+// "gl" in the config it follows the interface language, and English or a
+// language without one clear country gets US, YouTube's own default.
+static const char *region(void) {
+	if (gl[0]) {
+		return gl;
+	}
+	static const struct {
+		const char *lang, *gl;
+	} by_lang[] = {
+		{"Čeština", "CZ"},	 {"Deutsch", "DE"},	 {"Español", "ES"},	   {"Français", "FR"},
+		{"Italiano", "IT"},	 {"Japanese", "JP"}, {"Nederlands", "NL"}, {"Polski", "PL"},
+		{"Português BR", "BR"}, {"Russian", "RU"},
+	};
+	const char *ui = lang_current();
+	for (size_t i = 0; ui && i < sizeof(by_lang) / sizeof(by_lang[0]); i++) {
+		if (strcmp(ui, by_lang[i].lang) == 0) {
+			return by_lang[i].gl;
+		}
+	}
+	return "US";
+}
+
 static char player_clients[128];
 static int cover_px = COVER_PX_DEFAULT;
 
@@ -257,7 +282,7 @@ void ytm_init(void) {
 	snprintf(web_remix_version, sizeof(web_remix_version), "%s",
 			 config_get("ytmusic", "web_remix_version", WEB_REMIX_VERSION_DEFAULT));
 	snprintf(hl, sizeof(hl), "%s", config_get("ytmusic", "hl", "en"));
-	snprintf(gl, sizeof(gl), "%s", config_get("ytmusic", "gl", "CZ"));
+	snprintf(gl, sizeof(gl), "%s", config_get("ytmusic", "gl", ""));
 	snprintf(player_clients, sizeof(player_clients), "%s",
 			 config_get("ytmusic", "player_clients", "visionos,visionos_102,android_vr"));
 	cover_px = (int)config_get_int("ytmusic", "cover_size", COVER_PX_DEFAULT);
@@ -510,7 +535,7 @@ static bool music_call(const char *endpoint, const char *query, const char *fiel
 	snprintf(body, body_size,
 			 "{\"context\":{\"client\":{\"clientName\":\"WEB_REMIX\",\"clientVersion\":\"%s\",\"hl\":\"%s\",\"gl\":"
 			 "\"%s\"},\"user\":{}}%s%s}",
-			 web_remix_version, hl, gl, fields && fields[0] ? "," : "", fields ? fields : "");
+			 web_remix_version, hl, region(), fields && fields[0] ? "," : "", fields ? fields : "");
 
 	char auth[TOKEN_MAX + 128];
 	auth_header(auth, sizeof(auth));
@@ -1413,7 +1438,7 @@ static bool try_player(const player_client_t *c, const char *video_id, ytm_strea
 	snprintf(body, sizeof(body),
 			 "{\"context\":{\"client\":%s,\"visitorData\":\"%s\",\"hl\":\"%s\",\"gl\":\"%s\"}},\"videoId\":\"%s\","
 			 "\"contentCheckOk\":true,\"racyCheckOk\":true}",
-			 c->context, visitor, hl, gl, video_id);
+			 c->context, visitor, hl, region(), video_id);
 	char headers[700];
 	snprintf(headers, sizeof(headers), "User-Agent: %s\r\nX-Goog-Api-Format-Version: 2\r\n%s%s%s", c->agent,
 			 visitor[0] ? "X-Goog-Visitor-Id: " : "", visitor, visitor[0] ? "\r\n" : "");
