@@ -21,6 +21,7 @@
 #include "src/gui/fonts/fonts.h"
 #include "src/gui/shell/gui.h"
 #include "src/gui/nowplaying/player.h"
+#include "src/gui/settings/fwupdate.h"
 #include "src/gui/settings/powersettings.h"
 #include "src/gui/settings/settings.h"
 #include "src/system/device/adb.h"
@@ -1951,6 +1952,9 @@ static void test_screen_cb(lv_timer_t *t) {
 		switch_screen(settings_screen);
 	} else if (which && strcmp(which, "player") == 0) {
 		switch_screen(player_screen);
+	} else if (which && strcmp(which, "system") == 0) {
+		extern lv_obj_t *systempage_screen;
+		switch_screen(systempage_screen);
 	} else {
 		switch_screen(streaming_screen);
 	}
@@ -2432,6 +2436,8 @@ int main(int argc, char **argv) {
 	fprintf(stderr, "MARK gui_init\n");
 	gui_init(&gui_cfg);
 	fprintf(stderr, "MARK gui_init done\n");
+	// Beside the stock firmware: look for a newer Sonix once Wi-Fi is up.
+	fwupdate_autocheck_init();
 #ifdef HOST_BUILD
 	// Test hook: SONIX_TEST_SWITCH="font|pack" switches both a few seconds in,
 	// the way a tap in Appearance does, so the live change can be checked.

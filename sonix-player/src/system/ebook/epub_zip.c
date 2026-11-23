@@ -136,6 +136,7 @@ bool epub_zip_open(epub_zip_t *zip, const char *path, epub_arena_t *arena) {
 			break;
 		}
 		uint16_t method = read16(h + 10);
+		uint32_t crc = read32(h + 16);
 		uint32_t comp = read32(h + 20);
 		uint32_t uncomp = read32(h + 24);
 		uint16_t name_len = read16(h + 28);
@@ -157,6 +158,7 @@ bool epub_zip_open(epub_zip_t *zip, const char *path, epub_arena_t *arena) {
 			e->local_offset = local;
 			e->comp_size = comp;
 			e->uncomp_size = uncomp;
+			e->crc32 = crc;
 			e->method = method;
 
 			memcpy(zip->names + name_used, h + CDH_MIN, name_len);

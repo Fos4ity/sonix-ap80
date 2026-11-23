@@ -89,6 +89,26 @@ client_secret = ...
 
 Never share that file or commit it.
 
+### Releases and the updater
+
+Sonix updates itself from this repository's releases
+(`sonix-player/src/system/device/sonixpkg.h`, `ota.c`, `gui/settings/fwupdate.c`).
+It only does so when it runs from the card beside HiBy OS (`/usr/bin/hiby_player`
+exists and the program is `<card>/sonix/sonix_player`). For a release:
+
+1. Set `SONIXPKG_VERSION` in `sonixpkg.h` to the new version, e.g. `"1.3"`, and build.
+2. Tag it `ap80-v1.3`. Releases marked *pre-release* or *draft* are ignored.
+3. Attach the card package under exactly this name: `sonix-ap80-sdcard.zip`
+   (made by `make_sdcard.sh`, zipped from inside the output folder so that
+   `sonix.sh` and `sonix/` are at the top of the zip). GitHub's SHA-256 digest of
+   the asset is required; assets uploaded since mid-2025 have one.
+
+Only `sonix.sh` and files under `sonix/` are installed; anything else in the zip is
+ignored. To test against a real release without a new one, run with
+`SONIX_UPDATE_FAKE_VERSION=1.0`; `SONIX_UPDATE_ROOT=<folder with sonix/ and
+sonix.sh>` makes the simulator act as if it ran from that card, and `[update]
+repo = owner/name` in `device_config.ini` points it at another fork.
+
 ## 3. The boot menu (optional)
 
 Without this step Sonix starts from **TOOLS > Run script > sonix.sh**.

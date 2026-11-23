@@ -33,6 +33,7 @@ typedef struct {
 	uint32_t local_offset; // where the local header sits in the file
 	uint32_t comp_size;
 	uint32_t uncomp_size;
+	uint32_t crc32; // as the directory gives it; the self-updater checks it
 	uint16_t method; // 0 stored, 8 deflate; nothing else is accepted
 } epub_zip_entry_t;
 

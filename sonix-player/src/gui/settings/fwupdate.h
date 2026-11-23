@@ -14,4 +14,10 @@
 
 void fwupdate_show(void);
 
+// Beside the stock firmware (sonixpkg.h) the card updates Sonix itself from
+// its GitHub releases instead: no firmware, no "From SD". This starts the
+// quiet check made once per start, after Wi-Fi connects; the card only
+// appears when a newer release is there. [update] auto_check=false stops it.
+void fwupdate_autocheck_init(void);
+
 #endif /* FWUPDATE_H */

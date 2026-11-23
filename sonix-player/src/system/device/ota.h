@@ -82,6 +82,10 @@ void ota_acknowledge(void);
 bool ota_busy(void);
 
 // The version installed, as system-info.json gives it; "" when unknown.
+// Beside the stock firmware: the Sonix package version (sonixpkg.h).
 const char *ota_installed_version(void);
+
+// Where the last successful download was put.
+const char *ota_download_path(void);
 
 #endif /* OTA_H */

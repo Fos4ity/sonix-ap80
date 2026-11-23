@@ -16,4 +16,8 @@ bool powermenu_is_open(void);
 // lv_async_call rather than from underneath it.
 void powermenu_request_show(void);
 
+// Flushes everything and restarts the device, as the slider does. Used after
+// Sonix updated itself; only logs on the host build.
+void powermenu_reboot(void);
+
 #endif /* POWERMENU_H */

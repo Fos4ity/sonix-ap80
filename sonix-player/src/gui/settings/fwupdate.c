@@ -1,7 +1,9 @@
 #include "fwupdate.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "lvgl/lvgl.h"
 
@@ -11,6 +13,11 @@
 #include "src/system/core/lang.h"
 #include "src/system/device/firmware.h"
 #include "src/system/device/ota.h"
+#include "src/gui/shell/powermenu.h"
+#include "src/system/core/config.h"
+#include "src/system/device/sonixpkg.h"
+#include "src/system/net/wifi.h"
+#include <unistd.h>
 #include "src/system/device/power.h"
 #include "src/system/device/sysinfo.h"
 
@@ -46,7 +53,24 @@ static action_fn button_actions[BUTTONS];
 static lv_timer_t *poll_timer;
 static bool holding_screen;
 
-static enum { PHASE_NONE, PHASE_CHECK, PHASE_DOWNLOAD } phase;
+static enum { PHASE_NONE, PHASE_CHECK, PHASE_DOWNLOAD, PHASE_INSTALL, PHASE_AUTO } phase;
+
+// Sonix updating itself instead of the firmware (sonixpkg.h).
+static bool package_mode(void) { return sonixpkg_active(); }
+
+// The release's version as people say it: "1.1", not the tag "ap80-v1.1".
+static const char *release_version(void) {
+	const char *tag = ota_release()->tag;
+	size_t plen = strlen(SONIXPKG_TAG_PREFIX);
+	if (package_mode() && strncasecmp(tag, SONIXPKG_TAG_PREFIX, plen) == 0) {
+		return tag + plen;
+	}
+	return tag;
+}
+
+static const char *update_title(void) {
+	return tr(package_mode() ? "system_update_sonix" : "system_update_firmware");
+}
 
 static char notes_line[4096];
 
@@ -404,6 +428,19 @@ static void render_notes(const char *md) {
 			continue;
 		}
 
+		// "> text" (a GitHub quote) reads as the text; "> [!CAUTION]" and its
+		// kin are markers GitHub draws as a coloured box, nothing to show here.
+		while (p < end && *p == '>') {
+			p++;
+			while (p < end && *p == ' ') {
+				p++;
+			}
+		}
+		if (p == end || (end - p >= 3 && p[0] == '[' && p[1] == '!' && end[-1] == ']')) {
+			p = next;
+			continue;
+		}
+
 		lv_obj_t *item;
 		if (*p == '#') {
 			while (p < end && *p == '#') {
@@ -463,7 +500,7 @@ static void start_polling(void) {
 static void show_notice(const char *message) {
 	stop_polling();
 	phase = PHASE_NONE;
-	layout(tr("system_update_firmware"), message, false, false);
+	layout(update_title(), message, false, false);
 	set_button(0, "ok", true, close_card);
 	hide_buttons(1);
 }
@@ -474,7 +511,7 @@ static void cancel_running(void) {
 }
 
 static void show_checking(void) {
-	layout(tr("system_update_firmware"), tr("system_update_checking"), false, false);
+	layout(update_title(), tr("system_update_checking"), false, false);
 	set_button(0, "cancel", false, cancel_running);
 	hide_buttons(1);
 }
@@ -529,7 +566,7 @@ static void show_release(void) {
 
 	char size_text[32], message[128];
 	sysinfo_format_size((uint64_t)rel->size, size_text, sizeof(size_text));
-	snprintf(message, sizeof(message), tr("system_update_version_size"), rel->tag, size_text);
+	snprintf(message, sizeof(message), tr("system_update_version_size"), release_version(), size_text);
 
 	layout(PRODUCT_NAME, message, true, false);
 
@@ -537,7 +574,7 @@ static void show_release(void) {
 	fit_notes();
 
 	set_button(0, "system_update", true, download_clicked);
-	set_button(1, "cancel", false, close_card);
+	set_button(1, package_mode() ? "system_update_later" : "cancel", false, close_card);
 	hide_buttons(2);
 }
 
@@ -555,6 +592,66 @@ static void show_installing(void) {
 	lv_timer_set_repeat_count(t, 1);
 }
 
+// ---------------------------------------------------------------------------
+// Sonix's own package: unpack, then offer the restart
+// ---------------------------------------------------------------------------
+
+static char done_text[512];
+
+static void restart_clicked(void) {
+	close_card();
+	powermenu_reboot();
+}
+
+static void show_unpack_progress(void) {
+	int done = 0, total = 0;
+	sonixpkg_progress(&done, &total);
+	int permille = total > 0 ? done * 1000 / total : 0;
+	lv_bar_set_value(bar, permille, LV_ANIM_OFF);
+}
+
+static void start_package_install(void) {
+	const char *zip = ota_download_path();
+	if (!sonixpkg_install_start(zip)) {
+		show_notice(tr("system_update_busy"));
+		return;
+	}
+	phase = PHASE_INSTALL;
+	layout(PRODUCT_NAME, tr("system_update_unpacking"), false, true);
+	lv_bar_set_value(bar, 0, LV_ANIM_OFF);
+	hide_buttons(0); // the card must not be left half-written: no Cancel
+	start_polling();
+}
+
+static void install_finished(pkg_result_t r) {
+	// The downloaded zip was only the carrier; the files it replaced are in
+	// the backup folder.
+	unlink(ota_download_path());
+	sync();
+
+	const char *backup = sonixpkg_backup_name();
+	switch (r) {
+	case PKG_OK:
+		if (sonixpkg_changed() > 0) {
+			snprintf(done_text, sizeof(done_text), tr("system_update_sonix_done"), release_version(), backup);
+		} else {
+			snprintf(done_text, sizeof(done_text), tr("system_update_sonix_same"), release_version());
+		}
+		layout(PRODUCT_NAME, done_text, false, false);
+		set_button(0, "system_update_restart", true, restart_clicked);
+		set_button(1, "system_update_later", false, close_card);
+		hide_buttons(2);
+		break;
+	case PKG_PARTIAL:
+		snprintf(done_text, sizeof(done_text), tr("system_update_partial"), backup[0] ? backup : "-");
+		show_notice(done_text);
+		break;
+	default:
+		show_notice(tr("system_update_install_failed"));
+		break;
+	}
+}
+
 static void check_finished(ota_result_t r) {
 	char text[160];
 	switch (r) {
@@ -562,7 +659,7 @@ static void check_finished(ota_result_t r) {
 		show_release();
 		break;
 	case OTA_UP_TO_DATE:
-		snprintf(text, sizeof(text), tr("system_update_up_to_date"),
+		snprintf(text, sizeof(text), tr(package_mode() ? "system_update_sonix_up_to_date" : "system_update_up_to_date"),
 				 ota_installed_version()[0] ? ota_installed_version() : "?");
 		show_notice(text);
 		break;
@@ -581,7 +678,11 @@ static void check_finished(ota_result_t r) {
 static void download_finished(ota_result_t r) {
 	switch (r) {
 	case OTA_OK:
-		show_installing();
+		if (package_mode()) {
+			start_package_install();
+		} else {
+			show_installing();
+		}
 		break;
 	case OTA_NO_CARD:
 		show_notice(tr("system_no_card"));
@@ -601,8 +702,22 @@ static void download_finished(ota_result_t r) {
 	}
 }
 
+static void show_card(void);
+
 static void poll_cb(lv_timer_t *timer) {
 	(void)timer;
+	if (phase == PHASE_INSTALL) {
+		if (sonixpkg_state() != PKG_FINISHED) {
+			show_unpack_progress();
+			return;
+		}
+		pkg_result_t pr = sonixpkg_result();
+		sonixpkg_acknowledge();
+		stop_polling();
+		phase = PHASE_NONE;
+		install_finished(pr);
+		return;
+	}
 	ota_state_t s = ota_state();
 	if (s == OTA_DOWNLOADING && phase == PHASE_DOWNLOAD) {
 		show_progress();
@@ -618,7 +733,14 @@ static void poll_cb(lv_timer_t *timer) {
 	stop_polling();
 	phase = PHASE_NONE;
 
-	if (finished == PHASE_CHECK) {
+	if (finished == PHASE_AUTO) {
+		// The quiet check at start: only a newer release is worth a word.
+		printf("update: automatic check finished (%d)\n", (int)r);
+		if (r == OTA_OK) {
+			show_card();
+			show_release();
+		}
+	} else if (finished == PHASE_CHECK) {
 		check_finished(r);
 	} else if (finished == PHASE_DOWNLOAD) {
 		download_finished(r);
@@ -654,17 +776,45 @@ static void sd_clicked(void) {
 }
 
 static void show_choice(void) {
-	layout(tr("system_update_firmware"), NULL, false, false);
+	if (package_mode()) {
+		// Only one way to update Sonix, and no firmware is flashed from here.
+		online_clicked();
+		return;
+	}
+	layout(update_title(), NULL, false, false);
 	set_button(0, "system_update_online", true, online_clicked);
 	set_button(1, "system_update_from_sd", false, sd_clicked);
 	set_button(2, "cancel", false, close_card);
+}
+
+static void show_card(void) {
+	if (!veil) {
+		build();
+	}
+	lv_obj_set_hidden(veil, false);
+	lv_obj_move_foreground(veil);
+	if (!holding_screen) {
+		holding_screen = true;
+		power_hold_screen_on(true);
+	}
 }
 
 void fwupdate_show(void) {
 	if (!veil) {
 		build();
 	}
-	phase = PHASE_NONE;
+	if (phase == PHASE_AUTO) {
+		// The quiet check is already asking GitHub: show it instead of a
+		// second one.
+		phase = PHASE_CHECK;
+		show_checking();
+		show_card();
+		return;
+	}
+	if (phase != PHASE_NONE) {
+		show_card(); // a download or an install is on the card already
+		return;
+	}
 	show_choice();
 	lv_obj_set_hidden(veil, false);
 	lv_obj_move_foreground(veil);
@@ -672,4 +822,44 @@ void fwupdate_show(void) {
 		holding_screen = true;
 		power_hold_screen_on(true);
 	}
+}
+
+// ---------------------------------------------------------------------------
+// the quiet check at start
+// ---------------------------------------------------------------------------
+
+#define AUTOCHECK_PERIOD_MS 15000
+// Not in the first moments: the library scan and the Wi-Fi bring-up come first.
+#define AUTOCHECK_FIRST_MS 30000
+
+static lv_timer_t *autocheck_timer;
+
+static void autocheck_cb(lv_timer_t *timer) {
+	lv_timer_set_period(timer, AUTOCHECK_PERIOD_MS);
+	if (phase != PHASE_NONE || ota_busy()) {
+		return; // the user is updating already, or a check is running
+	}
+#ifndef HOST_BUILD
+	wifi_status_t wifi;
+	wifi_get_status(&wifi);
+	if (wifi.state != WIFI_STATE_CONNECTED) {
+		return; // try again when Wi-Fi is up
+	}
+#endif
+	if (!ota_check_start()) {
+		return;
+	}
+	phase = PHASE_AUTO;
+	start_polling();
+	// Once per start.
+	lv_timer_delete(timer);
+	autocheck_timer = NULL;
+}
+
+void fwupdate_autocheck_init(void) {
+	if (!package_mode() || !config_get_bool("update", "auto_check", true) || autocheck_timer) {
+		return;
+	}
+	const char *first = getenv("SONIX_UPDATE_FIRST_MS");
+	autocheck_timer = lv_timer_create(autocheck_cb, first ? (uint32_t)atoi(first) : AUTOCHECK_FIRST_MS, NULL);
 }

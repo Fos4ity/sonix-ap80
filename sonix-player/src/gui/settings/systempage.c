@@ -19,6 +19,7 @@
 #include "src/system/audio/headset.h"
 #include "src/system/core/lang.h"
 #include "src/system/device/power.h"
+#include "src/system/device/sonixpkg.h"
 #include "src/system/device/sysinfo.h"
 #include "src/system/device/system.h"
 
@@ -62,6 +63,14 @@ static void firmware_clicked_cb(lv_event_t *e) {
 	}
 
 	fwupdate_show();
+}
+
+static lv_obj_t *auto_switch;
+
+static void auto_check_cb(lv_event_t *e) {
+	(void)e;
+	config_set_bool("update", "auto_check", lv_obj_has_state(auto_switch, LV_STATE_CHECKED));
+	config_save();
 }
 
 // ---------------------------------------------------------------------------
@@ -281,6 +290,13 @@ static void build_sysinfo_page(gui_config_t *cfg) {
 	easteregg_attach(os_row);
 
 	// Five taps reveal the developer options.
+	if (sonixpkg_active()) {
+		// The SD card package this program belongs to, as the release tags it.
+		lv_obj_t *pkg_value = NULL;
+		settingsrow_add(container, "system_sonix_version", &pkg_value, NULL, NULL);
+		lv_label_set_text(pkg_value, sonixpkg_version());
+	}
+
 	lv_obj_t *build_value = NULL;
 	settingsrow_add(container, "system_build_number", &build_value, build_tapped_cb, NULL);
 	const char *build = sysinfo_build_version();
@@ -300,7 +316,17 @@ void systempage_init(gui_config_t *cfg) {
 
 	settingsrow_add(container, "system_about", NULL, switch_screen_cb, sysinfo_screen);
 	// Actions, not pages: settingsrow_action leaves off the chevron.
-	settingsrow_action(container, "system_update_firmware", firmware_clicked_cb, NULL);
+	if (sonixpkg_active()) {
+		// Beside the stock firmware this updates Sonix on the card, never the
+		// firmware itself.
+		settingsrow_action(container, "system_update_sonix", firmware_clicked_cb, NULL);
+		settingsrow_toggle(container, "system_update_auto", &auto_switch, auto_check_cb);
+		if (config_get_bool("update", "auto_check", true)) {
+			lv_obj_add_state(auto_switch, LV_STATE_CHECKED);
+		}
+	} else {
+		settingsrow_action(container, "system_update_firmware", firmware_clicked_cb, NULL);
+	}
 	settingsrow_action(container, "system_factory_reset", factory_clicked_cb, NULL);
 
 	switcher_attach_back_gesture(systempage_screen);

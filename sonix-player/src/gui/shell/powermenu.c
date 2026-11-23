@@ -132,6 +132,14 @@ static void do_reboot(void) {
 	execl("/bin/sh", "sh", "-c", "reboot", (char *)NULL);
 }
 
+void powermenu_reboot(void) {
+#ifdef HOST_BUILD
+	printf("power: reboot requested (host build: not done)\n");
+#else
+	do_reboot();
+#endif
+}
+
 static void cancel_cb(lv_event_t *e) {
 	(void)e;
 	hide();

@@ -10,10 +10,12 @@
 #include <sys/statvfs.h>
 #include <unistd.h>
 
+#include "src/system/core/config.h"
 #include "src/system/core/json.h"
 #include "src/system/core/sha256.h"
 #include "src/system/core/utils.h"
 #include "src/system/device/firmware.h"
+#include "src/system/device/sonixpkg.h"
 #include "src/system/device/sysinfo.h"
 #include "src/system/device/system.h"
 #include "src/system/net/http.h"
@@ -50,6 +52,12 @@ static char *notes_text;
 // Set on the interface thread when a check starts.
 static char repo[128];
 static char stem[64];
+// Beside the stock firmware (sonixpkg.h): the asset is the SD card package,
+// tags carry SONIXPKG_TAG_PREFIX, and the file goes to the card as
+// sonix-update.zip for sonixpkg_install(). Never a .upt.
+static bool package_mode;
+static char asset_name[96];
+static char download_path[600];
 
 static unsigned char chunk[64 * 1024];
 
@@ -136,7 +144,11 @@ void ota_progress(long *done, long *total) {
 
 const ota_release_t *ota_release(void) { return &release; }
 
-const char *ota_installed_version(void) { return sysinfo_os_version(); }
+const char *ota_installed_version(void) {
+	return sonixpkg_active() ? sonixpkg_version() : sysinfo_os_version();
+}
+
+const char *ota_download_path(void) { return download_path; }
 
 // ---------------------------------------------------------------------------
 // versions
@@ -197,8 +209,7 @@ static void trim_partial_utf8(char *s) {
 
 // The asset named "<stem>.upt" in release `rel`, -1 when there is none.
 static int find_asset(const json_doc_t *doc, int rel) {
-	char wanted[80];
-	snprintf(wanted, sizeof(wanted), "%s.upt", stem);
+	const char *wanted = asset_name;
 
 	int assets = json_get(doc, rel, "assets");
 	int count = json_len(doc, assets);
@@ -237,7 +248,18 @@ static ota_result_t pick_release(const json_doc_t *doc) {
 		}
 		char tag[32];
 		long version[VERSION_PARTS];
-		if (!json_obj_str(doc, rel, "tag_name", tag, sizeof(tag)) || !parse_version(tag, version)) {
+		if (!json_obj_str(doc, rel, "tag_name", tag, sizeof(tag))) {
+			continue;
+		}
+		const char *number = tag;
+		if (package_mode) {
+			size_t plen = strlen(SONIXPKG_TAG_PREFIX);
+			if (strncasecmp(tag, SONIXPKG_TAG_PREFIX, plen) != 0) {
+				continue;
+			}
+			number = tag + plen;
+		}
+		if (!parse_version(number, version)) {
 			continue;
 		}
 		if (version_cmp(version, best) <= 0) {
@@ -245,7 +267,7 @@ static ota_result_t pick_release(const json_doc_t *doc) {
 		}
 		int asset = find_asset(doc, rel);
 		if (asset < 0) {
-			printf("ota: %s has no %s.upt, skipped\n", tag, stem);
+			printf("ota: %s has no %s, skipped\n", tag, asset_name);
 			continue;
 		}
 		memcpy(best, version, sizeof(best));
@@ -291,6 +313,12 @@ static ota_result_t pick_release(const json_doc_t *doc) {
 	if (release.size <= 0 || strncmp(release.url, "https://", 8) != 0) {
 		return OTA_CHECK_FAILED;
 	}
+	// The package replaces the program itself: without a checksum to hold it
+	// to, it is not installed at all.
+	if (package_mode && !release.sha256[0]) {
+		printf("ota: %s has no sha256 digest, refused\n", release.tag);
+		return OTA_CHECK_FAILED;
+	}
 	release_valid = true;
 	printf("ota: %s (%s) available, %ld bytes, sha256 %s\n", release.tag, release.name, release.size,
 		   release.sha256[0] ? release.sha256 : "not published");
@@ -300,16 +328,20 @@ static ota_result_t pick_release(const json_doc_t *doc) {
 static ota_result_t do_check(void) {
 	wifi_status_t wifi;
 	wifi_get_status(&wifi);
+#ifndef HOST_BUILD
 	if (wifi.state != WIFI_STATE_CONNECTED) {
 		return OTA_NO_NETWORK;
 	}
+#else
+	(void)wifi; // the simulator has the PC's network
+#endif
 	if (!stem[0]) {
 		return OTA_NO_MODEL;
 	}
 
 	char url[256];
 	snprintf(url, sizeof(url), "https://api.github.com/repos/%s/releases?per_page=20", repo);
-	printf("ota: checking %s, installed '%s', file %s.upt\n", url, ota_installed_version(), stem);
+	printf("ota: checking %s, installed '%s', file %s\n", url, ota_installed_version(), asset_name);
 
 	char *body = NULL;
 	size_t body_len = 0;
@@ -349,10 +381,19 @@ bool ota_check_start(void) {
 	}
 	release_valid = false;
 
-	const char *r = sysinfo_ota_repo();
-	snprintf(repo, sizeof(repo), "%s", r[0] ? r : DEFAULT_REPO);
-	const char *s = firmware_update_stem();
-	snprintf(stem, sizeof(stem), "%s", s ? s : "");
+	package_mode = sonixpkg_active();
+	if (package_mode) {
+		const char *r = config_get("update", "repo", "");
+		snprintf(repo, sizeof(repo), "%s", r && r[0] ? r : SONIXPKG_REPO);
+		snprintf(stem, sizeof(stem), "sonix");
+		snprintf(asset_name, sizeof(asset_name), "%s", SONIXPKG_ASSET);
+	} else {
+		const char *r = sysinfo_ota_repo();
+		snprintf(repo, sizeof(repo), "%s", r[0] ? r : DEFAULT_REPO);
+		const char *s = firmware_update_stem();
+		snprintf(stem, sizeof(stem), "%s", s ? s : "");
+		snprintf(asset_name, sizeof(asset_name), "%s.upt", stem);
+	}
 
 	pthread_t thread;
 	if (pthread_create(&thread, NULL, check_thread, NULL) != 0) {
@@ -389,7 +430,7 @@ static void remove_old_files(const char *root) {
 }
 
 static ota_result_t do_download(void) {
-	const char *root = storage_sd_root();
+	const char *root = package_mode ? sonixpkg_root() : storage_sd_root();
 	if (!root || !*root) {
 		return OTA_NO_CARD;
 	}
@@ -398,13 +439,20 @@ static ota_result_t do_download(void) {
 	if (statvfs(root, &vfs) == 0) {
 		unsigned long long unit = vfs.f_frsize ? vfs.f_frsize : vfs.f_bsize;
 		unsigned long long avail = (unsigned long long)vfs.f_bavail * unit;
-		if (avail < (unsigned long long)release.size + SPACE_MARGIN) {
+		// The package also needs room for the files it unpacks beside the old
+		// ones: about twice the zip.
+		unsigned long long need = (unsigned long long)release.size * (package_mode ? 3 : 1) + SPACE_MARGIN;
+		if (avail < need) {
 			return OTA_NO_SPACE;
 		}
 	}
 
 	char final_path[600], part_path[620];
-	snprintf(final_path, sizeof(final_path), "%s/%s.upt", root, stem);
+	if (package_mode) {
+		snprintf(final_path, sizeof(final_path), "%s/sonix-update.zip", root);
+	} else {
+		snprintf(final_path, sizeof(final_path), "%s/%s.upt", root, stem);
+	}
 	snprintf(part_path, sizeof(part_path), "%s.part", final_path);
 
 	FILE *f = fopen(part_path, "wb");
@@ -489,12 +537,17 @@ static ota_result_t do_download(void) {
 		return r;
 	}
 
-	remove_old_files(root);
+	if (!package_mode) {
+		remove_old_files(root);
+	} else {
+		unlink(final_path); // our own earlier download, if one was left
+	}
 	if (rename(part_path, final_path) != 0) {
 		printf("ota: cannot rename %s\n", part_path);
 		unlink(part_path);
 		return OTA_DOWNLOAD_FAILED;
 	}
+	snprintf(download_path, sizeof(download_path), "%s", final_path);
 	sync();
 	printf("ota: %s ready (%ld bytes%s)\n", final_path, done, release.sha256[0] ? ", sha256 matches" : "");
 	return OTA_OK;
