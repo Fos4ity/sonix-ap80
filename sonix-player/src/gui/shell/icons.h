@@ -30,6 +30,7 @@ extern lv_image_dsc_t icon_autoeq_update;
 extern lv_image_dsc_t icon_repeat_all;
 extern lv_image_dsc_t icon_repeat_one;
 extern lv_image_dsc_t icon_repeat_off;
+extern lv_image_dsc_t icon_repeat_stop;
 extern lv_image_dsc_t icon_play;
 extern lv_image_dsc_t icon_pause;
 extern lv_image_dsc_t icon_stop;

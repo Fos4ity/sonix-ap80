@@ -23,6 +23,7 @@ iconpack_entry_t iconpack_table[] = {
 	{&icon_repeat_all, "repeat", true},
 	{&icon_repeat_one, "repeat-1", true},
 	{&icon_repeat_off, "repeat-off", true},
+	{&icon_repeat_stop, "repeat-stop", true},
 	{&icon_play, "play", true},
 	{&icon_pause, "pause", true},
 	{&icon_stop, "stop", true},
