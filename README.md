@@ -78,6 +78,18 @@ follows the language you pick in Sonix (English: US). Signing in (likes, your
 playlists) needs your own Google OAuth client, see
 [ap80/BUILD.md](https://github.com/Fos4ity/sonix-ap80/blob/ap80/ap80/BUILD.md#streaming-keys); without one there is no sign-in button.
 
+**Updates** come straight from this repository's [Releases](https://github.com/Fos4ity/sonix-ap80/releases).
+About half a minute after Sonix starts and Wi-Fi is connected, it asks GitHub once
+whether a newer release is out and, if so, shows its notes with *Update* and *Later*.
+You can also look yourself in *Settings > System > Update Sonix*, and switch the
+automatic look off there. An update downloads the SD card package, checks its
+SHA-256 against the one GitHub publishes, and replaces only the files in `sonix/`
+and `sonix.sh` that changed. The old copies are moved, not deleted, into a folder
+`sonix-zaloha-<old version>` on the card (with a list, `zmeny.txt`), so you can put
+any of them back. Your settings, sign-ins and anything else of yours in `sonix/`
+are left alone. Then restart the player. The boot menu (the `.upt` firmware) is
+never updated this way: that stays a manual step in HiBy OS.
+
 ## If something goes wrong
 
 - **Sonix does not appear in the menu:** `sonix.sh` is not in the root of the card (see step 1).
