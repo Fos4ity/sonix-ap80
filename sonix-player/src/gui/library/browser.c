@@ -1,4 +1,5 @@
 #include "browser.h"
+#include "browserstate.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -34,6 +35,7 @@
 #include "src/system/core/lang.h"
 #include "src/system/core/utils.h"
 #include "src/gui/shell/azindex.h"
+#include "src/system/core/config.h"
 #include "src/system/library/library.h"
 
 // ---------------------------------------------------------------------------
@@ -113,6 +115,64 @@ static char current_path[512];
 
 static lv_obj_t *title_label;
 static gui_config_t *config;
+
+// How the folder and scroll are kept, and when they are written.
+//
+// The boot does not decide the folder: "remember track" restores the track a
+// moment after the interface is built, so the choice is made the first time the
+// page is opened (browser_refresh), by which time the track is there. Nothing
+// is written before a listing has actually loaded -- a late card or an empty
+// root must not erase what was remembered.
+static bool browser_started;
+static bool browser_user_chose;
+static bool listing_loaded;
+static bool suppress_scroll_save;
+static bool save_after_listing;
+static bool browser_state_dirty;
+static lv_timer_t *state_timer;
+
+// Scroll positions remembered while walking DOWN the tree, restored on the
+// way back up -- so going into an album and back does not land at the top of
+// a long folder. One slot per depth level. Declared here because the state
+// writer below stores them alongside the current folder.
+#define SCROLL_STACK_DEPTH BROWSER_STATE_STACK_MAX
+static int scroll_stack[SCROLL_STACK_DEPTH];
+static int scroll_stack_len;
+static int pending_scroll = -1; // applied by adopt_listing() when >= 0
+
+static bool state_file_path(char *out, size_t size) {
+	const char *path = config_path();
+	if (!path) {
+		return false;
+	}
+	int n = snprintf(out, size, "%s.browser", path);
+	return n >= 0 && (size_t)n < size;
+}
+
+static void save_browser_state(void) {
+	if (!browser_state_dirty || !listing_loaded) {
+		return;
+	}
+	char file[1024];
+	if (state_file_path(file, sizeof(file)) && browser_state_save(file, current_path, lv_obj_get_scroll_y(file_list), scroll_stack, scroll_stack_len)) {
+		browser_state_dirty = false;
+	}
+}
+
+static void state_timer_cb(lv_timer_t *timer) {
+	save_browser_state();
+	lv_timer_pause(timer);
+}
+
+// The position belongs to the folder being left: put it down before the path
+// changes, and have the new listing written once it has actually loaded.
+static void browser_user_navigation(void) {
+	browser_user_chose = true;
+	save_browser_state();
+	save_after_listing = true;
+}
+
+static void browser_open_dir(const char *path);
 
 // ---------------------------------------------------------------------------
 // the entries
@@ -454,6 +514,13 @@ static void list_scroll_cb(lv_event_t *e) {
 	window_update();
 	azindex_flash(az_index);
 
+	if (browser_started && listing_loaded && !suppress_scroll_save && state_timer && lv_screen_active() == browser_screen) {
+		browser_user_chose = true;
+		browser_state_dirty = true;
+		lv_timer_reset(state_timer);
+		lv_timer_resume(state_timer);
+	}
+
 	if (thumb_timer) {
 		lv_timer_resume(thumb_timer);
 	}
@@ -555,16 +622,6 @@ static bool is_playable_file(const char *name) {
 	}
 	return false;
 }
-
-static void browser_open_dir(const char *path);
-
-// Scroll positions remembered while walking DOWN the tree, restored on the
-// way back up -- so going into an album and back does not land at the top of
-// a long folder. One slot per depth level.
-#define SCROLL_STACK_DEPTH 12
-static int scroll_stack[SCROLL_STACK_DEPTH];
-static int scroll_stack_len;
-static int pending_scroll = -1; // applied by adopt_listing() when >= 0
 
 // Which row the pointer is over, or -1. The pool of row objects is reused as
 // the list scrolls, so a row's index has to be looked up rather than carried.
@@ -884,6 +941,10 @@ static void sel_close_cb(lv_event_t *e) {
 
 static void screen_unloaded_cb(lv_event_t *e) {
 	(void)e;
+	save_browser_state();
+	if (state_timer) {
+		lv_timer_pause(state_timer); // nothing is moving on a page that is gone
+	}
 	selection_stop();
 }
 
@@ -912,6 +973,7 @@ static void entry_clicked_cb(lv_event_t *e) {
 			scroll_stack[scroll_stack_len++] = lv_obj_get_scroll_y(file_list);
 		}
 		pending_scroll = -1;
+		browser_user_navigation();
 		browser_open_dir(full_path);
 	} else {
 		player_play_file(full_path);
@@ -956,6 +1018,9 @@ static void update_corner_buttons(void) {
 
 static void root_button_cb(lv_event_t *e) {
 	(void)e;
+	browser_user_navigation();
+	scroll_stack_len = 0;
+	pending_scroll = -1;
 	browser_open_dir(root_path);
 }
 
@@ -1009,9 +1074,99 @@ static void shuffle_button_cb(lv_event_t *e) {
 	switch_screen(player_screen);
 }
 
-void browser_open_dir_public(const char *path) { browser_open_dir(path); }
+void browser_open_dir_public(const char *path) {
+	browser_user_navigation();
+	// A direct open is not a step down from the folder on screen, so the old
+	// ancestor scrolls no longer describe the walk back from here.
+	scroll_stack_len = 0;
+	pending_scroll = -1;
+	browser_open_dir(path);
+}
+
+#ifdef HOST_BUILD
+// The simulator's test hook: scroll the list as a finger would, so the
+// debounced state write can be exercised without a pointer.
+void browser_test_scroll(int y) {
+	if (file_list) {
+		lv_obj_scroll_to_y(file_list, y, LV_ANIM_OFF);
+	}
+}
+
+void browser_test_open_child(const char *path) {
+	if (!path || !path[0]) {
+		return;
+	}
+	if (scroll_stack_len < SCROLL_STACK_DEPTH) {
+		scroll_stack[scroll_stack_len++] = lv_obj_get_scroll_y(file_list);
+	}
+	pending_scroll = -1;
+	browser_user_navigation();
+	browser_open_dir(path);
+}
+#endif
+
+// For a normal power-off or restart, which does not come back through the
+// interface: the debounced write may still be waiting.
+void browser_state_flush(void) { save_browser_state(); }
 
 void browser_refresh(void) {
+	// The first open chooses the folder. A later open may do so again until
+	// the user has actually moved or scrolled: the card can be mounted after
+	// the first open (it was not there for the fallback to find), and the
+	// remembered folder should then be picked up rather than lost for the
+	// session.
+	if (!browser_started || !browser_user_chose) {
+		// The remembered folder, then the folder of the track "remember
+		// track" has just put back, then Music, then the card root. Nothing
+		// was chosen at boot so that the track is there by the time this asks.
+		char saved[sizeof(current_path)] = "";
+		char track[sizeof(current_path)] = "";
+		char file[1024];
+		char chosen[sizeof(current_path)] = "";
+		int scroll = 0;
+		int saved_scroll = 0;
+		int loaded_stack[BROWSER_STATE_STACK_MAX] = {0};
+		int loaded_stack_len = 0;
+		bool used_saved = false;
+
+		if (state_file_path(file, sizeof(file))) {
+			browser_state_load(file, saved, sizeof(saved), &saved_scroll, loaded_stack, BROWSER_STATE_STACK_MAX, &loaded_stack_len);
+		}
+		if (config_get_int("player", "remember_track", 0)) {
+			char virtual_path[sizeof(track)];
+			double position;
+			if (library_playback_state_load(virtual_path, sizeof(virtual_path), &position)) {
+				cue_split_path(virtual_path, track, sizeof(track));
+			}
+		}
+		if (browser_state_choose(root_path, saved, saved_scroll, track, chosen, sizeof(chosen), &scroll, &used_saved)) {
+			snprintf(current_path, sizeof(current_path), "%s", chosen);
+			pending_scroll = scroll;
+			// The ancestor scrolls belong to the saved folder's branch. Put
+			// them back only when that folder was really chosen: a fallback
+			// to the track, Music or the root must start a fresh walk, or
+			// the first step up would land at a stale position.
+			scroll_stack_len = 0;
+			if (used_saved) {
+				for (int i = 0; i < loaded_stack_len; i++) {
+					scroll_stack[i] = loaded_stack[i];
+				}
+				scroll_stack_len = loaded_stack_len;
+			}
+		} else if (!current_path[0] && strlen(root_path) < sizeof(current_path)) {
+			// Nothing came back at all (a root too long for the buffer): show
+			// the root rather than a page with no listing and no message.
+			snprintf(current_path, sizeof(current_path), "%s", root_path);
+			pending_scroll = 0;
+			scroll_stack_len = 0;
+		}
+		browser_started = true;
+	} else if (listing_loaded) {
+		// Re-read the folder on the way back in (the card may have changed):
+		// put the position down first, and come back to it after the listing.
+		save_browser_state();
+		pending_scroll = lv_obj_get_scroll_y(file_list);
+	}
 	if (current_path[0]) {
 		browser_open_dir(current_path);
 	}
@@ -1045,6 +1200,7 @@ bool browser_go_up(void) {
 	// Going up: restore where this level was left, if it was remembered.
 	pending_scroll = scroll_stack_len > 0 ? scroll_stack[--scroll_stack_len] : -1;
 
+	browser_user_navigation();
 	browser_open_dir(parent);
 	return true;
 }
@@ -1387,6 +1543,8 @@ static void reader_start(void) {
 }
 
 static void browser_open_dir(const char *path) {
+	listing_loaded = false;
+
 	// The chosen rows are entries of the listing about to go.
 	selection_stop();
 
@@ -1512,7 +1670,17 @@ static void adopt_listing(void) {
 	if (target_scroll > max_scroll) {
 		target_scroll = max_scroll > 0 ? max_scroll : 0;
 	}
+	suppress_scroll_save = true;
 	lv_obj_scroll_to_y(file_list, target_scroll, LV_ANIM_OFF);
+	suppress_scroll_save = false;
+	listing_loaded = !failed;
+	if (save_after_listing) {
+		save_after_listing = false;
+		if (listing_loaded) {
+			browser_state_dirty = true;
+			save_browser_state();
+		}
+	}
 
 	if (failed) {
 		set_message("browser_open_failed");
@@ -1738,6 +1906,10 @@ void browser_init(gui_config_t *cfg) {
 
 	thumb_timer = lv_timer_create(thumb_timer_cb, THUMB_TICK_PERIOD_MS, NULL);
 	lv_timer_pause(thumb_timer);
+	state_timer = lv_timer_create(state_timer_cb, 1000, NULL);
+	lv_timer_pause(state_timer);
 
-	browser_open_dir(root_path);
+	// The folder is not read here. Opening the page calls browser_refresh(),
+	// which is late enough for "remember track" to have put its track back and
+	// for the card to have been mounted.
 }
