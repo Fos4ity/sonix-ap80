@@ -1,4 +1,5 @@
 #include "bootlogo.h"
+#include "src/system/device/factoryreset.h"
 
 #include "src/system/core/utils.h"
 #include "src/system/image/art_shrink.h"
@@ -136,6 +137,12 @@ static void *worker_main(void *arg) {
 // Starts the worker, or leaves the running one to pick the request up.
 static void kick(void) {
 	if (access(MTD_DEVICE, W_OK) != 0) {
+		return;
+	}
+	// Beside the stock firmware (AP80 Pro Max) the flash belongs to HiBy OS:
+	// its /dev/mtd5 is not the R3 Pro II's and nothing of Sonix is written
+	// into the player's memory.
+	if (factoryreset_beside_stock()) {
 		return;
 	}
 

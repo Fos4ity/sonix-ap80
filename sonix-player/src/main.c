@@ -22,6 +22,7 @@
 #include "src/gui/shell/gui.h"
 #include "src/gui/nowplaying/player.h"
 #include "src/gui/settings/fwupdate.h"
+#include "src/gui/shell/splash.h"
 #include "src/gui/settings/powersettings.h"
 #include "src/gui/settings/settings.h"
 #include "src/system/device/adb.h"
@@ -2218,6 +2219,8 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 #endif
+	// The start screen instead of a black one while the rest comes up.
+	splash_show();
 
 	// Nothing in HiBy OS mounts the microSD on its own: mdev has no rule for
 	// mmcblk, and sys_server -- the daemon that does the mounting -- only acts
@@ -2358,6 +2361,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "MARK library_open\n");
 		library_open(db_path);
 		fprintf(stderr, "MARK library_open done\n");
+		splash_step(55);
 		// The same file the app downloads: one index, served as it is.
 		sonixlink_set_db_path(db_path);
 
@@ -2433,9 +2437,11 @@ int main(int argc, char **argv) {
 	// they are built, and read before this they all say off, 0 minutes.
 	sleeptimer_init();
 
+	splash_step(75);
 	fprintf(stderr, "MARK gui_init\n");
 	gui_init(&gui_cfg);
 	fprintf(stderr, "MARK gui_init done\n");
+	splash_finish();
 	// Beside the stock firmware: look for a newer Sonix once Wi-Fi is up.
 	fwupdate_autocheck_init();
 #ifdef HOST_BUILD

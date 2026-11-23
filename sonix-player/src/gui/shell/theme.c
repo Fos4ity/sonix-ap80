@@ -347,6 +347,12 @@ static void apply_palette(void) {
 }
 
 void theme_init(void) {
+	// The start screen (splash.c) sets the palette up before gui_init() does.
+	static bool done;
+	if (done) {
+		return;
+	}
+	done = true;
 	lv_style_init(&theme_style_screen);
 	lv_style_set_bg_opa(&theme_style_screen, LV_OPA_COVER);
 
