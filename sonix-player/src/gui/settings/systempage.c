@@ -286,7 +286,13 @@ static void build_sysinfo_page(gui_config_t *cfg) {
 	lv_obj_t *os_value = NULL;
 	lv_obj_t *os_row = settingsrow_add(container, "system_operating_system_version", &os_value, NULL, NULL);
 	const char *os = sysinfo_os_version();
-	lv_label_set_text(os_value, os[0] ? os : "\xE2\x80\x94"); // em dash
+	char os_buf[64];
+	if (os[0]) {
+		snprintf(os_buf, sizeof(os_buf), "SonixOS HUE %s", os);
+		lv_label_set_text(os_value, os_buf);
+	} else {
+		lv_label_set_text(os_value, "SonixOS HUE");
+	}
 	easteregg_attach(os_row);
 
 	// Five taps reveal the developer options.

@@ -82,4 +82,9 @@ void topbar_set_battery_percent(bool shown);
 #define TOPBAR_CLOCK_HIDDEN 3
 void topbar_set_clock_position(int pos);
 
+// Whether the status bar background is transparent (blends into wallpaper)
+// instead of wearing the panel background. Persisted in [screen] topbar_transparent.
+bool topbar_get_transparent(void);
+void topbar_set_transparent(bool transparent);
+
 #endif // TOPBAR_H

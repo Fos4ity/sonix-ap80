@@ -67,6 +67,13 @@ bool fonts_init(void);
 #define FONTS_TEXT_NORMAL 0
 #define FONTS_TEXT_LARGE 1
 
+// Settings -> Appearance -> UI font: built-in default, or a .ttf/.otf font
+// file picked from the microSD card (stored as [ui] font_path).
+void fonts_set_card_root(const char *sd_root);
+void fonts_update_card_root_only(const char *sd_root);
+const char *fonts_get_custom_file(void);
+bool fonts_set_custom_file(const char *path);
+
 // Whether the small sizes are drawn larger (see fonts.c).
 bool fonts_large_text(void);
 

@@ -326,14 +326,64 @@ static int cover_box_w, cover_box_h;   // the artwork spans the full screen widt
 static player_layout_t layout_choice; // the setting, saved in the config
 static bool layout_alt_now;		// and whether the current source can use it
 static bool layout_studio_now;	// likewise for the third arrangement
+static bool layout_compact_now;	// centered smaller square cover
+static bool layout_carousel_now; // centered cover + faded prev/next side covers
 // The shape of the track and the sleeve's colour: up with the alternative
 // layout, and kept when the words are shown over it.
 static bool layout_wave_now;
+
+// Custom art layout widgets (Square, Carousel) — children of cover_panel.
+static lv_obj_t *art_frame;
+static lv_obj_t *carousel_prev_frame;
+static lv_obj_t *carousel_prev_img;
+static lv_obj_t *carousel_prev_note;
+static lv_obj_t *carousel_next_frame;
+static lv_obj_t *carousel_next_img;
+static lv_obj_t *carousel_next_note;
+static cover_image_t carousel_prev_cover;
+static cover_image_t carousel_next_cover;
+static uint32_t carousel_gen;
+
+static void carousel_refresh_sides(void);
+static void apply_custom_art_layout(void);
+
+// Smooth art-only fade-out / fade-in on track switch (~1.2s total).
+#define COVER_FADE_OUT_MS 500
+#define COVER_FADE_IN_MS 700
+static bool cover_fade_pending;
+static bool cover_fade_hide_placeholder;
+static char cover_fade_path[512];
+
+static void cover_opa_anim_cb(void *var, int32_t v) {
+	lv_obj_set_style_image_opa((lv_obj_t *)var, (lv_opa_t)v, 0);
+}
+
+static void cover_fade_in(lv_obj_t *obj) {
+	if (!obj) {
+		return;
+	}
+	lv_anim_delete(obj, cover_opa_anim_cb);
+	lv_obj_set_style_image_opa(obj, LV_OPA_TRANSP, 0);
+	lv_anim_t a;
+	lv_anim_init(&a);
+	lv_anim_set_var(&a, obj);
+	lv_anim_set_exec_cb(&a, cover_opa_anim_cb);
+	lv_anim_set_values(&a, LV_OPA_TRANSP, LV_OPA_COVER);
+	lv_anim_set_duration(&a, COVER_FADE_IN_MS);
+	lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+	lv_anim_start(&a);
+}
 
 static uint32_t album_tone; // the sleeve's colour, 0 when there is no sleeve
 // The setting that has the Standard and Studio arrangements wear the sleeve's
 // colour as their accent too, as Waveform always does.
 static bool cover_accent;
+static player_backdrop_mode_t backdrop_mode = PLAYER_BACKDROP_BLUR;
+static int art_radius = 14;
+static player_art_border_t art_border = PLAYER_ART_BORDER_NONE;
+static bool show_format_badge = true;
+static bool show_queue_pos = true;
+static void apply_player_visual_style(void);
 
 static lv_obj_t *song_text_obj; // the title and artist, wherever they live now
 static lv_obj_t *song_side_obj; // the star and the format, likewise
@@ -2917,6 +2967,159 @@ static void studio_put(void) {
 	studio_refresh_cover();
 }
 
+typedef struct {
+	uint32_t gen;
+	char prev_path[PATH_MAX];
+	char next_path[PATH_MAX];
+	cover_image_t prev_img;
+	cover_image_t next_img;
+} carousel_job_t;
+
+static void carousel_job_done(void *user) {
+	carousel_job_t *job = user;
+	if (job->gen != carousel_gen) {
+		cover_free(&job->prev_img);
+		cover_free(&job->next_img);
+		free(job);
+		return;
+	}
+	if (carousel_prev_img) {
+		lv_image_set_src(carousel_prev_img, NULL);
+	}
+	if (carousel_next_img) {
+		lv_image_set_src(carousel_next_img, NULL);
+	}
+	cover_free(&carousel_prev_cover);
+	cover_free(&carousel_next_cover);
+	carousel_prev_cover = job->prev_img;
+	carousel_next_cover = job->next_img;
+
+	if (carousel_prev_img && carousel_prev_note) {
+		if (carousel_prev_cover.pixels) {
+			lv_image_set_src(carousel_prev_img, &carousel_prev_cover.dsc);
+			lv_obj_set_hidden(carousel_prev_img, false);
+			lv_obj_set_hidden(carousel_prev_note, true);
+			cover_fade_in(carousel_prev_img);
+		} else {
+			lv_obj_set_hidden(carousel_prev_img, true);
+			lv_obj_set_hidden(carousel_prev_note, false);
+		}
+	}
+	if (carousel_next_img && carousel_next_note) {
+		if (carousel_next_cover.pixels) {
+			lv_image_set_src(carousel_next_img, &carousel_next_cover.dsc);
+			lv_obj_set_hidden(carousel_next_img, false);
+			lv_obj_set_hidden(carousel_next_note, true);
+			cover_fade_in(carousel_next_img);
+		} else {
+			lv_obj_set_hidden(carousel_next_img, true);
+			lv_obj_set_hidden(carousel_next_note, false);
+		}
+	}
+	free(job);
+}
+
+static void *carousel_worker(void *arg) {
+	carousel_job_t *job = arg;
+	thread_be_low_priority("carousel");
+	if (job->prev_path[0]) {
+		cover_load_for_file(job->prev_path, 200, 200, COVER_FIT_COVER, &job->prev_img);
+	}
+	if (job->next_path[0]) {
+		cover_load_for_file(job->next_path, 200, 200, COVER_FIT_COVER, &job->next_img);
+	}
+	while (!gui_post(carousel_job_done, job)) {
+		usleep(50 * 1000);
+	}
+	return NULL;
+}
+
+static void carousel_refresh_sides(void) {
+	if (!layout_carousel_now || !carousel_prev_frame || !carousel_next_frame) {
+		return;
+	}
+	carousel_gen++;
+	int n = playlist_count();
+	int idx = playlist_current_index();
+
+	carousel_job_t *job = calloc(1, sizeof(*job));
+	if (!job) {
+		return;
+	}
+	job->gen = carousel_gen;
+	if (n > 1 && idx >= 0) {
+		int prev_idx = (idx - 1 + n) % n;
+		int next_idx = (idx + 1) % n;
+		playlist_path_at(prev_idx, job->prev_path, sizeof(job->prev_path));
+		playlist_path_at(next_idx, job->next_path, sizeof(job->next_path));
+	}
+
+	pthread_t thread;
+	if (pthread_create(&thread, NULL, carousel_worker, job) != 0) {
+		free(job);
+		return;
+	}
+	pthread_detach(thread);
+}
+
+static void apply_custom_art_layout(void) {
+	if (!cover_panel || !cover_img || !art_frame) {
+		return;
+	}
+	bool custom = layout_compact_now || layout_carousel_now;
+
+	// Restore default full-bleed cover_panel state first.
+	lv_obj_set_hidden(art_frame, true);
+	lv_obj_set_hidden(carousel_prev_frame, true);
+	lv_obj_set_hidden(carousel_next_frame, true);
+
+	if (!custom) {
+		lv_obj_set_style_bg_opa(cover_panel, LV_OPA_COVER, 0);
+		lv_obj_set_style_bg_color(cover_panel, theme()->cover_bg, 0);
+		lv_obj_set_parent(cover_img, cover_panel);
+		lv_image_set_scale(cover_img, LV_SCALE_NONE);
+		lv_image_set_rotation(cover_img, 0);
+		lv_obj_center(cover_img);
+		if (cover_placeholder_icon) {
+			lv_obj_set_parent(cover_placeholder_icon, cover_panel);
+			lv_obj_center(cover_placeholder_icon);
+		}
+		return;
+	}
+
+	// Transparent cover_panel so the themed dark screen + wallpaper shows behind it.
+	lv_obj_set_style_bg_opa(cover_panel, LV_OPA_TRANSP, 0);
+
+	int box = layout_carousel_now ? 280 : 300;
+	int top_y = layout_carousel_now ? 116 : 106;
+	lv_obj_set_size(art_frame, box, box);
+	lv_obj_align(art_frame, LV_ALIGN_TOP_MID, 0, top_y);
+	lv_obj_set_style_bg_opa(art_frame, LV_OPA_TRANSP, 0);
+	lv_obj_set_style_radius(art_frame, art_radius, 0);
+	lv_obj_set_hidden(art_frame, false);
+
+	lv_obj_set_parent(cover_img, art_frame);
+	int border_px = (art_border == PLAYER_ART_BORDER_ACCENT) ? 2 : (art_border == PLAYER_ART_BORDER_THEME ? 1 : 0);
+	int inner_box = box - 2 * border_px;
+	uint32_t scale = cover_box_w > 0 ? (uint32_t)((inner_box * 256 + cover_box_w / 2) / cover_box_w) : LV_SCALE_NONE;
+	lv_image_set_scale(cover_img, scale);
+	lv_image_set_rotation(cover_img, 0);
+	lv_obj_center(cover_img);
+	if (cover_placeholder_icon) {
+		lv_obj_set_parent(cover_placeholder_icon, art_frame);
+		lv_obj_center(cover_placeholder_icon);
+	}
+
+	if (layout_carousel_now) {
+		lv_obj_set_style_bg_color(carousel_prev_frame, theme()->surface, 0);
+		lv_obj_set_style_bg_color(carousel_next_frame, theme()->surface, 0);
+		lv_obj_set_hidden(carousel_prev_frame, false);
+		lv_obj_set_hidden(carousel_next_frame, false);
+		lv_obj_move_foreground(art_frame);
+		carousel_refresh_sides();
+	}
+}
+
 // Moves the pieces between the two arrangements.
 //
 // Reparenting and not rebuilding: the title label carries its scrolling, the
@@ -2997,7 +3200,7 @@ static void apply_layout(void) {
 			lv_obj_move_to_index(fav_btn_obj, 0);
 		}
 		if (format_label) {
-			lv_obj_set_hidden(format_label, false);
+			lv_obj_set_hidden(format_label, !show_format_badge);
 		}
 		if (song_side_obj) {
 			lv_obj_set_hidden(song_side_obj, false);
@@ -3036,6 +3239,7 @@ static void apply_layout(void) {
 	} else {
 		lyrics_layout(); // studio_put() places the page itself
 	}
+	apply_custom_art_layout();
 	align_title_with_star(); // the title may have just left its row, or come back to it
 
 	paint_alt_tint();
@@ -3056,17 +3260,22 @@ static void update_layout(const device_state_t *state) {
 	// a file, a cached Qobuz or Tidal track, a podcast, a book, a station.
 	bool local = playing_local_file(state);
 	bool lyrics = lyrics_wanted && local;
-	bool studio = layout_choice == PLAYER_LAYOUT_STUDIO;
-	bool wave = layout_choice == PLAYER_LAYOUT_ALTERNATIVE && local;
-	bool alt = wave;
+	bool studio = false;
+	bool wave = false;
+	bool alt = false;
+	bool compact = layout_choice == PLAYER_LAYOUT_COMPACT;
+	bool carousel = layout_choice == PLAYER_LAYOUT_CAROUSEL;
 
-	if (studio == layout_studio_now && alt == layout_alt_now && wave == layout_wave_now && lyrics == lyrics_allowed &&
-		alt_title_pill) {
+	if (studio == layout_studio_now && alt == layout_alt_now && wave == layout_wave_now &&
+		compact == layout_compact_now && carousel == layout_carousel_now &&
+		lyrics == lyrics_allowed && alt_title_pill) {
 		return;
 	}
 	layout_studio_now = studio;
 	layout_alt_now = alt;
 	layout_wave_now = wave;
+	layout_compact_now = compact;
+	layout_carousel_now = carousel;
 	lyrics_allowed = lyrics;
 	// Up only with words for this very file; while they are still being read,
 	// as they were, so a track change does not take the page down and up again.
@@ -3310,8 +3519,8 @@ static void reload_cover(const char *filepath) {
 		studio_refresh_cover();
 	}
 
-	// Backdrop gone: the chrome goes back to following the theme.
-	set_over_cover(false);
+	// Backdrop gone: the chrome goes back to following the theme (unless Pitch Black).
+	set_over_cover(backdrop_mode == PLAYER_BACKDROP_BLACK);
 	album_tone = 0;
 	paint_alt_tint();
 
@@ -3356,6 +3565,63 @@ static void reload_cover(const char *filepath) {
 // and only an answer that differs from what is on screen costs anything. When
 // it does differ the old cover stays up for the one poll that takes, which
 // still reads better than a placeholder in the gap.
+static void cover_fade_out_done_cb(lv_anim_t *a) {
+	(void)a;
+	if (!cover_fade_pending) {
+		return;
+	}
+	cover_fade_pending = false;
+	cover_fade_hide_placeholder = true;
+	reload_cover(cover_fade_path);
+	if (cover_placeholder_icon && cover_request_outstanding) {
+		lv_obj_set_hidden(cover_placeholder_icon, true);
+	}
+}
+
+static void reload_cover_with_fade(const char *filepath) {
+	if (!cover_img || !current_cover.pixels || !sheet_open ||
+		lv_obj_is_hidden(cover_img)) {
+		cover_fade_pending = false;
+		cover_fade_hide_placeholder = false;
+		reload_cover(filepath);
+		return;
+	}
+	snprintf(cover_fade_path, sizeof(cover_fade_path), "%s", filepath ? filepath : "");
+	cover_fade_pending = true;
+	lv_anim_delete(cover_img, cover_opa_anim_cb);
+	lv_anim_t a;
+	lv_anim_init(&a);
+	lv_anim_set_var(&a, cover_img);
+	lv_anim_set_exec_cb(&a, cover_opa_anim_cb);
+	lv_anim_set_values(&a, lv_obj_get_style_image_opa(cover_img, 0), LV_OPA_TRANSP);
+	lv_anim_set_duration(&a, COVER_FADE_OUT_MS);
+	lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+	lv_anim_set_completed_cb(&a, cover_fade_out_done_cb);
+	lv_anim_start(&a);
+}
+
+static void cover_same_pulse_done_cb(lv_anim_t *a) {
+	(void)a;
+	cover_fade_in(cover_img);
+}
+
+static void cover_pulse_same_art(void) {
+	if (!cover_img || !current_cover.pixels || !sheet_open ||
+		lv_obj_is_hidden(cover_img)) {
+		return;
+	}
+	lv_anim_delete(cover_img, cover_opa_anim_cb);
+	lv_anim_t a;
+	lv_anim_init(&a);
+	lv_anim_set_var(&a, cover_img);
+	lv_anim_set_exec_cb(&a, cover_opa_anim_cb);
+	lv_anim_set_values(&a, lv_obj_get_style_image_opa(cover_img, 0), LV_OPA_TRANSP);
+	lv_anim_set_duration(&a, COVER_FADE_OUT_MS);
+	lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+	lv_anim_set_completed_cb(&a, cover_same_pulse_done_cb);
+	lv_anim_start(&a);
+}
+
 static void refresh_cover(const char *filepath) {
 	if (!cover_img)
 		return;
@@ -3372,7 +3638,7 @@ static void refresh_cover(const char *filepath) {
 
 	cover_id_state = COVER_ID_IDLE;
 	cover_incoming_id = 0;
-	reload_cover(filepath);
+	reload_cover_with_fade(filepath);
 }
 
 // The answer to whichever question was asked, picked up on the progress poll.
@@ -3395,16 +3661,17 @@ static void apply_cover_id_result(void) {
 
 	cover_id_state = COVER_ID_IDLE;
 
-	// The same picture: the cover, the backdrop, the sleeve colour and the
-	// chrome all stay exactly as they are. This is the whole point.
+	// The same picture: keep the decoded pixels, and give a quick art-only
+	// fade-out/fade-in pulse so the track switch still feels tactile.
 	if (id != 0 && id == cover_shown_id) {
+		cover_pulse_same_art();
 		return;
 	}
 
 	// Different, and its id is already known: the decode does not have to be
 	// asked what it produced.
 	cover_incoming_id = id;
-	reload_cover(cover_shown_path);
+	reload_cover_with_fade(cover_shown_path);
 }
 
 // Picks up the worker's finished artwork, if any. Runs on the UI thread from
@@ -3443,16 +3710,24 @@ static void apply_cover_result(void) {
 		lv_obj_set_size(cover_img, current_cover.dsc.header.w, current_cover.dsc.header.h);
 		lv_obj_center(cover_img);
 
+		cover_fade_hide_placeholder = false;
 		cover_show(true);
+		if (sheet_open) {
+			cover_fade_in(cover_img);
+		} else {
+			lv_obj_set_style_image_opa(cover_img, LV_OPA_COVER, 0);
+		}
 
 		if (new_backdrop.pixels) {
 			current_backdrop = new_backdrop;
 			current_backdrop.dsc.data = current_backdrop.pixels;
-			lv_obj_set_style_bg_image_src(player_menu, &current_backdrop.dsc, 0);
+			if (backdrop_mode == PLAYER_BACKDROP_BLUR) {
+				lv_obj_set_style_bg_image_src(player_menu, &current_backdrop.dsc, 0);
+			}
 		}
 
-		// The dark backdrop is up: light chrome, in both themes.
-		set_over_cover(true);
+		// The dark backdrop is up: light chrome, in both themes (unless Theme Solid).
+		set_over_cover(backdrop_mode != PLAYER_BACKDROP_THEME);
 
 		// And the sleeve's own colour, which is what the alternative layout is
 		// drawn in: the one an album's page is painted in (cover_page_tone),
@@ -3479,6 +3754,10 @@ static void apply_cover_result(void) {
 	if (!has_cover) {
 		cover_shown_id = 0; // nothing to compare the next track against
 		lyrics_bg_forget(); // no picture, nothing to blur
+		if (cover_fade_hide_placeholder) {
+			cover_fade_hide_placeholder = false;
+			cover_show(false);
+		}
 	}
 	bar_over_player_update();
 	if (lyrics_progress > 0) {
@@ -3533,12 +3812,21 @@ static void player_refresh_theme(void) {
 	if (!cover_panel)
 		return;
 
+	static bool prev_dark = true;
+	static uint32_t prev_bg = 0;
+	lv_color_t bg = theme()->screen_bg;
+	uint32_t cur_bg = ((uint32_t)bg.red << 16) | ((uint32_t)bg.green << 8) | bg.blue;
+	bool palette_changed = (prev_dark != theme()->dark) || (prev_bg != cur_bg);
+	prev_dark = theme()->dark;
+	prev_bg = cur_bg;
+
 	if (studio_box) {
 		lv_obj_set_style_bg_color(studio_box, theme()->screen_bg, 0);
 	}
 
 	lv_obj_set_style_bg_color(cover_panel, theme()->cover_bg, 0);
 	lv_obj_set_style_image_recolor(cover_placeholder_icon, theme()->text_secondary, 0);
+	apply_custom_art_layout();
 	// The backdrop over a loaded cover is always the dark treatment -- same
 	// look in both themes; only the no-cover panel follows the theme.
 	cover_set_backdrop_light(false);
@@ -3547,10 +3835,13 @@ static void player_refresh_theme(void) {
 	set_over_cover(chrome_over_cover); // repaints the play disc for the new palette
 	update_repeat_button();
 	update_speed_button();
+	apply_player_visual_style();
 
-	device_state_t state;
-	device_state_get(&state);
-	refresh_cover(state.current_file);
+	if (palette_changed) {
+		device_state_t state;
+		device_state_get(&state);
+		refresh_cover(state.current_file);
+	}
 	if (lyrics_pane) {
 		lyrics_look(lyrics_look_on); // the words in the new theme's colours
 	}
@@ -3570,6 +3861,7 @@ static void refresh_now_playing(void) {
 	medialist_notify_now_playing();
 	browser_notify_now_playing();
 	trackmenu_notify_now_playing();
+	carousel_refresh_sides();
 
 	// Wind the progress display back to the start straight away, so the bar
 	// never sits at the previous track's position while the new one loads.
@@ -4435,12 +4727,55 @@ void player_screen_next(void) {
 
 static void prev_btn_event_cb(lv_event_t *e) {
 	(void)e;
+	if (player_sheet_drag_active()) return;
 	player_screen_prev();
 }
 
 static void next_btn_event_cb(lv_event_t *e) {
 	(void)e;
+	if (player_sheet_drag_active()) return;
 	player_screen_next();
+}
+
+static void cover_double_tap_cb(lv_event_t *e) {
+	static uint32_t last_tap_ms;
+	static bool has_tap;
+
+	if (player_sheet_drag_active() || lyrics_swiped || lyrics_now) {
+		has_tap = false;
+		return;
+	}
+
+	lv_obj_t *target = lv_event_get_target(e);
+	if (target == carousel_prev_frame || target == carousel_next_frame) {
+		has_tap = false;
+		return;
+	}
+
+	uint32_t now = lv_tick_get();
+	if (has_tap && lv_tick_elaps(last_tap_ms) <= 350) {
+		has_tap = false;
+		switch (player_double_tap_get()) {
+		case PLAYER_DOUBLE_TAP_NEXT:
+			player_screen_next();
+			break;
+		case PLAYER_DOUBLE_TAP_PLAY_PAUSE:
+			player_key_play_pause();
+			break;
+		case PLAYER_DOUBLE_TAP_FAVOURITE:
+			if (!audiobook_mode) {
+				fav_btn_event_cb(NULL);
+			}
+			break;
+		case PLAYER_DOUBLE_TAP_OFF:
+		default:
+			break;
+		}
+		return;
+	}
+
+	has_tap = true;
+	last_tap_ms = now;
 }
 
 // --- hardware transport keys ---
@@ -4843,6 +5178,7 @@ void player_cover_accent_set(bool on) {
 	config_set_bool("screen", "cover_accent", on);
 	config_save();
 	paint_transport_tint();
+	apply_player_visual_style();
 }
 
 void player_layout_set(player_layout_t layout) {
@@ -4859,6 +5195,154 @@ void player_layout_set(player_layout_t layout) {
 	device_state_t state;
 	device_state_get(&state);
 	update_layout(&state);
+}
+
+static void apply_player_visual_style(void) {
+	if (art_frame) {
+		lv_obj_set_style_radius(art_frame, art_radius, 0);
+		if (art_border == PLAYER_ART_BORDER_ACCENT) {
+			lv_obj_set_style_border_color(art_frame, chrome_accent(), 0);
+			lv_obj_set_style_border_width(art_frame, 2, 0);
+			lv_obj_set_style_border_opa(art_frame, LV_OPA_COVER, 0);
+		} else if (art_border == PLAYER_ART_BORDER_THEME) {
+			lv_obj_set_style_border_color(art_frame, theme()->text_secondary, 0);
+			lv_obj_set_style_border_width(art_frame, 1, 0);
+			lv_obj_set_style_border_opa(art_frame, LV_OPA_60, 0);
+		} else {
+			lv_obj_set_style_border_width(art_frame, 0, 0);
+		}
+	}
+	if (carousel_prev_frame) {
+		lv_obj_set_style_radius(carousel_prev_frame, art_radius, 0);
+		lv_obj_set_style_border_color(carousel_prev_frame, theme()->text_secondary, 0);
+	}
+	if (carousel_next_frame) {
+		lv_obj_set_style_radius(carousel_next_frame, art_radius, 0);
+		lv_obj_set_style_border_color(carousel_next_frame, theme()->text_secondary, 0);
+	}
+
+	if (player_screen && player_menu) {
+		if (backdrop_mode == PLAYER_BACKDROP_BLACK) {
+			lv_obj_set_style_bg_color(player_screen, lv_color_black(), 0);
+			lv_obj_set_style_bg_image_src(player_screen, NULL, 0);
+			lv_obj_set_style_bg_color(player_menu, lv_color_black(), 0);
+			lv_obj_set_style_bg_opa(player_menu, LV_OPA_COVER, 0);
+			lv_obj_set_style_bg_image_src(player_menu, NULL, 0);
+			set_over_cover(true);
+		} else if (backdrop_mode == PLAYER_BACKDROP_THEME) {
+			lv_obj_set_style_bg_color(player_screen, theme()->screen_bg, 0);
+			lv_obj_set_style_bg_image_src(player_screen, NULL, 0);
+			lv_obj_set_style_bg_color(player_menu, theme()->panel, 0);
+			lv_obj_set_style_bg_opa(player_menu, LV_OPA_COVER, 0);
+			lv_obj_set_style_bg_image_src(player_menu, NULL, 0);
+			set_over_cover(false);
+		} else {
+			lv_obj_remove_local_style_prop(player_screen, LV_STYLE_BG_COLOR, 0);
+			lv_obj_remove_local_style_prop(player_screen, LV_STYLE_BG_IMAGE_SRC, 0);
+			lv_obj_remove_local_style_prop(player_menu, LV_STYLE_BG_COLOR, 0);
+			lv_obj_remove_local_style_prop(player_menu, LV_STYLE_BG_OPA, 0);
+			if (current_backdrop.pixels) {
+				lv_obj_set_style_bg_image_src(player_menu, &current_backdrop.dsc, 0);
+				set_over_cover(true);
+			} else {
+				lv_obj_set_style_bg_image_src(player_menu, NULL, 0);
+				set_over_cover(false);
+			}
+		}
+	}
+
+	if (format_label) {
+		lv_obj_set_hidden(format_label, layout_alt_now || !show_format_badge);
+	}
+	if (queue_position_label) {
+		lv_obj_set_hidden(queue_position_label, !show_queue_pos);
+	}
+}
+
+player_backdrop_mode_t player_backdrop_mode_get(void) { return backdrop_mode; }
+
+void player_backdrop_mode_set(player_backdrop_mode_t mode) {
+	if (mode < PLAYER_BACKDROP_BLUR || mode > PLAYER_BACKDROP_BLACK) {
+		mode = PLAYER_BACKDROP_BLUR;
+	}
+	if (backdrop_mode == mode) {
+		return;
+	}
+	backdrop_mode = mode;
+	config_set_int("screen", "player_backdrop_mode", (int)mode);
+	config_save();
+	apply_player_visual_style();
+}
+
+int player_art_radius_get(void) { return art_radius; }
+
+void player_art_radius_set(int px) {
+	if (px != 0 && px != 8 && px != 14 && px != 24) {
+		px = 14;
+	}
+	if (art_radius == px) {
+		return;
+	}
+	art_radius = px;
+	config_set_int("screen", "player_art_radius", px);
+	config_save();
+	apply_player_visual_style();
+}
+
+player_art_border_t player_art_border_get(void) { return art_border; }
+
+void player_art_border_set(player_art_border_t border) {
+	if (border < PLAYER_ART_BORDER_NONE || border > PLAYER_ART_BORDER_ACCENT) {
+		border = PLAYER_ART_BORDER_NONE;
+	}
+	if (art_border == border) {
+		return;
+	}
+	art_border = border;
+	config_set_int("screen", "player_art_border", (int)border);
+	config_save();
+	apply_custom_art_layout();
+	apply_player_visual_style();
+}
+
+bool player_show_format_get(void) { return show_format_badge; }
+
+void player_show_format_set(bool show) {
+	if (show_format_badge == show) {
+		return;
+	}
+	show_format_badge = show;
+	config_set_bool("screen", "player_show_format", show);
+	config_save();
+	apply_player_visual_style();
+}
+
+bool player_show_queue_pos_get(void) { return show_queue_pos; }
+
+void player_show_queue_pos_set(bool show) {
+	if (show_queue_pos == show) {
+		return;
+	}
+	show_queue_pos = show;
+	config_set_bool("screen", "player_show_queue_pos", show);
+	config_save();
+	apply_player_visual_style();
+}
+
+player_double_tap_action_t player_double_tap_get(void) {
+	int v = (int)config_get_int("screen", "player_double_tap", PLAYER_DOUBLE_TAP_NEXT);
+	if (v < PLAYER_DOUBLE_TAP_NEXT || v > PLAYER_DOUBLE_TAP_OFF) {
+		return PLAYER_DOUBLE_TAP_NEXT;
+	}
+	return (player_double_tap_action_t)v;
+}
+
+void player_double_tap_set(player_double_tap_action_t action) {
+	if (action < PLAYER_DOUBLE_TAP_NEXT || action > PLAYER_DOUBLE_TAP_OFF) {
+		action = PLAYER_DOUBLE_TAP_NEXT;
+	}
+	config_set_int("screen", "player_double_tap", (int)action);
+	config_save();
 }
 
 void player_output_unplugged(const char *what) {
@@ -5494,6 +5978,7 @@ void player_init(gui_config_t *cfg) {
 	lv_obj_set_style_shadow_opa(progress_slider, LV_OPA_40, LV_PART_KNOB);
 	lv_obj_set_style_shadow_color(progress_slider, lv_color_black(), LV_PART_KNOB);
 	lv_obj_set_style_shadow_offset_y(progress_slider, 1, LV_PART_KNOB);
+	lv_obj_set_ext_click_area(progress_slider, 30);
 
 	lv_obj_add_event_cb(progress_slider, progress_slider_event_cb, LV_EVENT_ALL, NULL);
 
@@ -5531,6 +6016,7 @@ void player_init(gui_config_t *cfg) {
 	lv_obj_set_style_radius(below_slider_group, 0, 0);
 	lv_obj_set_style_pad_all(below_slider_group, 0, 0);
 	lv_obj_set_scrollable(below_slider_group, false);
+	lv_obj_set_clickable(below_slider_group, false);
 
 	// Elapsed and total time, tucked under the two ends of the bar.
 	elapsed_label = lv_label_create(below_slider_group);
@@ -5677,6 +6163,7 @@ void player_init(gui_config_t *cfg) {
 	cover_panel = lv_obj_create(player_screen);
 	// Dragging the artwork to the right pushes the player back off screen.
 	player_sheet_attach_drag(cover_panel, false);
+	lv_obj_add_event_cb(cover_panel, cover_double_tap_cb, LV_EVENT_CLICKED, NULL);
 	// Studio stretches the panel down over the top of the controls, where the
 	// taller shape of the track can reach: presses there go to the slider.
 	lv_obj_set_adv_hittest(cover_panel, true);
@@ -5802,6 +6289,73 @@ void player_init(gui_config_t *cfg) {
 	lv_obj_center(cover_img);
 	lv_obj_set_hidden(cover_img, true);
 
+	// --- Custom art layout widgets (Square, Carousel, Vinyl) ---
+	art_frame = lv_obj_create(cover_panel);
+	lv_obj_remove_style_all(art_frame);
+	lv_obj_set_size(art_frame, 300, 300);
+	lv_obj_align(art_frame, LV_ALIGN_TOP_MID, 0, 106);
+	lv_obj_set_style_bg_opa(art_frame, LV_OPA_TRANSP, 0);
+	lv_obj_set_style_radius(art_frame, 14, 0);
+	lv_obj_set_style_border_width(art_frame, 0, 0);
+	lv_obj_set_style_clip_corner(art_frame, true, 0);
+	lv_obj_set_scrollable(art_frame, false);
+	lv_obj_set_clickable(art_frame, false);
+	lv_obj_set_hidden(art_frame, true);
+
+	// Carousel left (prev track) faded card
+	carousel_prev_frame = lv_obj_create(cover_panel);
+	lv_obj_remove_style_all(carousel_prev_frame);
+	lv_obj_set_size(carousel_prev_frame, 200, 200);
+	lv_obj_align(carousel_prev_frame, LV_ALIGN_TOP_LEFT, -124, 156);
+	lv_obj_set_style_bg_color(carousel_prev_frame, theme()->surface, 0);
+	lv_obj_set_style_bg_opa(carousel_prev_frame, LV_OPA_COVER, 0);
+	lv_obj_set_style_opa(carousel_prev_frame, LV_OPA_40, 0);
+	lv_obj_set_style_radius(carousel_prev_frame, 12, 0);
+	lv_obj_set_style_border_width(carousel_prev_frame, 1, 0);
+	lv_obj_set_style_border_color(carousel_prev_frame, lv_color_make(127, 110, 110), 0);
+	lv_obj_set_style_clip_corner(carousel_prev_frame, true, 0);
+	lv_obj_set_scrollable(carousel_prev_frame, false);
+	lv_obj_set_event_bubble(carousel_prev_frame, true);
+	lv_obj_add_event_cb(carousel_prev_frame, prev_btn_event_cb, LV_EVENT_CLICKED, NULL);
+	lv_obj_set_hidden(carousel_prev_frame, true);
+
+	carousel_prev_note = lv_image_create(carousel_prev_frame);
+	lv_image_set_src(carousel_prev_note, &icon_music_note);
+	lv_obj_set_style_image_recolor(carousel_prev_note, theme()->text_secondary, 0);
+	lv_obj_set_style_image_recolor_opa(carousel_prev_note, LV_OPA_COVER, 0);
+	lv_obj_center(carousel_prev_note);
+
+	carousel_prev_img = lv_image_create(carousel_prev_frame);
+	lv_obj_center(carousel_prev_img);
+	lv_obj_set_hidden(carousel_prev_img, true);
+
+	// Carousel right (next track) faded card
+	carousel_next_frame = lv_obj_create(cover_panel);
+	lv_obj_remove_style_all(carousel_next_frame);
+	lv_obj_set_size(carousel_next_frame, 200, 200);
+	lv_obj_align(carousel_next_frame, LV_ALIGN_TOP_RIGHT, 124, 156);
+	lv_obj_set_style_bg_color(carousel_next_frame, theme()->surface, 0);
+	lv_obj_set_style_bg_opa(carousel_next_frame, LV_OPA_COVER, 0);
+	lv_obj_set_style_opa(carousel_next_frame, LV_OPA_40, 0);
+	lv_obj_set_style_radius(carousel_next_frame, 12, 0);
+	lv_obj_set_style_border_width(carousel_next_frame, 1, 0);
+	lv_obj_set_style_border_color(carousel_next_frame, lv_color_make(127, 110, 110), 0);
+	lv_obj_set_style_clip_corner(carousel_next_frame, true, 0);
+	lv_obj_set_scrollable(carousel_next_frame, false);
+	lv_obj_set_event_bubble(carousel_next_frame, true);
+	lv_obj_add_event_cb(carousel_next_frame, next_btn_event_cb, LV_EVENT_CLICKED, NULL);
+	lv_obj_set_hidden(carousel_next_frame, true);
+
+	carousel_next_note = lv_image_create(carousel_next_frame);
+	lv_image_set_src(carousel_next_note, &icon_music_note);
+	lv_obj_set_style_image_recolor(carousel_next_note, theme()->text_secondary, 0);
+	lv_obj_set_style_image_recolor_opa(carousel_next_note, LV_OPA_COVER, 0);
+	lv_obj_center(carousel_next_note);
+
+	carousel_next_img = lv_image_create(carousel_next_frame);
+	lv_obj_center(carousel_next_img);
+	lv_obj_set_hidden(carousel_next_img, true);
+
 	// ---------------------------------------------------------------------
 	// Studio: the blurred sleeve behind the whole screen, and everything else
 	// laid out over it.
@@ -5924,13 +6478,31 @@ void player_init(gui_config_t *cfg) {
 	// Whichever arrangement was left selected, now that every widget it moves
 	// exists.
 	int saved = (int)config_get_int("screen", "player_layout_alt", 0);
-	layout_choice = (saved == (int)PLAYER_LAYOUT_ALTERNATIVE)	? PLAYER_LAYOUT_ALTERNATIVE
-					: (saved == (int)PLAYER_LAYOUT_STUDIO)		? PLAYER_LAYOUT_STUDIO
-																: PLAYER_LAYOUT_STANDARD;
+	layout_choice = (saved == (int)PLAYER_LAYOUT_COMPACT)	 ? PLAYER_LAYOUT_COMPACT
+					: (saved == (int)PLAYER_LAYOUT_CAROUSEL) ? PLAYER_LAYOUT_CAROUSEL
+															 : PLAYER_LAYOUT_STANDARD;
 	cover_accent = config_get_bool("screen", "cover_accent", false);
+
+	int bm = (int)config_get_int("screen", "player_backdrop_mode", PLAYER_BACKDROP_BLUR);
+	if (bm < PLAYER_BACKDROP_BLUR || bm > PLAYER_BACKDROP_BLACK) bm = PLAYER_BACKDROP_BLUR;
+	backdrop_mode = (player_backdrop_mode_t)bm;
+
+	art_radius = (int)config_get_int("screen", "player_art_radius", 14);
+	if (art_radius != 0 && art_radius != 8 && art_radius != 14 && art_radius != 24) art_radius = 14;
+
+	int ab = (int)config_get_int("screen", "player_art_border", PLAYER_ART_BORDER_NONE);
+	if (ab < PLAYER_ART_BORDER_NONE || ab > PLAYER_ART_BORDER_ACCENT) ab = PLAYER_ART_BORDER_NONE;
+	art_border = (player_art_border_t)ab;
+
+	show_format_badge = config_get_bool("screen", "player_show_format", true);
+	show_queue_pos = config_get_bool("screen", "player_show_queue_pos", true);
+
 	layout_alt_now = false; // apply_layout() below puts the standard one up first
 	layout_studio_now = false;
+	layout_compact_now = (layout_choice == PLAYER_LAYOUT_COMPACT);
+	layout_carousel_now = (layout_choice == PLAYER_LAYOUT_CAROUSEL);
 	apply_layout();
+	apply_player_visual_style();
 
 	theme_register_refresh(player_refresh_theme);
 }

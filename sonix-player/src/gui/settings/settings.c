@@ -289,8 +289,8 @@ static void build_screen_page(gui_config_t *cfg) {
 	// The Adwaita slider: thin round trough, accent fill, white knob.
 	brightness_slider = lv_slider_create(card);
 	lv_obj_set_width(brightness_slider, lv_pct(100));
-	lv_obj_set_height(brightness_slider, 10);
-	lv_obj_align(brightness_slider, LV_ALIGN_BOTTOM_MID, 0, -14);
+	lv_obj_set_height(brightness_slider, 14);
+	lv_obj_align(brightness_slider, LV_ALIGN_BOTTOM_MID, 0, -18);
 	lv_slider_set_range(brightness_slider, BRIGHTNESS_FLOOR, 100);
 
 	lv_obj_set_style_radius(brightness_slider, LV_RADIUS_CIRCLE, LV_PART_MAIN);
@@ -303,7 +303,7 @@ static void build_screen_page(gui_config_t *cfg) {
 	lv_obj_set_style_radius(brightness_slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
 	lv_obj_set_style_bg_color(brightness_slider, lv_color_white(), LV_PART_KNOB);
 	theme_apply_slider_knob(brightness_slider);
-	lv_obj_set_style_pad_all(brightness_slider, 8, LV_PART_KNOB);
+	lv_obj_set_style_pad_all(brightness_slider, 10, LV_PART_KNOB);
 	lv_obj_set_style_shadow_width(brightness_slider, 8, LV_PART_KNOB);
 	lv_obj_set_style_shadow_opa(brightness_slider, LV_OPA_30, LV_PART_KNOB);
 	lv_obj_set_style_shadow_color(brightness_slider, lv_color_black(), LV_PART_KNOB);
@@ -311,7 +311,7 @@ static void build_screen_page(gui_config_t *cfg) {
 
 	// A slim trough is a hard touch target; let the finger land anywhere in
 	// the card's lower half.
-	lv_obj_set_ext_click_area(brightness_slider, 24);
+	lv_obj_set_ext_click_area(brightness_slider, 34);
 
 	lv_obj_add_event_cb(brightness_slider, brightness_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
 	lv_obj_add_event_cb(brightness_slider, brightness_released_cb, LV_EVENT_RELEASED, NULL);

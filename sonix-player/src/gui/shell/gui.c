@@ -16,11 +16,14 @@
 #include "src/gui/wireless/airplay.h"
 #include "src/gui/bluetooth/airpodspage.h"
 #include "src/gui/settings/appearance.h"
+#include "src/gui/settings/menustylepage.h"
+#include "src/gui/settings/playerstylepage.h"
 #include "src/gui/bluetooth/btaudio.h"
 #include "src/gui/bluetooth/btsettings.h"
 #include "src/gui/shell/confirm.h"
 #include "src/gui/shell/corners.h"
 #include "src/gui/settings/bootlogopage.h"
+#include "src/gui/settings/wallpaperpage.h"
 #include "src/gui/settings/kblayoutpage.h"
 #include "src/gui/settings/screensaver.h"
 #include "src/gui/library/audiobookextras.h"
@@ -625,6 +628,8 @@ void gui_init(gui_config_t *cfg) {
 	musicsettings_screen = lv_obj_create(NULL);
 	powersettings_screen = lv_obj_create(NULL);
 	appearance_screen = lv_obj_create(NULL);
+	playerstylepage_screen = lv_obj_create(NULL);
+	menustylepage_screen = lv_obj_create(NULL);
 	language_screen = lv_obj_create(NULL);
 	medialist_screen = lv_obj_create(NULL);
 	medialist_tracks_screen = lv_obj_create(NULL);
@@ -736,6 +741,9 @@ void gui_init(gui_config_t *cfg) {
 	// after devoptions: the system entry opens the page that can unlock it
 	systempage_init(cfg);
 	bootlogopage_init(cfg); // before appearance: its row carries the screen
+	wallpaperpage_init(cfg); // before appearance: its row carries the screen
+	playerstylepage_init(cfg);
+	menustylepage_init(cfg);
 	appearance_init(cfg);
 	language_init(cfg);
 	libraryscan_init(cfg);
@@ -778,6 +786,7 @@ void gui_init(gui_config_t *cfg) {
 	lv_obj_t *const back_swipe_screens[] = {
 		main_menu_screen, music_screen,			browser_screen,	  settings_screen,
 		devoptions_screen, processespage_screen, musicsettings_screen, powersettings_screen, appearance_screen,
+		playerstylepage_screen, menustylepage_screen,
 		language_screen,
 		medialist_screen,  medialist_tracks_screen, medialist_albums_screen, audiobooks_screen, audiobooksettings_screen,
 		queue_screen,	  chapters_screen,		 details_screen,   audiobookcontrols_screen,

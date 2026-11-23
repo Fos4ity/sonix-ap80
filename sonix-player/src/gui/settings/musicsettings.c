@@ -1164,7 +1164,7 @@ static void build_mseb_page(gui_config_t *cfg) {
 	for (int i = 0; i < MSEB_BANDS; i++) {
 		lv_obj_t *card = lv_obj_create(container);
 		lv_obj_set_width(card, lv_pct(100));
-		lv_obj_set_height(card, 104);
+		lv_obj_set_height(card, 116);
 		lv_obj_add_style(card, &theme_style_card, 0);
 		lv_obj_set_style_radius(card, 12, 0);
 		lv_obj_set_style_border_width(card, 0, 0);
@@ -1188,8 +1188,8 @@ static void build_mseb_page(gui_config_t *cfg) {
 
 		lv_obj_t *slider = lv_slider_create(card);
 		lv_obj_set_width(slider, lv_pct(100));
-		lv_obj_set_height(slider, 10);
-		lv_obj_align(slider, LV_ALIGN_BOTTOM_MID, 0, -10);
+		lv_obj_set_height(slider, 14);
+		lv_obj_align(slider, LV_ALIGN_BOTTOM_MID, 0, -14);
 		lv_slider_set_range(slider, -mseb_get_range(), mseb_get_range());
 		// MSEB sliders are bipolar: zero sits in the middle and the coloured
 		// bar grows from there, forwards for positives and backwards for
@@ -1206,7 +1206,7 @@ static void build_mseb_page(gui_config_t *cfg) {
 		lv_obj_set_style_radius(slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
 		lv_obj_set_style_bg_color(slider, lv_color_white(), LV_PART_KNOB);
 		theme_apply_slider_knob(slider);
-		lv_obj_set_style_pad_all(slider, 7, LV_PART_KNOB);
+		lv_obj_set_style_pad_all(slider, 10, LV_PART_KNOB);
 		lv_obj_set_style_shadow_width(slider, 6, LV_PART_KNOB);
 		lv_obj_set_style_shadow_opa(slider, LV_OPA_30, LV_PART_KNOB);
 		lv_obj_set_style_shadow_color(slider, lv_color_black(), LV_PART_KNOB);
@@ -1216,9 +1216,9 @@ static void build_mseb_page(gui_config_t *cfg) {
 		// that begins on the knob; anywhere else on the track the press goes to
 		// the card behind it and scrolls the page.
 		lv_obj_set_adv_hittest(slider, true);
-		// The knob is 24 px across, and with ADV_HITTEST the extended click area
+		// The knob is 34 px across, and with ADV_HITTEST the extended click area
 		// belongs to the knob alone rather than padding the whole track.
-		lv_obj_set_ext_click_area(slider, 18);
+		lv_obj_set_ext_click_area(slider, 32);
 		lv_obj_add_event_cb(slider, mseb_slider_cb, LV_EVENT_VALUE_CHANGED, (void *)(intptr_t)i);
 		lv_obj_add_event_cb(slider, mseb_released_cb, LV_EVENT_RELEASED, NULL);
 
@@ -1734,8 +1734,8 @@ static void cover_accent_cb(lv_event_t *e) {
 // ---------------------------------------------------------------------------
 
 static lv_obj_t *layout_standard_pill;
-static lv_obj_t *layout_alternative_pill;
-static lv_obj_t *layout_studio_pill;
+static lv_obj_t *layout_compact_pill;
+static lv_obj_t *layout_carousel_pill;
 
 static void layout_refresh(void) {
 	if (!layout_standard_pill) {
@@ -1743,8 +1743,8 @@ static void layout_refresh(void) {
 	}
 	player_layout_t chosen = player_layout_get();
 	settingsrow_pill_active(layout_standard_pill, chosen == PLAYER_LAYOUT_STANDARD);
-	settingsrow_pill_active(layout_alternative_pill, chosen == PLAYER_LAYOUT_ALTERNATIVE);
-	settingsrow_pill_active(layout_studio_pill, chosen == PLAYER_LAYOUT_STUDIO);
+	settingsrow_pill_active(layout_compact_pill, chosen == PLAYER_LAYOUT_COMPACT);
+	settingsrow_pill_active(layout_carousel_pill, chosen == PLAYER_LAYOUT_CAROUSEL);
 }
 
 static void layout_pick_cb(lv_event_t *e) {
@@ -1861,10 +1861,10 @@ static void build_nowplaying_page(gui_config_t *cfg) {
 	settingsrow_pills(container, "musicsettings_player_layout", &layout_pills);
 	layout_standard_pill =
 		settingsrow_pill(layout_pills, "musicsettings_layout_standard", PLAYER_LAYOUT_STANDARD, layout_pick_cb);
-	layout_alternative_pill =
-		settingsrow_pill(layout_pills, "musicsettings_layout_alternative", PLAYER_LAYOUT_ALTERNATIVE, layout_pick_cb);
-	layout_studio_pill =
-		settingsrow_pill(layout_pills, "musicsettings_layout_studio", PLAYER_LAYOUT_STUDIO, layout_pick_cb);
+	layout_compact_pill =
+		settingsrow_pill(layout_pills, "Square", PLAYER_LAYOUT_COMPACT, layout_pick_cb);
+	layout_carousel_pill =
+		settingsrow_pill(layout_pills, "Carousel", PLAYER_LAYOUT_CAROUSEL, layout_pick_cb);
 
 	layout_refresh();
 	theme_register_refresh(layout_refresh);

@@ -202,7 +202,7 @@ bool bootlogo_show_now(bool dark, int accent) {
 	}
 	char path[160];
 	snprintf(path, sizeof(path), LOGO_DIR "/%s-theme-%s.jpeg", dark ? "dark" : "light", ACCENT_NAMES[accent]);
-	return show_file(path) || show_file(STOCK_LOGO_FILE);
+	return show_file(path) || show_file(LOGO_DIR "/default.jpeg") || show_file(STOCK_LOGO_FILE);
 }
 
 void bootlogo_clear_custom(void) {

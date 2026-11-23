@@ -9,6 +9,9 @@
 #include "src/gui/fonts/fonts.h"
 #include "src/gui/nowplaying/player.h"
 #include "src/gui/settings/bootlogopage.h"
+#include "src/gui/settings/menustylepage.h"
+#include "src/gui/settings/playerstylepage.h"
+#include "src/gui/settings/wallpaperpage.h"
 #include "src/gui/shell/corners.h"
 #include "src/gui/shell/iconpack.h"
 #include "src/gui/settings/lookpicker.h"
@@ -28,6 +31,11 @@ static lv_obj_t *btn_light;
 static lv_obj_t *btn_clock[4]; // left / centre / right / hidden
 static lv_obj_t *btn_accent[THEME_ACCENT_COUNT]; // the coloured circles
 static lv_obj_t *tint_toggle;
+static lv_obj_t *hue_slider;
+static lv_obj_t *hue_val_label;
+static lv_obj_t *sat_slider;
+static lv_obj_t *sat_val_label;
+static lv_obj_t *btn_preset[THEME_PRESET_COUNT];
 static lv_obj_t *battery_percent_toggle;
 static lv_obj_t *statusbar_always_toggle;
 static lv_obj_t *rounded_corners_toggle;
@@ -356,19 +364,42 @@ static void refresh_buttons(void) {
 
 // The active circle wears a ring in the text colour; the rest sit flat.
 static void refresh_accent_buttons(void) {
+	bool has_override = theme_has_custom_accent();
+	bool has_hue = theme_has_custom_hue();
 	int active_accent = theme_get_accent();
 	for (int i = 0; i < THEME_ACCENT_COUNT; i++) {
 		if (!btn_accent[i]) {
 			continue;
 		}
 		lv_obj_set_style_bg_color(btn_accent[i], theme_accent_preset(i), 0);
-		if (i == active_accent) {
+		if (has_override && !has_hue && i == active_accent) {
 			lv_obj_set_style_border_width(btn_accent[i], 3, 0);
 			lv_obj_set_style_border_color(btn_accent[i], theme()->text_primary, 0);
 			lv_obj_set_style_border_opa(btn_accent[i], LV_OPA_COVER, 0);
 		} else {
 			lv_obj_set_style_border_width(btn_accent[i], 0, 0);
 		}
+	}
+
+	int h = 0, s = 85;
+	theme_get_active_accent_hs(&h, &s);
+	char buf[16];
+
+	if (hue_slider) {
+		lv_slider_set_value(hue_slider, h, LV_ANIM_OFF);
+		theme_apply_slider_knob(hue_slider);
+	}
+	if (hue_val_label) {
+		snprintf(buf, sizeof(buf), "%d\xC2\xB0", h);
+		lv_label_set_text(hue_val_label, buf);
+	}
+	if (sat_slider) {
+		lv_slider_set_value(sat_slider, s, LV_ANIM_OFF);
+		theme_apply_slider_knob(sat_slider);
+	}
+	if (sat_val_label) {
+		snprintf(buf, sizeof(buf), "%d%%", s);
+		lv_label_set_text(sat_val_label, buf);
 	}
 }
 
@@ -387,6 +418,109 @@ static lv_obj_t *make_accent_circle(lv_obj_t *parent, int index) {
 	lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
 	lv_obj_add_event_cb(btn, accent_pick_cb, LV_EVENT_CLICKED, (void *)(intptr_t)index);
 	return btn;
+}
+
+static void hue_slider_cb(lv_event_t *e) {
+	(void)e;
+	if (!hue_slider) {
+		return;
+	}
+	theme_set_custom_accent_hue((int)lv_slider_get_value(hue_slider));
+}
+
+static void sat_slider_cb(lv_event_t *e) {
+	(void)e;
+	if (!sat_slider) {
+		return;
+	}
+	theme_set_custom_accent_saturation((int)lv_slider_get_value(sat_slider));
+}
+
+static void hs_slider_released_cb(lv_event_t *e) {
+	(void)e;
+	theme_commit_custom_accent();
+}
+
+static lv_obj_t *make_hs_slider(lv_obj_t *card, const char *title, int min_v, int max_v,
+								lv_obj_t **val_label_out, lv_event_cb_t change_cb) {
+	lv_obj_t *hdr = lv_obj_create(card);
+	lv_obj_set_size(hdr, lv_pct(100), LV_SIZE_CONTENT);
+	lv_obj_set_style_bg_opa(hdr, 0, 0);
+	lv_obj_set_style_border_width(hdr, 0, 0);
+	lv_obj_set_style_pad_all(hdr, 0, 0);
+	lv_obj_set_scrollable(hdr, false);
+	lv_obj_set_clickable(hdr, false);
+	lv_obj_set_flex_flow(hdr, LV_FLEX_FLOW_ROW);
+	lv_obj_set_flex_align(hdr, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+	lv_obj_t *lbl = lv_label_create(hdr);
+	lv_label_set_text(lbl, title);
+	lv_obj_add_style(lbl, &theme_style_text_dim, 0);
+	lv_obj_set_style_text_font(lbl, &font_ui_20, 0);
+
+	lv_obj_t *val = lv_label_create(hdr);
+	lv_label_set_text(val, "");
+	lv_obj_add_style(val, &theme_style_text_dim, 0);
+	lv_obj_set_style_text_font(val, &font_ui_20, 0);
+	if (val_label_out) {
+		*val_label_out = val;
+	}
+
+	// Dedicated 56 px touch wrapper so LVGL's parent bounding box never clips
+	// the slider's extended touch target. 20 px horizontal padding keeps the
+	// 34 px knob + shadow unclipped at 0% and 100%, and event bubbling preserves
+	// swipe-back/scroll gestures around the slider.
+	lv_obj_t *wrap = lv_obj_create(card);
+	lv_obj_set_size(wrap, lv_pct(100), 56);
+	lv_obj_set_style_bg_opa(wrap, 0, 0);
+	lv_obj_set_style_border_width(wrap, 0, 0);
+	lv_obj_set_style_pad_ver(wrap, 0, 0);
+	lv_obj_set_style_pad_hor(wrap, 20, 0);
+	lv_obj_set_scrollable(wrap, false);
+	lv_obj_set_event_bubble(wrap, true);
+
+	lv_obj_t *s = lv_slider_create(wrap);
+	lv_obj_set_width(s, lv_pct(100));
+	lv_obj_set_height(s, 14);
+	lv_obj_center(s);
+	lv_slider_set_range(s, min_v, max_v);
+	lv_obj_add_style(s, &theme_style_slider_track, LV_PART_MAIN);
+	lv_obj_set_style_radius(s, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
+	lv_obj_add_style(s, &theme_style_accent_bg, LV_PART_INDICATOR);
+	lv_obj_set_style_radius(s, LV_RADIUS_CIRCLE, LV_PART_KNOB);
+	lv_obj_set_style_bg_color(s, lv_color_white(), LV_PART_KNOB);
+	theme_apply_slider_knob(s);
+	lv_obj_set_style_pad_all(s, 10, LV_PART_KNOB);
+	lv_obj_set_style_shadow_width(s, 8, LV_PART_KNOB);
+	lv_obj_set_style_shadow_opa(s, LV_OPA_30, LV_PART_KNOB);
+	lv_obj_set_style_shadow_color(s, lv_color_black(), LV_PART_KNOB);
+	lv_obj_set_style_shadow_offset_y(s, 1, LV_PART_KNOB);
+	lv_obj_set_ext_click_area(s, 28);
+	lv_obj_add_event_cb(s, change_cb, LV_EVENT_VALUE_CHANGED, NULL);
+	lv_obj_add_event_cb(s, hs_slider_released_cb, LV_EVENT_RELEASED, NULL);
+	lv_obj_add_event_cb(s, hs_slider_released_cb, LV_EVENT_PRESS_LOST, NULL);
+	return s;
+}
+
+// SonixOS HUE's palettes: a pill each, the active one filled.
+static void refresh_preset_pills(void) {
+	int chosen = theme_get_skin() >= 0 ? -1 : theme_get_preset();
+	for (int i = 0; i < THEME_PRESET_COUNT; i++) {
+		if (btn_preset[i]) {
+			settingsrow_pill_active(btn_preset[i], i == chosen);
+		}
+	}
+}
+
+static void preset_pick_cb(lv_event_t *e) {
+	if (switcher_back_drag_active()) {
+		return;
+	}
+	theme_set_preset((int)(intptr_t)lv_event_get_user_data(e));
+	refresh_preset_pills();
+	refresh_buttons();
+	refresh_accent_buttons();
+	refresh_nothing_toggle();
 }
 
 // Paints the clock-position pills the same way: accent on the active one.
@@ -580,6 +714,11 @@ void appearance_init(gui_config_t *cfg) {
 	for (int i = 0; i < THEME_ACCENT_COUNT; i++) {
 		btn_accent[i] = make_accent_circle(accent_row, i);
 	}
+	// Any colour at all: hue and saturation (from SonixOS HUE).
+	hue_slider = make_hs_slider(accent_card, appearance_czech() ? "Vlastní odstín" : "Custom hue", 0, 359, &hue_val_label,
+								hue_slider_cb);
+	sat_slider = make_hs_slider(accent_card, appearance_czech() ? "Vlastní sytost" : "Custom saturation", 0, 100,
+								&sat_val_label, sat_slider_cb);
 
 	// Straight under the accent, because it is what the tint is made from: the
 	// same hue carried across the backgrounds, the cards and the status bar.
@@ -600,6 +739,22 @@ void appearance_init(gui_config_t *cfg) {
 	// The picture shown while the player boots, which follows the theme and
 	// the accent unless one of the user's own is chosen.
 	settingsrow_add(container, "bootlogo", NULL, switch_screen_cb, bootlogopage_screen);
+
+	// From SonixOS HUE: ready-made palettes (each with its own wallpaper), a
+	// wallpaper of your own, and how the player and the menus are drawn.
+	lv_obj_t *preset_pills;
+	settingsrow_pills(container, appearance_czech() ? "Motiv" : "Theme preset", &preset_pills);
+	lv_obj_set_flex_flow(preset_pills, LV_FLEX_FLOW_ROW_WRAP);
+	for (int i = 0; i < THEME_PRESET_COUNT; i++) {
+		btn_preset[i] = settingsrow_pill(preset_pills, theme_preset_name(i), i, preset_pick_cb);
+	}
+	refresh_preset_pills();
+	theme_register_refresh(refresh_preset_pills);
+	settingsrow_add(container, appearance_czech() ? "Tapeta" : "Wallpaper", NULL, switch_screen_cb, wallpaperpage_screen);
+	settingsrow_add(container, appearance_czech() ? "Vzhled přehrávače" : "Player style", NULL, switch_screen_cb,
+					playerstylepage_screen);
+	settingsrow_add(container, appearance_czech() ? "Vzhled menu a lišty" : "Menu & bar style", NULL, switch_screen_cb,
+					menustylepage_screen);
 
 	// How big the small text on every page is: the secondary lines, notes,
 	// clocks and counters. See fonts.c for which sizes grow and by how much.

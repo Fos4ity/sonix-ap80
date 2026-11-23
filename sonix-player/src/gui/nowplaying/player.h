@@ -58,6 +58,8 @@ typedef enum {
 	PLAYER_LAYOUT_STANDARD = 0,
 	PLAYER_LAYOUT_ALTERNATIVE = 1,
 	PLAYER_LAYOUT_STUDIO = 2,
+	PLAYER_LAYOUT_COMPACT = 3,
+	PLAYER_LAYOUT_CAROUSEL = 4,
 } player_layout_t;
 
 player_layout_t player_layout_get(void);
@@ -67,6 +69,44 @@ void player_layout_set(player_layout_t layout);
 // their accent, as Waveform always does. Off by default; saved in the config.
 bool player_cover_accent(void);
 void player_cover_accent_set(bool on);
+
+// Player visual customization options (persisted in [screen]).
+typedef enum {
+	PLAYER_BACKDROP_BLUR = 0,  // blurred album art behind controls (default)
+	PLAYER_BACKDROP_THEME = 1, // active theme panel/wallpaper
+	PLAYER_BACKDROP_BLACK = 2, // pitch black (#000000)
+} player_backdrop_mode_t;
+
+typedef enum {
+	PLAYER_ART_BORDER_NONE = 0,   // no border (default)
+	PLAYER_ART_BORDER_THEME = 1,  // 1px subtle border
+	PLAYER_ART_BORDER_ACCENT = 2, // 2px accent-coloured border
+} player_art_border_t;
+
+player_backdrop_mode_t player_backdrop_mode_get(void);
+void player_backdrop_mode_set(player_backdrop_mode_t mode);
+
+int player_art_radius_get(void); // 0, 8, 14 (default), 24
+void player_art_radius_set(int px);
+
+player_art_border_t player_art_border_get(void);
+void player_art_border_set(player_art_border_t border);
+
+bool player_show_format_get(void);
+void player_show_format_set(bool show);
+
+bool player_show_queue_pos_get(void);
+void player_show_queue_pos_set(bool show);
+
+typedef enum {
+	PLAYER_DOUBLE_TAP_NEXT = 0,       // next track (default)
+	PLAYER_DOUBLE_TAP_PLAY_PAUSE = 1, // toggle play/pause
+	PLAYER_DOUBLE_TAP_FAVOURITE = 2,  // toggle favourite
+	PLAYER_DOUBLE_TAP_OFF = 3,        // disabled
+} player_double_tap_action_t;
+
+player_double_tap_action_t player_double_tap_get(void);
+void player_double_tap_set(player_double_tap_action_t action);
 
 // The output the music was going to has just been unplugged -- a jack pulled
 // out, a USB-C DAC removed, headphones that walked out of range. Pauses, so

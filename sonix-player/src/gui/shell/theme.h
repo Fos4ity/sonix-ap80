@@ -76,10 +76,26 @@ void theme_toggle(void);
 #define THEME_ACCENT_COUNT 6
 lv_color_t theme_accent_preset(int index);
 int theme_get_accent(void);
+bool theme_has_custom_accent(void);
 void theme_set_accent(int index);
+void theme_set_custom_accent_hue(int hue);
+void theme_set_custom_accent_saturation(int sat);
+void theme_commit_custom_accent(void);
+int theme_get_custom_accent_hue(void);
+int theme_get_custom_accent_saturation(void);
+void theme_get_active_accent_hs(int *out_hue, int *out_sat);
+bool theme_has_custom_hue(void);
+
+void theme_set_card_root(const char *sd_root);
 
 // Picks a specific theme rather than flipping; no-op when already active.
 void theme_set_dark(bool dark);
+
+// Named theme presets (Settings -> Appearance -> Theme).
+#define THEME_PRESET_COUNT 8
+const char *theme_preset_name(int index);
+int theme_get_preset(void);
+void theme_set_preset(int index);
 
 // The dynamic tint (Appearance > Dynamic tint): the neutral colours --
 // backgrounds, cards, the status bar -- borrow the accent's hue, the way
@@ -98,5 +114,47 @@ int theme_skin_count(void);
 const char *theme_skin_name(int index);
 int theme_get_skin(void);
 void theme_set_skin(int index);
+// Menu wallpaper support (480x800 for HiBy R1, rendered at configurable opacity,
+// scale, and X/Y pan offset).
+// Decode + aspect-fill crop/scale on any thread, then apply on GUI thread.
+uint16_t *theme_decode_wallpaper_rgb565(const char *path, int target_w, int target_h,
+										int scale_pct, int pan_x, int pan_y,
+										int *out_w, int *out_h);
+void theme_apply_wallpaper_pixels(uint16_t *pixels, int w, int h, const char *saved_path);
+bool theme_set_wallpaper_file(const char *path, int target_w, int target_h);
+const char *theme_get_wallpaper_path(void);
+const char *theme_get_wallpaper_load_path(void);
+
+int theme_get_wallpaper_opacity(void);
+void theme_set_wallpaper_opacity(int pct);
+int theme_get_wallpaper_scale(void);
+int theme_get_wallpaper_pan_x(void);
+int theme_get_wallpaper_pan_y(void);
+void theme_set_wallpaper_transform(int scale_pct, int pan_x, int pan_y);
+
+// Menu & card surface customization (persisted in [ui]).
+typedef enum {
+	THEME_CARD_TRANSLUCENT = 0, // LV_OPA_80 when wallpaper active (default)
+	THEME_CARD_SOLID = 1,       // LV_OPA_COVER always (fastest scrolling)
+	THEME_CARD_GLASS = 2,       // LV_OPA_50 + crisp border
+} theme_card_surface_t;
+
+typedef enum {
+	THEME_BORDER_SUBTLE = 0, // preset border in dark mode (default)
+	THEME_BORDER_ACCENT = 1, // accent-coloured border
+	THEME_BORDER_NONE = 2,   // borderless cards
+} theme_border_style_t;
+
+theme_card_surface_t theme_get_card_surface(void);
+void theme_set_card_surface(theme_card_surface_t surface);
+
+int theme_get_card_radius(void); // 0, 6, 12 (default), 20
+void theme_set_card_radius(int px);
+
+theme_border_style_t theme_get_border_style(void);
+void theme_set_border_style(theme_border_style_t style);
+
+bool theme_get_mono_grid_icons(void);
+void theme_set_mono_grid_icons(bool on);
 
 #endif // THEME_H
