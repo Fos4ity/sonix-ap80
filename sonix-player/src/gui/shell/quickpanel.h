@@ -70,6 +70,8 @@ typedef enum {
 	// The master switch of the Rockbox DSP page. After the others, so a saved
 	// layout keeps the numbers it was written with.
 	QP_BTN_ROCKBOX,
+	// Bit-perfect, the switch at the top of Music settings > Sound.
+	QP_BTN_BIT_PERFECT,
 	QP_BTN_COUNT,
 	QP_BTN_NONE = QP_BTN_COUNT, // an empty place in the grid
 } quickpanel_button_t;

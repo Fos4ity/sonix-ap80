@@ -102,6 +102,7 @@ static lv_obj_t *sleep_podcast_btn;
 static lv_obj_t *wifi_transfer_btn;
 static lv_obj_t *gapless_btn;
 static lv_obj_t *rockbox_btn;
+static lv_obj_t *bit_perfect_btn;
 
 // ---------------------------------------------------------------------------
 // Which buttons the panel carries, and where
@@ -137,6 +138,7 @@ static const char *const button_key[QP_BTN_COUNT] = {
 	[QP_BTN_WIFI_TRANSFER] = "wifi_transfer",
 	[QP_BTN_GAPLESS] = "gapless",
 	[QP_BTN_ROCKBOX] = "rockbox",
+	[QP_BTN_BIT_PERFECT] = "bit_perfect",
 };
 
 static const char *const button_tag[QP_BTN_COUNT] = {
@@ -158,6 +160,7 @@ static const char *const button_tag[QP_BTN_COUNT] = {
 	[QP_BTN_GAPLESS] = "musicsettings_gapless_playback",
 	// The page's own name, which no language translates.
 	[QP_BTN_ROCKBOX] = "Rockbox DSP",
+	[QP_BTN_BIT_PERFECT] = "musicsettings_bit_perfect",
 };
 
 static uint8_t slots[QP_SLOT_COUNT];  // the grid, QP_BTN_NONE where it is empty
@@ -1067,7 +1070,7 @@ static void order_load(void) {
 		// the settings page shows them.
 		bool waits = i == QP_BTN_DLNA || i == QP_BTN_SLEEP_MUSIC || i == QP_BTN_SLEEP_AUDIOBOOK ||
 					 i == QP_BTN_SLEEP_PODCAST || i == QP_BTN_WIFI_TRANSFER || i == QP_BTN_GAPLESS ||
-					 i == QP_BTN_ROCKBOX;
+					 i == QP_BTN_ROCKBOX || i == QP_BTN_BIT_PERFECT;
 		if ((saved_version < 2 && i == QP_BTN_FADE) || waits) {
 			hidden[hidden_n++] = (uint8_t)i;
 		} else {
@@ -1188,6 +1191,8 @@ static lv_obj_t *button_widget(quickpanel_button_t which) {
 		return gapless_btn;
 	case QP_BTN_ROCKBOX:
 		return rockbox_btn;
+	case QP_BTN_BIT_PERFECT:
+		return bit_perfect_btn;
 	default:
 		return NULL;
 	}
@@ -1404,6 +1409,8 @@ const lv_image_dsc_t *quickpanel_button_icon(quickpanel_button_t button) {
 		return &icon_gapless_on_quick;
 	case QP_BTN_ROCKBOX:
 		return &icon_rockbox_dsp_quick;
+	case QP_BTN_BIT_PERFECT:
+		return &icon_bit_perfect_quick;
 	default:
 		return &icon_wifi;
 	}
@@ -1492,6 +1499,7 @@ static void refresh_audio_buttons(void) {
 	circle_button_set_on(sleep_podcast_btn, sleep_timer_armed(SLEEPTIMER_PODCAST));
 	circle_button_set_on(wifi_transfer_btn, wifitransfer_get_enabled());
 	circle_button_set_on(rockbox_btn, rbdsp_enabled());
+	circle_button_set_on(bit_perfect_btn, audio_get_bit_perfect());
 
 	// Bit-perfect holds the effects off (musicsettings.c): their buttons are
 	// greyed out and take no touch, the press that opens their page included.
@@ -1680,6 +1688,18 @@ static void mseb_clicked_cb(lv_event_t *e) {
 		return;
 	}
 	musicsettings_set_mseb_enabled(!mseb_get_enabled());
+	toggled();
+}
+
+// Bit-perfect itself: the same switch as the one at the top of Music settings
+// > Sound, with everything that switch holds off and puts back.
+static void bit_perfect_clicked_cb(lv_event_t *e) {
+	(void)e;
+	if (long_press_consumed) {
+		long_press_consumed = false;
+		return;
+	}
+	musicsettings_set_bit_perfect(!audio_get_bit_perfect());
 	toggled();
 }
 
@@ -2181,6 +2201,11 @@ void quickpanel_init(gui_config_t *cfg) {
 	rockbox_btn = make_circle_button(row, &icon_rockbox_dsp_quick);
 	lv_obj_add_event_cb(rockbox_btn, rockbox_clicked_cb, LV_EVENT_CLICKED, NULL);
 	lv_obj_add_event_cb(rockbox_btn, open_page_cb, LV_EVENT_LONG_PRESSED, musicsettings_rockbox_screen());
+
+	// Bit-perfect: tap for the switch, hold for Music settings where it lives.
+	bit_perfect_btn = make_circle_button(row, &icon_bit_perfect_quick);
+	lv_obj_add_event_cb(bit_perfect_btn, bit_perfect_clicked_cb, LV_EVENT_CLICKED, NULL);
+	lv_obj_add_event_cb(bit_perfect_btn, open_page_cb, LV_EVENT_LONG_PRESSED, musicsettings_screen);
 
 	gapless_btn = make_circle_button(row, &icon_gapless_off_quick);
 	lv_obj_add_event_cb(gapless_btn, gapless_clicked_cb, LV_EVENT_CLICKED, NULL);

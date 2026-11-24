@@ -16,6 +16,7 @@
 #include "src/gui/shell/toast.h"
 #include "src/system/audio/eq.h"
 #include "src/system/audio/peqtarget.h"
+#include "src/system/core/config.h"
 #include "src/system/core/lang.h"
 
 // The page behind the PEQ gear: save the parametric chain under a name and
@@ -317,22 +318,57 @@ static void build_list_page(gui_config_t *cfg) {
 	switcher_attach_back_gesture(list_screen);
 }
 
-// Which target AutoEq downloads are fitted to.
-static lv_obj_t *target_pill[2];
+// Which target AutoEq downloads are fitted to: a row that names the current
+// one and opens the list, grouped as PEQdB groups its curves.
+#define TARGET_MAX 32
+lv_obj_t *peqtarget_screen; // not static: the simulator opens it by name
+static lv_obj_t *target_value;
+static lv_obj_t *target_tick[TARGET_MAX];
 
-static void refresh_target_pills(void) {
-	peqtarget_t t = peqtarget_get();
-	settingsrow_pill_active(target_pill[0], t == PEQTARGET_HARMAN);
-	settingsrow_pill_active(target_pill[1], t == PEQTARGET_DIAMOND);
+static void refresh_target(void) {
+	int t = peqtarget_get();
+	if (target_value) {
+		lv_label_set_text(target_value, t == PEQTARGET_HARMAN ? peqtarget_name(t) : peqtarget_tag(t));
+	}
+	for (int i = 0; i < peqtarget_count() && i < TARGET_MAX; i++) {
+		if (target_tick[i]) lv_obj_set_hidden(target_tick[i], i != t);
+	}
 }
 
 static void target_cb(lv_event_t *e) {
-	peqtarget_t t = (peqtarget_t)(intptr_t)lv_event_get_user_data(e);
+	int t = (int)(intptr_t)lv_event_get_user_data(e);
 	bool changed = t != peqtarget_get();
 	peqtarget_set(t);
-	refresh_target_pills();
-	// The target only shapes the next download; say so, or the switch looks dead.
+	config_save();
+	refresh_target();
+	// The target only shapes the next download; say so, or the list looks dead.
 	if (changed) toast_success("Applies to the next AutoEQ download: search your headphones again.");
+}
+
+static void open_target_cb(lv_event_t *e) {
+	(void)e;
+	refresh_target();
+	switch_screen(peqtarget_screen);
+}
+
+static void build_target_page(gui_config_t *cfg) {
+	peqtarget_screen = lv_obj_create(NULL);
+	lv_obj_t *container = settingsrow_page(peqtarget_screen, cfg, "AutoEQ target");
+	const char *group = "";
+	for (int i = 0; i < peqtarget_count() && i < TARGET_MAX; i++) {
+		if (strcmp(group, peqtarget_group(i)) != 0) {
+			group = peqtarget_group(i);
+			settingsrow_heading(container, group);
+		}
+		lv_obj_t *row = settingsrow_action(container, peqtarget_name(i), target_cb, (void *)(intptr_t)i);
+		settingsrow_name_lines(row, 2);
+		target_tick[i] = lv_image_create(row);
+		lv_image_set_src(target_tick[i], &icon_check_small);
+		lv_obj_align(target_tick[i], LV_ALIGN_RIGHT_MID, 0, 0);
+		lv_obj_remove_flag(target_tick[i], LV_OBJ_FLAG_CLICKABLE);
+	}
+	refresh_target();
+	switcher_attach_back_gesture(peqtarget_screen);
 }
 
 void peqsettings_init(gui_config_t *cfg) {
@@ -348,12 +384,9 @@ void peqsettings_init(gui_config_t *cfg) {
 	settingsrow_action(container, "save_preset", open_name_dialog_cb, NULL);
 	settingsrow_add(container, "load_preset", NULL, open_preset_list_cb, NULL);
 
-	lv_obj_t *pills = NULL;
-	settingsrow_pills(container, "AutoEQ target", &pills);
-	target_pill[0] = settingsrow_pill_text(pills, "Harman", PEQTARGET_HARMAN, target_cb);
-	target_pill[1] = settingsrow_pill_text(pills, "Diamond \xCE\xB2", PEQTARGET_DIAMOND, target_cb);
-	refresh_target_pills();
+	settingsrow_add(container, "AutoEQ target", &target_value, open_target_cb, NULL);
 
+	build_target_page(cfg);
 	build_list_page(cfg);
 	build_name_dialog(cfg);
 

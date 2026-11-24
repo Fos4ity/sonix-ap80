@@ -55,4 +55,8 @@ lv_obj_t *musicsettings_rockbox_screen(void);
 // the page's own switch together.
 void musicsettings_set_rockbox_enabled(bool enabled);
 
+// Bit-perfect, which the control centre also carries: the engine, the settings
+// it holds off and puts back, and the page's own switch together.
+void musicsettings_set_bit_perfect(bool enabled);
+
 #endif /* MUSICSETTINGS_H */

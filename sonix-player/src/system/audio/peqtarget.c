@@ -31,14 +31,57 @@ typedef struct {
 	double fc, gain, q;
 } flt_t;
 
-peqtarget_t peqtarget_get(void) {
-	const char *v = config_get("peq", "autoeq_target", "harman");
-	return (v && strcasecmp(v, "diamond") == 0) ? PEQTARGET_DIAMOND : PEQTARGET_HARMAN;
+#include "src/system/audio/peqtarget_tables.h"
+
+// The curves PEQdB lists in its studio, under its own headings. The first one
+// is no curve at all: Harman is what AutoEq's profiles are already fitted to.
+// The ids are what the config file holds, so they stay as they are.
+static const struct {
+	const char *id, *name, *tag, *group;
+	const float *ie, *oe;
+} targets[] = {
+	{"harman", "Harman", "", "AutoEq", NULL, NULL},
+	{"diamond", "PEQdB Diamond \xCE\xB2", "Diamond", "Reference", diamond_delta_ie, diamond_delta_oe},
+	{"diamond_a", "PEQdB Diamond", "Diamond A", "Reference", delta_diamond_a_ie, delta_diamond_a_oe},
+	{"df", "Diffuse Field", "DF", "Baseline", delta_df_ie, delta_df_oe},
+	{"ultra", "PEQdB Ultra", "Ultra", "Preference", delta_ultra_ie, delta_ultra_oe},
+	{"hfe", "HiFiEndgame", "HFE", "Preference", delta_hfe_ie, delta_hfe_oe},
+	{"hfe2", "HiFiEndgame MKII", "HFE MKII", "Preference", delta_hfe2_ie, delta_hfe2_oe},
+	{"hfe3", "HiFiEndgame MKIII", "HFE MKIII", "Preference", delta_hfe3_ie, delta_hfe3_oe},
+	{"hfe5", "HiFiEndgame MKV", "HFE MKV", "Preference", delta_hfe5_ie, delta_hfe5_oe},
+	{"moa", "Harman MoA 2025", "MoA", "Preference", delta_moa_ie, delta_moa_oe},
+	{"knowles", "Knowles", "Knowles", "Preference (in-ear)", delta_knowles_ie, NULL},
+	{"ief2025", "IEF Preference 2025", "IEF 2025", "Preference (in-ear)", delta_ief2025_ie, NULL},
+	{"jm1", "JM-1 -10dB Tilt", "JM-1", "Preference (in-ear)", delta_jm1_ie, NULL},
+	{"vdsf", "Moondrop VDSF", "VDSF", "Preference (in-ear)", delta_vdsf_ie, NULL},
+	{"oe2018lb", "Harman OE 2018 Linear Bass", "Linear Bass", "Preference (over-ear)", NULL, delta_oe2018lb_oe},
+	{"oe2013", "Harman OE 2013", "OE 2013", "Preference (over-ear)", NULL, delta_oe2013_oe},
+	{"kb50", "KEMAR KB50xx -10dB Tilt", "KB50xx", "Preference (over-ear)", NULL, delta_kb50_oe},
+	{"endgame_ie", "Endgame IE", "Endgame IE", "Legacy", delta_endgame_ie_ie, NULL},
+	{"hifi", "PEQdB HiFi", "HiFi", "Legacy", delta_hifi_ie, delta_hifi_oe},
+};
+#define NTARGETS ((int)(sizeof(targets) / sizeof(targets[0])))
+
+static bool known(int t) { return t >= 0 && t < NTARGETS; }
+
+int peqtarget_count(void) { return NTARGETS; }
+const char *peqtarget_name(int t) { return known(t) ? targets[t].name : ""; }
+const char *peqtarget_group(int t) { return known(t) ? targets[t].group : ""; }
+const char *peqtarget_tag(int t) { return known(t) ? targets[t].tag : ""; }
+
+bool peqtarget_fits(int t, peqtarget_form_t form) {
+	return known(t) && (form == PEQTARGET_IN_EAR ? targets[t].ie : targets[t].oe) != NULL;
 }
 
-void peqtarget_set(peqtarget_t target) {
-	config_set("peq", "autoeq_target", target == PEQTARGET_DIAMOND ? "diamond" : "harman");
+int peqtarget_get(void) {
+	const char *v = config_get("peq", "autoeq_target", "harman");
+	for (int t = 0; v && t < NTARGETS; t++) {
+		if (strcasecmp(v, targets[t].id) == 0) return t;
+	}
+	return PEQTARGET_HARMAN;
 }
+
+void peqtarget_set(int t) { config_set("peq", "autoeq_target", targets[known(t) ? t : 0].id); }
 
 // RBJ cookbook magnitude in dB.
 static double flt_db(const flt_t *f, double freq) {
@@ -180,10 +223,10 @@ static int solve(double *a, double *b, int m) {
 }
 
 #define NRES (NPTS + NPEN)
-#define MAXP 12
+#define MAXP (3 * NBANDS)
 
 // Levenberg-Marquardt over the free parameters listed in idx.
-static double fit(flt_t *f, int n, const int *idx, int m, const double *want) {
+static double fit(flt_t *f, int n, const int *idx, int m, const double *want, int rounds) {
 	double x[MAXP], xt[MAXP], res[NRES], rt[NRES], A[MAXP * MAXP], g[MAXP];
 	static double J[NRES][MAXP];
 	flt_t tmp[NBANDS];
@@ -194,7 +237,7 @@ static double fit(flt_t *f, int n, const int *idx, int m, const double *want) {
 	}
 	double lambda = 1e-2;
 	double c = cost(x, idx, m, tmp, n, want, res);
-	for (int it = 0; it < 100; it++) {
+	for (int it = 0; it < rounds; it++) {
 		for (int k = 0; k < m; k++) {
 			memcpy(xt, x, sizeof(double) * m);
 			double h = (idx[k] % 3 == 1) ? 1e-3 : 1e-4;
@@ -234,12 +277,13 @@ static double fit(flt_t *f, int n, const int *idx, int m, const double *want) {
 	return c;
 }
 
-char *peqtarget_retarget(const char *text, size_t size, peqtarget_form_t form, size_t *out_size) {
+char *peqtarget_retarget(const char *text, size_t size, int target, peqtarget_form_t form, size_t *out_size) {
+	if (!peqtarget_fits(target, form)) return NULL;
 	flt_t f[NBANDS];
 	int n = parse(text, size, f);
 	if (n == 0) return NULL;
 
-	const float *tab = form == PEQTARGET_IN_EAR ? diamond_delta_ie : diamond_delta_oe;
+	const float *tab = form == PEQTARGET_IN_EAR ? targets[target].ie : targets[target].oe;
 	double want[NPTS];
 	for (int j = 0; j < NPTS; j++) {
 		double v = 0;
@@ -273,7 +317,23 @@ char *peqtarget_retarget(const char *text, size_t size, peqtarget_form_t form, s
 	int idx[MAXP], m = 0;
 	for (int k = 0; k < 3; k++) idx[m++] = ls * 3 + k;
 	for (int k = 0; k < 3; k++) idx[m++] = hs * 3 + k;
-	peqtarget_last_rms = sqrt(fit(f, n, idx, m, want) / NPTS);
+	peqtarget_last_rms = sqrt(fit(f, n, idx, m, want, 100) / NPTS);
+	// Two shelves carry a bass and a treble tilt, which is all Diamond asks
+	// for. A target that also differs through the midrange or the ear-gain
+	// region leaves a remainder; then every filter may move, starting from
+	// where the shelves got to, with a spare peak where the ear gain sits
+	// if the profile left a slot free.
+	if (peqtarget_last_rms > 0.4) {
+		if (n < NBANDS) {
+			f[n].type = T_PK; f[n].fc = 3000; f[n].gain = 0; f[n].q = 1.0;
+			n++;
+		}
+		m = 0;
+		for (int i = 0; i < n; i++)
+			for (int k = 0; k < 3; k++) idx[m++] = i * 3 + k;
+		// (thirty parameters on this CPU: a few rounds get nearly all of it)
+		peqtarget_last_rms = sqrt(fit(f, n, idx, m, want, 20) / NPTS);
+	}
 
 	// Preamp: the highest point of the new curve, taken off.
 	double peak = 0;

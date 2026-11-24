@@ -2162,14 +2162,24 @@ static void bit_perfect_hold(bool on) {
 	refresh_active_chevrons();
 }
 
-static void bit_perfect_toggle_cb(lv_event_t *e) {
-	(void)e;
-	bool on = lv_obj_has_state(bit_perfect_switch, LV_STATE_CHECKED);
+static void bit_perfect_apply(bool on) {
 	config_set_int("audio", "bit_perfect", on ? 1 : 0);
 	config_save();
 	audio_set_bit_perfect(on);
 	bit_perfect_hold(on);
 	bit_perfect_paint();
+}
+
+static void bit_perfect_toggle_cb(lv_event_t *e) {
+	(void)e;
+	bit_perfect_apply(lv_obj_has_state(bit_perfect_switch, LV_STATE_CHECKED));
+}
+
+void musicsettings_set_bit_perfect(bool enabled) {
+	if (bit_perfect_switch) {
+		lv_obj_set_state(bit_perfect_switch, LV_STATE_CHECKED, enabled);
+	}
+	bit_perfect_apply(enabled);
 }
 
 static void musicsettings_loaded_cb(lv_event_t *e) {
