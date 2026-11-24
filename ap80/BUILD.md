@@ -133,6 +133,10 @@ The patch:
 - shows ROCKBOX and SONIX only when their files are on the SD card, so the
   player works with HiBy OS alone, with Sonix alone, or with all three,
 - always gives you 10 seconds to choose before the last player starts again,
+- starts Sonix at once, without the menu, while `sonix/boot_direct.txt` is on the
+  card (the "Boot straight into Sonix" switch in Sonix, Settings > System). A
+  one-second notice is shown first; a button pressed then, or any button other
+  than Power held while the player starts, shows the menu instead,
 - remembers the choice in `sonix/` when the card has no `.rockbox` folder,
 - keeps the TOOLS menu open until you choose Back,
 - frees memory before HiBy OS starts (its display driver needs one 8 MB block

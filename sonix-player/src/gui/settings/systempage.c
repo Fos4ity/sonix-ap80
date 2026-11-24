@@ -18,6 +18,7 @@
 #include "src/system/device/factoryreset.h"
 #include "src/system/audio/headset.h"
 #include "src/system/core/lang.h"
+#include "src/system/device/bootdirect.h"
 #include "src/system/device/power.h"
 #include "src/system/device/sonixpkg.h"
 #include "src/system/device/sysinfo.h"
@@ -307,6 +308,21 @@ static void build_sysinfo_page(gui_config_t *cfg) {
 	theme_register_refresh(refresh_theme);
 }
 
+static lv_obj_t *boot_direct_switch;
+
+static void boot_direct_cb(lv_event_t *e) {
+	(void)e;
+	bool on = lv_obj_has_state(boot_direct_switch, LV_STATE_CHECKED);
+	if (!bootdirect_set(on)) {
+		// The card refused (read-only, full): show what is really there.
+		if (bootdirect_enabled()) {
+			lv_obj_add_state(boot_direct_switch, LV_STATE_CHECKED);
+		} else {
+			lv_obj_remove_state(boot_direct_switch, LV_STATE_CHECKED);
+		}
+	}
+}
+
 void systempage_init(gui_config_t *cfg) {
 	// system-info.json was read at startup, before the display: the simulator
 	// sizes its window from the model named in it.
@@ -323,6 +339,25 @@ void systempage_init(gui_config_t *cfg) {
 		settingsrow_toggle(container, "system_update_auto", &auto_switch, auto_check_cb);
 		if (config_get_bool("update", "auto_check", true)) {
 			lv_obj_add_state(auto_switch, LV_STATE_CHECKED);
+		}
+		// Skipping the boot menu: a file on the card that the boot menu reads
+		// (bootdirect.h). With a boot menu too old to read it the switch is
+		// shown switched off and greyed, and the note says what is missing.
+		if (bootdirect_applies()) {
+			bool supported = bootdirect_supported();
+			settingsrow_toggle(container, "system_boot_direct", &boot_direct_switch, boot_direct_cb);
+			if (supported && bootdirect_enabled()) {
+				lv_obj_add_state(boot_direct_switch, LV_STATE_CHECKED);
+			}
+			if (!supported) {
+				lv_obj_add_state(boot_direct_switch, LV_STATE_DISABLED);
+			}
+			lv_obj_t *note = lv_label_create(container);
+			lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
+			lv_obj_set_width(note, lv_pct(100));
+			lv_obj_add_style(note, &theme_style_text_dim, 0);
+			lv_obj_set_style_text_font(note, &font_ui_22, 0);
+			lv_label_set_text(note, tr(supported ? "system_boot_direct_note" : "system_boot_direct_old"));
 		}
 	} else {
 		settingsrow_action(container, "system_update_firmware", firmware_clicked_cb, NULL);

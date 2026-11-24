@@ -1,5 +1,5 @@
 diff --git a/apps/bitmaps/native/SOURCES b/apps/bitmaps/native/SOURCES
-index 5fab11132..4c691e2c9 100644
+index 5fab111327..4c691e2c94 100644
 --- a/apps/bitmaps/native/SOURCES
 +++ b/apps/bitmaps/native/SOURCES
 @@ -50,6 +50,9 @@ toolsicon.70x70x16.bmp
@@ -52,10 +52,19 @@ literal 0
 HcmV?d00001
 
 diff --git a/bootloader/hibyos_linux.c b/bootloader/hibyos_linux.c
-index abb3719ba..664a72501 100644
+index abb3719bab..79535d4ef7 100644
 --- a/bootloader/hibyos_linux.c
 +++ b/bootloader/hibyos_linux.c
-@@ -139,6 +139,11 @@
+@@ -46,6 +46,8 @@
+ #include <dirent.h>
+ #include <sys/wait.h>
+ #include <stdarg.h>
++#include <sys/ioctl.h>
++#include <linux/input.h>
+ #include "version.h"
+ 
+ //#define ENABLE_LOGGING
+@@ -139,6 +141,11 @@
  /* images */
  #include "bitmaps/rockboxicon.h"
  #include "bitmaps/toolsicon.h"
@@ -67,7 +76,7 @@ index abb3719ba..664a72501 100644
  
  /* don't issue an error when parsing the file for dependencies */
  #if defined(BMPWIDTH_rockboxicon) && (BMPWIDTH_rockboxicon != ICON_WIDTH || \
-@@ -178,6 +183,9 @@ enum boot_mode
+@@ -178,6 +185,9 @@ enum boot_mode
      BOOT_ROCKBOX,
      BOOT_TOOLS,
      BOOT_OF,
@@ -77,7 +86,7 @@ index abb3719ba..664a72501 100644
      BOOT_COUNT,
      BOOT_STOP, /* power down/suspend */
      BOOT_CANARY,
-@@ -200,16 +208,26 @@ static void display_text_centerf(int y, const char *format, ...)
+@@ -200,16 +210,26 @@ static void display_text_centerf(int y, const char *format, ...)
      display_text_center(y, buf);
  }
  
@@ -104,7 +113,7 @@ index abb3719ba..664a72501 100644
          else
              return 10 * HZ; /* Default timeout */
  }
-@@ -241,11 +259,60 @@ static void mount_storage(int enable)
+@@ -241,11 +261,127 @@ static void mount_storage(int enable)
      mounted = enable;
  }
  
@@ -146,6 +155,73 @@ index abb3719ba..664a72501 100644
 +#endif
 +
 +#ifdef HAVE_SONIX_ENTRY
++/* "Boot straight into Sonix": Sonix creates this file on the card from its
++ * settings. While it is there the menu is skipped at power-on and Sonix is
++ * started at once. Holding a button (other than power) while the player
++ * starts, or pressing one during the short notice, shows the menu instead;
++ * so does leaving Sonix. */
++#define SONIX_DIRECT_FILE BASE_DIR "/sonix/boot_direct.txt"
++#define SONIX_DIRECT_NOTICE (HZ) /* how long the notice stays up */
++
++/* the keys that are down right now, asked from the kernel: a key pressed
++ * before this program started never shows up as an event */
++static bool key_held(void)
++{
++    for(int i = 0; i < 5; i++)
++    {
++        char path[32];
++        unsigned char keys[KEY_MAX / 8 + 1];
++        snprintf(path, sizeof(path), "/dev/input/event%d", i);
++        int fd = open(path, O_RDONLY | O_NONBLOCK);
++        if(fd < 0)
++            continue;
++        memset(keys, 0, sizeof(keys));
++        int ok = ioctl(fd, EVIOCGKEY(sizeof(keys)), keys);
++        close(fd);
++        if(ok < 0)
++            continue;
++        for(int k = 0; k <= KEY_MAX; k++)
++            if(k != KEY_POWER && (keys[k / 8] & (1 << (k % 8))))
++                return true;
++    }
++    return false;
++}
++
++/* true when Sonix is to be started without showing the menu */
++static bool sonix_direct(void)
++{
++    static bool tried = false;
++    if(tried)
++        return false; /* only once, at power-on */
++    tried = true;
++    if(access(SONIX_DIRECT_FILE, F_OK) != 0 || access(SONIX_SCRIPT, R_OK) != 0)
++        return false;
++    if(key_held())
++        return false;
++    /* a short notice, and a second chance to ask for the menu */
++    lcd_clear_display();
++    lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
++    lcd_bmp(&bm_sonixicon, (LCD_WIDTH - ICON_WIDTH) / 2, get_icon_y());
++    lcd_set_foreground(LCD_RGBPACK(255, 255, 255));
++    int h;
++    lcd_getstringsize("X", NULL, &h);
++    display_text_center(get_icon_y() + ICON_HEIGHT + h, "SONIX");
++    lcd_set_foreground(LCD_RGBPACK(0, 255, 0));
++    display_text_center(LCD_HEIGHT - h * 3, "any button: menu");
++    lcd_update();
++    long end = current_tick + SONIX_DIRECT_NOTICE;
++    while(TIME_BEFORE(current_tick, end))
++    {
++        int btn = button_get_w_tmo(HZ / 20);
++        if((btn & BUTTON_MAIN) && !(btn & BUTTON_REL))
++        {
++            button_clear_queue();
++            return false;
++        }
++    }
++    return !key_held();
++}
++
 +/* the last choice made while this menu has been running; used when the card
 + * has no place to store it, so leaving TOOLS does not jump to another entry */
 +static enum boot_mode mem_mode = BOOT_CANARY;
@@ -165,7 +241,7 @@ index abb3719ba..664a72501 100644
      if(fd >= 0)
      {
          read(fd, &mode, sizeof(mode));
-@@ -256,8 +323,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
+@@ -256,8 +392,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
  
  static void save_boot_mode(enum boot_mode mode)
  {
@@ -181,7 +257,14 @@ index abb3719ba..664a72501 100644
      if(fd >= 0)
      {
          write(fd, &mode, sizeof(mode));
-@@ -270,13 +344,32 @@ static enum boot_mode get_boot_mode(void)
+@@ -267,16 +410,39 @@ static void save_boot_mode(enum boot_mode mode)
+ 
+ static enum boot_mode get_boot_mode(void)
+ {
++#ifdef HAVE_SONIX_ENTRY
++    if(sonix_direct())
++        return BOOT_SONIX;
++#endif
      /* load previous mode, or start with rockbox if none */
      enum boot_mode init_mode = load_boot_mode(BOOT_CANARY);
      /* wait for user action */
@@ -214,7 +297,7 @@ index abb3719ba..664a72501 100644
          /* on usb detect, immediately boot with last choice */
  #if !defined(HIBY_R3PROII) && !defined(HIBY_R1) && !defined(HIDIZS_AP80MAX)
          if(!adb_running && power_input_status() & POWER_INPUT_USB_CHARGER)
-@@ -312,10 +405,16 @@ static enum boot_mode get_boot_mode(void)
+@@ -312,10 +478,16 @@ static enum boot_mode get_boot_mode(void)
          lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
          /* display icon */
          const struct bitmap *icon = (mode == BOOT_OF) ? &ICON_NAME :
@@ -231,7 +314,7 @@ index abb3719ba..664a72501 100644
              (mode == BOOT_ROCKBOX) ? "ROCKBOX" : "TOOLS";
  
          int desc_height;
-@@ -358,11 +457,19 @@ static enum boot_mode get_boot_mode(void)
+@@ -358,11 +530,19 @@ static enum boot_mode get_boot_mode(void)
              break;
          /* left/right/up/down: change mode */
          if(btn == BUTTON_LEFT || btn == BUTTON_DOWN) {
@@ -251,7 +334,7 @@ index abb3719ba..664a72501 100644
              init_mode = BOOT_CANARY;
          }
      }
-@@ -553,7 +660,18 @@ static void tools_screen(void)
+@@ -553,7 +733,18 @@ static void tools_screen(void)
      printf("Version: %s\n", rbversion);
      printf("%s\n", MODEL_NAME);
      const char *choices[] = {"ADB start", "ADB stop", "Run script", "Remount SD", "Restart", "Shutdown", "Recovery", "Back"};
@@ -270,7 +353,7 @@ index abb3719ba..664a72501 100644
      if(choice == 0)
      {
          /* run service menu */
-@@ -597,6 +715,9 @@ static void tools_screen(void)
+@@ -597,6 +788,9 @@ static void tools_screen(void)
      {
          return;
      }
@@ -280,7 +363,7 @@ index abb3719ba..664a72501 100644
  }
  
  #ifdef ENABLE_LOGGING
-@@ -675,6 +796,12 @@ int main(int argc, char **argv)
+@@ -675,6 +869,12 @@ int main(int argc, char **argv)
              close(fileno(stderr));
  #endif
              mount_storage(false);
@@ -293,7 +376,7 @@ index abb3719ba..664a72501 100644
              /* boot OF */
              execvp("/usr/bin/hiby_player", argv);
              error_screen("Cannot boot OF");
-@@ -684,8 +811,56 @@ int main(int argc, char **argv)
+@@ -684,8 +884,56 @@ int main(int argc, char **argv)
          {
              tools_screen();
          }

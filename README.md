@@ -60,7 +60,15 @@ player has now is replaced by 1.2. Your music and the card are not touched.
 ## Using it
 
 Every time you switch the player on you get **10 seconds** to choose, then your
-last choice starts again. The menu only offers what is really on the card:
+last choice starts again.
+
+**Straight into Sonix.** Since 1.8 Sonix has a switch, *Settings > System > Boot
+straight into Sonix*. With it on, the menu is skipped and Sonix starts at once.
+To get the menu back, hold any button other than Power while the player starts
+(or delete `sonix/boot_direct.txt` from the card on a computer). The switch needs
+the boot menu from the 1.8 release or later; with an older one it is greyed out.
+
+The menu only offers what is really on the card:
 
 | Menu entry | Shown when the card has | |
 |---|---|---|
