@@ -52,7 +52,7 @@ literal 0
 HcmV?d00001
 
 diff --git a/bootloader/hibyos_linux.c b/bootloader/hibyos_linux.c
-index abb3719bab..79b136b953 100644
+index abb3719bab..026d5b500c 100644
 --- a/bootloader/hibyos_linux.c
 +++ b/bootloader/hibyos_linux.c
 @@ -46,6 +46,8 @@
@@ -259,11 +259,82 @@ index abb3719bab..79b136b953 100644
      if(fd >= 0)
      {
          write(fd, &mode, sizeof(mode));
-@@ -267,16 +412,39 @@ static void save_boot_mode(enum boot_mode mode)
+@@ -265,18 +410,110 @@ static void save_boot_mode(enum boot_mode mode)
+     }
+ }
  
++#ifdef HAVE_SONIX_ENTRY
++/* The original firmware's display driver needs one contiguous 8 MB block
++ * (order 11). After minutes in this menu, ADB or a player that came back,
++ * memory is too fragmented for that and the firmware runs with a frozen
++ * picture. Then the only cure is a restart: this file on the card says
++ * "start the original firmware at once" to the menu after that restart. */
++#define OF_ONCE_FILE BASE_DIR "/sonix/boot_hiby_once.txt"
++#define OF_BLOCK_ORDER 11
++static bool of_direct = false;
++
++/* false only when the kernel says there is no free block that large */
++static bool big_block_free(void)
++{
++    FILE *f = fopen("/proc/buddyinfo", "r");
++    if(!f)
++        return true;
++    char line[512];
++    bool known = false, found = false;
++    while(fgets(line, sizeof(line), f))
++    {
++        char *p = strstr(line, "zone");
++        if(!p)
++            continue;
++        p += 4;
++        while(*p == ' ') p++;
++        while(*p && *p != ' ') p++; /* the zone's name */
++        int order = 0;
++        while(*p)
++        {
++            char *end;
++            long n = strtol(p, &end, 10);
++            if(end == p)
++                break;
++            if(order >= OF_BLOCK_ORDER)
++            {
++                known = true;
++                if(n > 0)
++                    found = true;
++            }
++            order++;
++            p = end;
++        }
++    }
++    fclose(f);
++    return found || !known;
++}
++
++/* true once after a restart that was made to start the original firmware */
++static bool of_once(void)
++{
++    static bool tried = false;
++    if(tried)
++        return false;
++    tried = true;
++    mount_storage(true);
++    if(access(OF_ONCE_FILE, F_OK) != 0)
++        return false;
++    /* the note is used up; if it cannot be removed it is not obeyed, or
++     * every start would go to the original firmware */
++    if(unlink(OF_ONCE_FILE) != 0)
++        return false;
++    sync();
++    of_direct = true;
++    return true;
++}
++#endif
++
  static enum boot_mode get_boot_mode(void)
  {
 +#ifdef HAVE_SONIX_ENTRY
++    if(of_once())
++        return BOOT_OF;
 +    if(sonix_direct())
 +        return BOOT_SONIX;
 +#endif
@@ -299,7 +370,7 @@ index abb3719bab..79b136b953 100644
          /* on usb detect, immediately boot with last choice */
  #if !defined(HIBY_R3PROII) && !defined(HIBY_R1) && !defined(HIDIZS_AP80MAX)
          if(!adb_running && power_input_status() & POWER_INPUT_USB_CHARGER)
-@@ -312,10 +480,16 @@ static enum boot_mode get_boot_mode(void)
+@@ -312,10 +549,16 @@ static enum boot_mode get_boot_mode(void)
          lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
          /* display icon */
          const struct bitmap *icon = (mode == BOOT_OF) ? &ICON_NAME :
@@ -316,7 +387,7 @@ index abb3719bab..79b136b953 100644
              (mode == BOOT_ROCKBOX) ? "ROCKBOX" : "TOOLS";
  
          int desc_height;
-@@ -358,11 +532,19 @@ static enum boot_mode get_boot_mode(void)
+@@ -358,11 +601,19 @@ static enum boot_mode get_boot_mode(void)
              break;
          /* left/right/up/down: change mode */
          if(btn == BUTTON_LEFT || btn == BUTTON_DOWN) {
@@ -336,7 +407,7 @@ index abb3719bab..79b136b953 100644
              init_mode = BOOT_CANARY;
          }
      }
-@@ -553,7 +735,18 @@ static void tools_screen(void)
+@@ -553,7 +804,18 @@ static void tools_screen(void)
      printf("Version: %s\n", rbversion);
      printf("%s\n", MODEL_NAME);
      const char *choices[] = {"ADB start", "ADB stop", "Run script", "Remount SD", "Restart", "Shutdown", "Recovery", "Back"};
@@ -355,7 +426,7 @@ index abb3719bab..79b136b953 100644
      if(choice == 0)
      {
          /* run service menu */
-@@ -597,6 +790,9 @@ static void tools_screen(void)
+@@ -597,6 +859,9 @@ static void tools_screen(void)
      {
          return;
      }
@@ -365,7 +436,7 @@ index abb3719bab..79b136b953 100644
  }
  
  #ifdef ENABLE_LOGGING
-@@ -675,6 +871,12 @@ int main(int argc, char **argv)
+@@ -675,6 +940,35 @@ int main(int argc, char **argv)
              close(fileno(stderr));
  #endif
              mount_storage(false);
@@ -374,11 +445,34 @@ index abb3719bab..79b136b953 100644
 +             * the device has 64 MB of RAM: free what can be freed first. */
 +            system("sync; echo 3 > /proc/sys/vm/drop_caches; "
 +                   "echo 1 > /proc/sys/vm/compact_memory 2>/dev/null");
++            /* still no block for the display driver: restart and start the
++             * firmware first thing. Not after such a restart (of_direct),
++             * and not when the note cannot be left on the card. */
++            if(!of_direct && !big_block_free())
++            {
++                int nfd = open(OF_ONCE_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0644);
++                if(nfd >= 0)
++                {
++                    const char *note = "The boot menu restarts the player to start HiBy OS; "
++                                       "it removes this file itself.\r\n";
++                    write(nfd, note, strlen(note));
++                    close(nfd);
++                    sync();
++                    lcd_clear_display();
++                    lcd_set_foreground(LCD_RGBPACK(255, 255, 255));
++                    display_text_center(LCD_HEIGHT / 2, "Restarting for " OF_NAME "...");
++                    lcd_update();
++                    sleep(HZ);
++                    system_reboot();
++                    sleep(10 * HZ);
++                }
++            }
++            of_direct = false;
 +#endif
              /* boot OF */
              execvp("/usr/bin/hiby_player", argv);
              error_screen("Cannot boot OF");
-@@ -684,8 +886,56 @@ int main(int argc, char **argv)
+@@ -684,8 +978,56 @@ int main(int argc, char **argv)
          {
              tools_screen();
          }
