@@ -15,6 +15,10 @@
 
 lv_obj_t *streaming_screen;
 
+static void streaming_loaded_cb(lv_event_t *e) {
+	gridpage_hint_scroll(lv_event_get_user_data(e));
+}
+
 void streaming_init(gui_config_t *cfg) {
 	qobuzpage_init(cfg);
 	tidalpage_init(cfg);
@@ -39,6 +43,10 @@ void streaming_init(gui_config_t *cfg) {
 	// rather than the tiles growing to fill it.
 	lv_obj_t *grid =
 		gridpage_build(streaming_screen, cfg, entries, (int)(sizeof(entries) / sizeof(entries[0])), 2, 3, true);
+	// Seven tiles in a grid of six: the page scrolls to the last row, as Music
+	// does, and shows its scrollbar for a moment when it is opened.
+	gridpage_set_scrolling(grid);
+	lv_obj_add_event_cb(streaming_screen, streaming_loaded_cb, LV_EVENT_SCREEN_LOADED, grid);
 	gridpage_set_arrangeable(grid, "streaming", NULL);
 
 	settingsrow_title(streaming_screen, cfg, "streaming");

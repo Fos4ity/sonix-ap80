@@ -1496,7 +1496,7 @@ static void refresh_audio_buttons(void) {
 	// Bit-perfect holds the effects off (musicsettings.c): their buttons are
 	// greyed out and take no touch, the press that opens their page included.
 	bool pure = audio_get_bit_perfect();
-	lv_obj_t *effects[] = {eq_btn, mseb_btn, peq_btn, fade_btn};
+	lv_obj_t *effects[] = {eq_btn, mseb_btn, peq_btn, fade_btn, rockbox_btn};
 	for (size_t i = 0; i < sizeof(effects) / sizeof(effects[0]); i++) {
 		if (effects[i]) {
 			lv_obj_set_state(effects[i], LV_STATE_DISABLED, pure);
@@ -1690,6 +1690,9 @@ static void rockbox_clicked_cb(lv_event_t *e) {
 	if (long_press_consumed) {
 		long_press_consumed = false;
 		return;
+	}
+	if (held_by_bit_perfect()) {
+		return; // the engine passes the sound through untouched in that mode
 	}
 	musicsettings_set_rockbox_enabled(!rbdsp_enabled());
 	toggled();
