@@ -43,6 +43,11 @@ lv_obj_t *gridpage_build(lv_obj_t *screen, gui_config_t *cfg, const grid_entry_t
 void gridpage_set_entries(lv_obj_t *grid, gui_config_t *cfg, const grid_entry_t *entries, int count, int columns,
 						  int rows, bool clear_corner_buttons);
 
+// To be called when the tiles' pictures have changed under them, as when
+// another icon pack is chosen: the one-colour drawing of each tile is worked
+// out again from the new pixels.
+void gridpage_icons_changed(void);
+
 // Lets the tiles of a grid be put in another order by hand, the way icons on
 // a phone's home screen are: a tile held for a moment comes up under the
 // finger, the others make room where it is carried, and it stays where it is

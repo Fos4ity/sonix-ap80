@@ -12,6 +12,7 @@
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
 #include "src/gui/shell/icons.h"
+#include "src/gui/shell/monotile.h"
 #include "src/gui/shell/theme.h"
 #include "src/system/core/config.h"
 #include "src/system/core/lang.h"
@@ -23,16 +24,70 @@
 static lv_obj_t *tracked_grids[MAX_GRIDS];
 static int tracked_grid_count;
 
+// A tile's picture in its own colours or, with Monochrome menu icons on, in
+// the text colour -- as far as that picture can be (see monotile.h): a glyph is
+// tinted, a drawing on a plate is drawn without the plate, and shaded artwork
+// keeps its colours rather than turning into a blob.
+//
+// The picture the tile was given is kept on the image as its user data, since
+// what the image shows may be the plate-less copy.
 static void apply_tile_icon_mode(lv_obj_t *icon) {
 	if (!icon) {
 		return;
 	}
+	const lv_image_dsc_t *own = lv_obj_get_user_data(icon);
+	if (!own) {
+		own = lv_image_get_src(icon);
+	}
+	const void *show = own;
+	bool tint = false;
 	if (theme_get_mono_grid_icons()) {
+		switch (monotile_kind(own)) {
+		case MONOTILE_GLYPH:
+			tint = true;
+			break;
+		case MONOTILE_PLATE:
+			show = monotile_mask(own);
+			tint = show != NULL;
+			if (!show) {
+				show = own;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	if (lv_image_get_src(icon) != show) {
+		lv_image_set_src(icon, show);
+	}
+	if (tint) {
 		lv_obj_set_style_image_recolor(icon, theme()->text_primary, 0);
 		lv_obj_set_style_image_recolor_opa(icon, LV_OPA_COVER, 0);
 	} else {
 		lv_obj_set_style_image_recolor_opa(icon, LV_OPA_TRANSP, 0);
 	}
+}
+
+static void refresh_grid_icons(void);
+
+// The tiles' pixels have changed under them (another icon pack): every tile
+// goes back to its own picture before the plate-less copies are thrown away,
+// and is then drawn again from the new pixels.
+void gridpage_icons_changed(void) {
+	for (int g = 0; g < tracked_grid_count; g++) {
+		lv_obj_t *grid = tracked_grids[g];
+		uint32_t cnt = grid ? lv_obj_get_child_count(grid) : 0;
+		for (uint32_t i = 0; i < cnt; i++) {
+			lv_obj_t *tile = lv_obj_get_child(grid, (int32_t)i);
+			lv_obj_t *icon = tile && lv_obj_get_child_count(tile) > 0 ? lv_obj_get_child(tile, 0) : NULL;
+			const lv_image_dsc_t *own = icon ? lv_obj_get_user_data(icon) : NULL;
+			if (own && lv_image_get_src(icon) != own) {
+				lv_image_set_src(icon, own);
+			}
+		}
+	}
+	monotile_reset();
+	refresh_grid_icons();
 }
 
 static void refresh_grid_icons(void) {
@@ -233,6 +288,7 @@ static lv_obj_t *make_ghost(lv_obj_t *tile) {
 	lv_obj_set_clickable(ghost, false);
 
 	lv_obj_t *icon = lv_image_create(ghost);
+	lv_obj_set_user_data(icon, lv_obj_get_user_data(src_icon));
 	lv_image_set_src(icon, lv_image_get_src(src_icon));
 	lv_obj_set_size(icon, lv_obj_get_width(src_icon), lv_obj_get_height(src_icon));
 	lv_image_set_inner_align(icon, LV_IMAGE_ALIGN_CONTAIN);
@@ -446,7 +502,10 @@ void gridpage_set_tile(lv_obj_t *grid, int index, const lv_image_dsc_t *icon, co
 		return;
 	}
 	if (icon) {
-		lv_image_set_src(lv_obj_get_child(tile, TILE_ICON_CHILD), icon);
+		lv_obj_t *image = lv_obj_get_child(tile, TILE_ICON_CHILD);
+		lv_obj_set_user_data(image, (void *)icon);
+		lv_image_set_src(image, icon);
+		apply_tile_icon_mode(image);
 	}
 	if (label) {
 		lv_label_set_text(lv_obj_get_child(tile, TILE_LABEL_CHILD), tr(label));
@@ -474,6 +533,7 @@ static void add_tile(lv_obj_t *grid, const grid_entry_t *entry, int width, int h
 
 	// The tile artwork keeps its own colours unless Monochrome Grid Icons is on.
 	lv_obj_t *icon = lv_image_create(tile);
+	lv_obj_set_user_data(icon, (void *)entry->icon);
 	lv_image_set_src(icon, entry->icon);
 	// A narrow panel (AP80 Pro Max, 360 px) leaves tiles too small for the
 	// artwork plus a wrapped caption: shrink the artwork into what is left

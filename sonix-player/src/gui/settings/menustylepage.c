@@ -3,7 +3,12 @@
 #include <stdint.h>
 
 #include "src/gui/nowplaying/player.h"
+#include <string.h>
+
+#include "src/gui/fonts/fonts.h"
 #include "src/gui/shell/corners.h"
+#include "src/gui/shell/monotile.h"
+#include "src/system/core/lang.h"
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
 #include "src/gui/shell/theme.h"
@@ -17,6 +22,7 @@ static lv_obj_t *radius_pill[4];
 static lv_obj_t *border_pill[3];
 static lv_obj_t *clock_pill[4];
 static lv_obj_t *mono_icons_toggle;
+static lv_obj_t *mono_icons_note;
 static lv_obj_t *topbar_transp_toggle;
 static lv_obj_t *battery_percent_toggle;
 static lv_obj_t *statusbar_always_toggle;
@@ -81,6 +87,18 @@ static void mono_icons_cb(lv_event_t *e) {
 	theme_set_mono_grid_icons(lv_obj_has_state(mono_icons_toggle, LV_STATE_CHECKED));
 }
 
+// The switch only where it can do something: the built-in tiles are shaded
+// artwork that cannot be drawn in one colour (see monotile.h), so with them it
+// is greyed out and a line says why. Looked at every time the page is opened,
+// because the icon pack is chosen on another page.
+static void mono_icons_refresh(lv_event_t *e) {
+	(void)e;
+	bool can = monotile_available();
+	lv_obj_set_state(mono_icons_toggle, LV_STATE_DISABLED, !can);
+	lv_obj_set_style_opa(mono_icons_toggle, can ? LV_OPA_COVER : LV_OPA_40, 0);
+	lv_obj_set_hidden(mono_icons_note, can);
+}
+
 static void topbar_transp_cb(lv_event_t *e) {
 	(void)e;
 	topbar_set_transparent(lv_obj_has_state(topbar_transp_toggle, LV_STATE_CHECKED));
@@ -133,6 +151,21 @@ void menustylepage_init(gui_config_t *cfg) {
 	if (theme_get_mono_grid_icons()) {
 		lv_obj_add_state(mono_icons_toggle, LV_STATE_CHECKED);
 	}
+	const char *language = lang_current();
+	bool czech = language && strncmp(language, "\xC4\x8C" "e", 3) == 0; // "Čeština"
+	mono_icons_note = lv_label_create(container);
+	lv_label_set_text(mono_icons_note,
+					  czech ? "Vestav\xC4\x9Bn\xC3\xA9 ikony jsou barevn\xC3\xA9 obr\xC3\xA1zky a jednobarevn\xC4\x9B "
+							  "nakreslit nejdou. Vyber jinou sadu ikon ve Vzhledu."
+							: "The built-in icons are shaded pictures and cannot be drawn in one colour. "
+							  "Choose another icon pack in Appearance.");
+	lv_label_set_long_mode(mono_icons_note, LV_LABEL_LONG_WRAP);
+	lv_obj_set_width(mono_icons_note, lv_pct(100));
+	lv_obj_add_style(mono_icons_note, &theme_style_text_dim, 0);
+	lv_obj_set_style_text_font(mono_icons_note, &font_ui_20, 0);
+	lv_obj_set_style_pad_hor(mono_icons_note, 8, 0);
+	mono_icons_refresh(NULL);
+	lv_obj_add_event_cb(menustylepage_screen, mono_icons_refresh, LV_EVENT_SCREEN_LOADED, NULL);
 
 	settingsrow_toggle(container, "Transparent status bar", &topbar_transp_toggle, topbar_transp_cb);
 	if (topbar_get_transparent()) {

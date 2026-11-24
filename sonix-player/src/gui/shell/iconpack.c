@@ -10,6 +10,7 @@
 #include "lvgl/src/display/lv_display_private.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"
 
+#include "src/gui/shell/gridpage.h"
 #include "src/system/core/config.h"
 #include "src/system/core/respath.h"
 #include "src/system/image/stb_image_decl.h"
@@ -214,6 +215,8 @@ int iconpack_set(const char *name) {
 	}
 	config_set("ui", "icon_pack", current);
 	config_save();
+	// The menu tiles drawn in one colour are worked out from these pixels.
+	gridpage_icons_changed();
 	redraw_everything();
 	fprintf(stderr, "iconpack: now %s (%d icons)\n", current[0] ? current : "built-in", n);
 	return n;
