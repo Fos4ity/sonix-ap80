@@ -590,8 +590,12 @@ static void *worker(void *user) {
 		peqtarget_form_t form = (strstr(job->selected.path, "in-ear") || strstr(job->selected.path, "earbud"))
 									? PEQTARGET_IN_EAR
 									: PEQTARGET_OVER_EAR;
+		// AutoEq fits the measurements made on a B&K 5128 or 4620 to other
+		// targets than the rest; the tables are not for those.
+		bool other_rig = strstr(job->selected.path, "5128") || strstr(job->selected.path, "4620");
 		size_t size = 0;
-		char *moved = peqtarget_retarget(job->profile_text, job->profile_size, target, form, &size);
+		char *moved = other_rig ? NULL
+								: peqtarget_retarget(job->profile_text, job->profile_size, target, form, &size);
 		if (moved) {
 			free(job->profile_text);
 			job->profile_text = moved;
@@ -605,8 +609,8 @@ static void *worker(void *user) {
 			fprintf(stderr, "autoeq: %s moved to %s (%s)\n", job->selected.name, peqtarget_name(target),
 					form == PEQTARGET_IN_EAR ? "in-ear" : "over-ear");
 		} else {
-			fprintf(stderr, "autoeq: %s kept on Harman, %s has no %s curve\n", job->selected.name,
-					peqtarget_name(target), form == PEQTARGET_IN_EAR ? "in-ear" : "over-ear");
+			fprintf(stderr, "autoeq: %s kept as downloaded, %s\n", job->selected.name,
+					other_rig ? "measured on a rig the targets are not made for" : "the target is for the other kind of headphone");
 		}
 	}
 

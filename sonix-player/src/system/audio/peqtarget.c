@@ -8,16 +8,12 @@
 #include <string.h>
 #include <strings.h>
 
-// PEQdB Diamond beta (S. Chala, "An Optimized Headphone Target Response
-// Curve", PEQdB 2026): the ISO 11904-1 DRP diffuse field plus a 107 Hz low
-// shelf +11.8 dB Q 0.6, a 2724 Hz peak -3.6 dB Q 1.2 and a 4448 Hz high shelf
-// +2.7 dB Q 0.7. Below: that curve minus the target AutoEq fitted its
-// profiles to (Harman in-ear 2019 / Harman over-ear 2018), read off the
-// paper's figure 8 against AutoEq's own target files, smoothed to 2/3 octave
-// and held from 16 kHz up. 1/6 octave steps from 20 Hz.
-static const float diamond_delta_ie[61] = {0.38f, 0.36f, 0.37f, 0.32f, 0.22f, 0.11f, 0.21f, 0.34f, 0.48f, 0.54f, 0.54f, 0.57f, 0.55f, 0.78f, 0.95f, 0.80f, 0.65f, -0.07f, -0.10f, -0.10f, -0.06f, -0.02f, -0.03f, -0.06f, -0.12f, -0.18f, -0.18f, -0.07f, 0.10f, 0.24f, 0.35f, 0.34f, 0.32f, 0.25f, 0.18f, 0.08f, 0.00f, -0.08f, -0.15f, -0.25f, -0.26f, -0.24f, -0.18f, -0.15f, -0.18f, -0.21f, -0.20f, -0.03f, 0.32f, 0.94f, 1.91f, 3.07f, 4.36f, 5.65f, 6.81f, 7.84f, 8.68f, 9.45f, 9.98f, 9.98f, 9.98f};
-static const float diamond_delta_oe[61] = {4.04f, 4.03f, 4.05f, 4.04f, 3.96f, 3.83f, 3.86f, 3.84f, 3.77f, 3.58f, 3.31f, 3.05f, 2.76f, 2.75f, 2.73f, 2.42f, 2.14f, 1.30f, 1.14f, 1.00f, 0.86f, 0.64f, 0.35f, 0.03f, -0.29f, -0.53f, -0.64f, -0.60f, -0.49f, -0.38f, -0.28f, -0.22f, -0.10f, 0.02f, 0.16f, 0.25f, 0.31f, 0.32f, 0.29f, 0.25f, 0.33f, 0.50f, 0.68f, 0.76f, 0.67f, 0.58f, 0.62f, 0.98f, 1.59f, 2.43f, 3.45f, 4.44f, 5.32f, 6.10f, 6.81f, 7.56f, 8.19f, 8.75f, 9.08f, 9.08f, 9.08f};
-
+// What AutoEq fits its published profiles to is not one curve: in-ears get
+// its own "AutoEq in-ear" target with an 8 dB bass shelf, over-ears Harman
+// over-ear 2018 (dbtools/create_webapp_data.py in its repository, checked
+// against the target column of its result files). The tables hold each other
+// target minus that one, per kind of headphone; tools/peqtarget_tables.py
+// writes them and says where the curves come from.
 #define NBANDS 10
 #define NPTS 121 // 1/12 octave, 20 Hz .. 20.5 kHz
 #define FS 48000.0
@@ -34,14 +30,15 @@ typedef struct {
 #include "src/system/audio/peqtarget_tables.h"
 
 // The curves PEQdB lists in its studio, under its own headings. The first one
-// is no curve at all: Harman is what AutoEq's profiles are already fitted to.
+// is no curve at all: the profile as AutoEq made it. Harman over-ear 2018 is
+// not in the list because that is what the first one already is for over-ears.
 // The ids are what the config file holds, so they stay as they are.
 static const struct {
 	const char *id, *name, *tag, *group;
 	const float *ie, *oe;
 } targets[] = {
-	{"harman", "Harman", "", "AutoEq", NULL, NULL},
-	{"diamond", "PEQdB Diamond \xCE\xB2", "Diamond", "Reference", diamond_delta_ie, diamond_delta_oe},
+	{"harman", "AutoEq default", "", "AutoEq", NULL, NULL},
+	{"diamond", "PEQdB Diamond \xCE\xB2", "Diamond", "Reference", delta_diamond_ie, delta_diamond_oe},
 	{"diamond_a", "PEQdB Diamond", "Diamond A", "Reference", delta_diamond_a_ie, delta_diamond_a_oe},
 	{"df", "Diffuse Field", "DF", "Baseline", delta_df_ie, delta_df_oe},
 	{"ultra", "PEQdB Ultra", "Ultra", "Preference", delta_ultra_ie, delta_ultra_oe},
@@ -50,6 +47,7 @@ static const struct {
 	{"hfe3", "HiFiEndgame MKIII", "HFE MKIII", "Preference", delta_hfe3_ie, delta_hfe3_oe},
 	{"hfe5", "HiFiEndgame MKV", "HFE MKV", "Preference", delta_hfe5_ie, delta_hfe5_oe},
 	{"moa", "Harman MoA 2025", "MoA", "Preference", delta_moa_ie, delta_moa_oe},
+	{"harman_ie", "Harman IE 2019", "Harman IE", "Preference (in-ear)", delta_harman_ie_ie, NULL},
 	{"knowles", "Knowles", "Knowles", "Preference (in-ear)", delta_knowles_ie, NULL},
 	{"ief2025", "IEF Preference 2025", "IEF 2025", "Preference (in-ear)", delta_ief2025_ie, NULL},
 	{"jm1", "JM-1 -10dB Tilt", "JM-1", "Preference (in-ear)", delta_jm1_ie, NULL},

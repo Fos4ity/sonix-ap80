@@ -4,11 +4,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-// AutoEq publishes its profiles for one target (Harman). This moves such a
+// AutoEq publishes its profiles for its own choice of target (Harman over-ear
+// 2018, and a Harman-like curve of its own for in-ears). This moves such a
 // profile to another target: the curve the downloaded filters draw, plus the
 // difference between the two targets, fitted back into ten filters.
 //
-// A target is a number from 0 (Harman, the profile as downloaded) to
+// A target is a number from 0 (the profile as downloaded) to
 // peqtarget_count() - 1; the list is in peqtarget.c.
 typedef enum { PEQTARGET_OVER_EAR = 0, PEQTARGET_IN_EAR = 1 } peqtarget_form_t;
 

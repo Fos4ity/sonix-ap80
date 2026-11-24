@@ -1,62 +1,117 @@
 #!/usr/bin/env python3
 """Writes src/system/audio/peqtarget_tables.h.
 
-  tools/peqtarget_tables.py <folder with the target curves> <output header>
+  tools/peqtarget_tables.py <PEQdB curves> <AutoEq targets> <output header>
 
-The folder holds one text file per target, "frequency<TAB>dB" per line, named
-as PEQdB's studio names them ("HiFiEndgame MKV.txt", "Harman IE 2019.txt", ...).
-The curves themselves are not part of this repository.
+<PEQdB curves>   one text file per target, "frequency<TAB>dB" per line, named
+                 as PEQdB's studio names them ("HiFiEndgame MKV.txt", ...).
+<AutoEq targets> the CSVs from the targets/ folder of github.com/jaakkopasanen/
+                 AutoEq ("AutoEq in-ear.csv", "Harman over-ear 2018 without
+                 bass.csv").
+
+Neither set of curves is part of this repository.
+
+What AutoEq fits its published profiles to (dbtools/create_webapp_data.py,
+checked against the "target" column of its result files):
+  in-ear    "AutoEq in-ear" plus a low shelf of 8 dB at 105 Hz, Q 0.7
+  over-ear  "Harman over-ear 2018 without bass" plus 6 dB at 105 Hz, Q 0.7
+PEQdB's own Harman curves agree with AutoEq's files to 0.1 dB, so the two sets
+stand on the same footing and can be subtracted.
 """
 import math
 import os
 import sys
 
-d = sys.argv[1]
-def load(n):
-    pts=[]
-    for l in open(os.path.join(d,n+'.txt'),encoding='utf-8',errors='replace'):
-        p=l.replace(',',' ').split()
-        if len(p)>=2:
-            try: pts.append((float(p[0]),float(p[1])))
-            except ValueError: pass
+d, autoeq = sys.argv[1], sys.argv[2]
+HOLD = 16000.0
+
+
+def load_path(path):
+    pts = []
+    for l in open(path, encoding="utf-8", errors="replace"):
+        p = l.replace(",", " ").split()
+        if len(p) >= 2:
+            try:
+                pts.append((float(p[0]), float(p[1])))
+            except ValueError:
+                pass
     return pts
-def at(pts,f):
-    if f<=pts[0][0]: return pts[0][1]
-    if f>=pts[-1][0]: return pts[-1][1]
-    for i in range(1,len(pts)):
-        if pts[i][0]>=f:
-            a,b=pts[i-1],pts[i]
-            t=(math.log(f)-math.log(a[0]))/(math.log(b[0])-math.log(a[0]))
-            return a[1]+t*(b[1]-a[1])
-HOLD=16000.0
-def delta(t,ref):
-    T,R=load(t),load(ref)
+
+
+def at(pts, f):
+    if f <= pts[0][0]:
+        return pts[0][1]
+    if f >= pts[-1][0]:
+        return pts[-1][1]
+    lo, hi = 0, len(pts) - 1
+    while hi - lo > 1:
+        m = (lo + hi) // 2
+        if pts[m][0] <= f:
+            lo = m
+        else:
+            hi = m
+    a, b = pts[lo], pts[hi]
+    t = (math.log(f) - math.log(a[0])) / (math.log(b[0]) - math.log(a[0]))
+    return a[1] + t * (b[1] - a[1])
+
+
+def shelf(f, gain, fc=105.0, q=0.7, fs=48000.0):
+    A = 10 ** (gain / 40)
+    w0 = 2 * math.pi * fc / fs
+    cw, sw = math.cos(w0), math.sin(w0)
+    s = 2 * math.sqrt(A) * sw / (2 * q)
+    b0 = A * ((A + 1) - (A - 1) * cw + s)
+    b1 = 2 * A * ((A - 1) - (A + 1) * cw)
+    b2 = A * ((A + 1) - (A - 1) * cw - s)
+    a0 = (A + 1) + (A - 1) * cw + s
+    a1 = -2 * ((A - 1) + (A + 1) * cw)
+    a2 = (A + 1) + (A - 1) * cw - s
+    w = 2 * math.pi * f / fs
+    n = complex(b0 + b1 * math.cos(w) + b2 * math.cos(2 * w), -(b1 * math.sin(w) + b2 * math.sin(2 * w)))
+    dd = complex(a0 + a1 * math.cos(w) + a2 * math.cos(2 * w), -(a1 * math.sin(w) + a2 * math.sin(2 * w)))
+    return 20 * math.log10(abs(n / dd))
+
+
+REF = {
+    "ie": (load_path(os.path.join(autoeq, "AutoEq in-ear.csv")), 8.0),
+    "oe": (load_path(os.path.join(autoeq, "Harman over-ear 2018 without bass.csv")), 6.0),
+}
+
+
+def delta(t, form):
+    T = load_path(os.path.join(d, t + ".txt"))
+    R, bass = REF[form]
+
     def raw(f):
-        f=min(max(f,20.0),HOLD)
-        return at(T,f)-at(R,f)
-    out=[]
+        f = min(max(f, 20.0), HOLD)
+        return at(T, f) - at(R, f) - shelf(f, bass)
+
+    out = []
     for k in range(61):
-        f=20.0*2**(k/6.0)
-        # 2/3 octave smoothing: mean over +-1/3 octave
-        s=[raw(f*2**(j/36.0)) for j in range(-12,13)]
-        out.append(sum(s)/len(s))
-    # level: zero mean over 400..1200 Hz
-    mid=[out[k] for k in range(61) if 400<=20.0*2**(k/6.0)<=1200]
-    m=sum(mid)/len(mid)
-    return [v-m for v in out]
-T=[ # id, file, forms
+        f = 20.0 * 2 ** (k / 6.0)
+        # 2/3 octave smoothing: the mean over a third of an octave either side
+        s = [raw(f * 2 ** (j / 36.0)) for j in range(-12, 13)]
+        out.append(sum(s) / len(s))
+    # the level is the preamp's business: zero mean from 400 Hz to 1.2 kHz
+    mid = [out[k] for k in range(61) if 400 <= 20.0 * 2 ** (k / 6.0) <= 1200]
+    m = sum(mid) / len(mid)
+    return [v - m for v in out]
+
+
+T = [  # id, file, forms
+ ('diamond','PEQdB Diamond β','both'),
+ ('harman_ie','Harman IE 2019','ie'),
  ('diamond_a','PEQdB Diamond','both'),('df','Diffuse Field','both'),
  ('ultra','PEQdB Ultra','both'),('hfe','HiFiEndgame','both'),('hfe2','HiFiEndgame MKII','both'),
  ('hfe3','HiFiEndgame MKIII','both'),('hfe5','HiFiEndgame MKV','both'),('moa','Delta Harman MoA 2025','both'),
  ('knowles','Knowles','ie'),('ief2025','IEF Preference 2025','ie'),('jm1','Delta JM-1 -10dB Tilt','ie'),('vdsf','Moondrop VDSF','ie'),
  ('oe2018lb','Harman OE 2018 Linear Bass','oe'),('oe2013','Harman OE 2013','oe'),('kb50','KEMAR KB50xx -10dB Tilt','oe'),
  ('endgame_ie','Endgame IE','ie'),('hifi','PEQdB HiFi','both')]
-out=['// Generated by tools/peqtarget_tables.py from the target curves PEQdB shows in','// its studio (peqdb.com): each curve minus the Harman target AutoEq fitted its',
-'// profiles to (in-ear 2019 / over-ear 2018), smoothed to 2/3 octave, level taken','// off between 400 Hz and 1.2 kHz, held from 16 kHz up. 1/6 octave steps from',"// 20 Hz, 61 points. Do not edit by hand.",'']
+out=['// Generated by tools/peqtarget_tables.py from the target curves PEQdB shows in','// its studio (peqdb.com): each curve minus the target AutoEq fitted its profiles','// to (AutoEq in-ear + 8 dB bass shelf / Harman over-ear 2018), smoothed to 2/3','// octave, level taken off between 400 Hz and 1.2 kHz, held from 16 kHz up.','// 1/6 octave steps from 20 Hz, 61 points. Do not edit by hand.','']
 for i,f,forms in T:
-    for nm,ref in (('ie','Harman IE 2019'),('oe','Harman OE 2018')):
+    for nm in ('ie','oe'):
         if forms in ('both',nm):
-            v=delta(f,ref)
+            v=delta(f,nm)
             out.append('static const float delta_%s_%s[61] = {%s};'%(i,nm,', '.join('%.2ff'%x for x in v)))
             print('%-12s %s min %.1f max %.1f  @20 %.1f @100 %.1f @3k %.1f @6k %.1f @10k %.1f @16k %.1f'%(i,nm,min(v),max(v),v[0],v[14],v[43],v[49],v[54],v[58]))
-open(sys.argv[2],'w').write('\n'.join(out)+'\n')
+open(sys.argv[3],'w').write('\n'.join(out)+'\n')

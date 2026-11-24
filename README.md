@@ -140,8 +140,13 @@ original [README](README.sonix.md). On top of that:
 - **Rockbox DSP.** Rockbox's sound effects inside Sonix: perceptual bass enhancement
   (PBE), bass and treble, auditory fatigue reduction and Haas surround.
   *Music > gear icon > Rockbox DSP.*
-- **PEQdB target for AutoEq.** Downloaded headphone corrections can be re-targeted
-  from Harman to the [PEQdB](https://peqdb.com/) "Diamond β" curve. *PEQ > gear icon > AutoEQ target.*
+- **PEQdB targets for AutoEq.** Downloaded headphone corrections can be re-targeted
+  from AutoEq's own target to any curve [PEQdB](https://peqdb.com/) lists in its studio:
+  Diamond and Diamond β, PEQdB Ultra and HiFi, HiFiEndgame to MKV, Harman MoA 2025,
+  IEF Preference 2025, JM-1, Moondrop VDSF, Knowles, KEMAR KB50xx, older Harman
+  curves and plain diffuse field. *PEQ > gear icon > AutoEQ target.*
+- **Bit-perfect in the control centre.** A button for the bit-perfect switch;
+  add it in *Settings > Control centre*.
 - **Skins.** Colour skins in the simple `.theme` format used by
   [Compas player](https://github.com/Starnished66/compas-player), with an
   optional accent colour. 23 are included: Nothing and Nothing Light made for
@@ -283,7 +288,8 @@ This fork stands on other people's work. Thank you.
 | Crossfade, A-Z index, hold-to-seek, stop after track, hidden Wi-Fi, browser memory, lock screen date, duplicate prompt, MSEB fix, Navidrome / Subsonic | [CookieCaptainD/sonix-player](https://github.com/CookieCaptainD/sonix-player) | CookieCaptainD | GPL v3 |
 | Theme presets, accent hue and saturation, wallpapers, player and menu style pages | [SonixOS HUE](https://github.com/Xkalin1990/SonixOS-HUE) | Xkalin1990 | GPL v3 |
 | Audiobookshelf | [Sonix Audiobooks](https://github.com/yetisoldier/sonix-audiobooks) | yetisoldier | GPL v3 |
-| "Diamond β" target curve | [PEQdB](https://peqdb.com/) | sharur (S. Chala, *An Optimized Headphone Target Response Curve*) | curve values only |
+| Target curves for AutoEq (Diamond β, HiFiEndgame, PEQdB Ultra and the others in the list) | [PEQdB](https://peqdb.com/) studio; the curves' own authors are named there (Diamond: S. Chala, *An Optimized Headphone Target Response Curve*) | PEQdB and the authors of each curve | curve values only, as differences from AutoEq's target |
+| AutoEq targets the differences are taken from | [AutoEq](https://github.com/jaakkopasanen/AutoEq) `targets/` | Jaakko Pasanen | curve values only |
 | Headphone corrections | [AutoEq](https://github.com/jaakkopasanen/AutoEq) (already used by Sonix) | Jaakko Pasanen | MIT |
 | Skin file format and 21 skins | [Compas player](https://github.com/Starnished66/compas-player) | Starnished66 and the Compas contributors | GPL v3 (format and `.theme` files, no code taken; see `themes/CREDITS.txt`) |
 | Icons | [Lucide](https://lucide.dev), [Phosphor](https://phosphoricons.com) | their contributors | ISC, MIT |

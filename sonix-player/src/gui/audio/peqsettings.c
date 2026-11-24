@@ -328,7 +328,7 @@ static lv_obj_t *target_tick[TARGET_MAX];
 static void refresh_target(void) {
 	int t = peqtarget_get();
 	if (target_value) {
-		lv_label_set_text(target_value, t == PEQTARGET_HARMAN ? peqtarget_name(t) : peqtarget_tag(t));
+		lv_label_set_text(target_value, t == PEQTARGET_HARMAN ? "Default" : peqtarget_tag(t));
 	}
 	for (int i = 0; i < peqtarget_count() && i < TARGET_MAX; i++) {
 		if (target_tick[i]) lv_obj_set_hidden(target_tick[i], i != t);
