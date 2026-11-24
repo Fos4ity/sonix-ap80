@@ -2,7 +2,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "src/system/device/sonixpkg.h"
@@ -70,10 +72,28 @@ bool bootdirect_set(bool on) {
 		return false;
 	}
 	if (!on) {
-		return unlink(path) == 0 || access(path, F_OK) != 0;
+		if (unlink(path) == 0 || access(path, F_OK) != 0) {
+			sync();
+			printf("bootdirect: off, %s removed\n", path);
+			return true;
+		}
+		int first = errno;
+		// A FAT file marked read-only refuses unlink: clear the mark and try
+		// again, and as the last resort move the file out of the boot menu's way.
+		chmod(path, 0666);
+		char aside[640];
+		snprintf(aside, sizeof(aside), "%s.off", path);
+		bool ok = unlink(path) == 0 || rename(path, aside) == 0 || access(path, F_OK) != 0;
+		printf("bootdirect: off, unlink %s failed (%s), second try %s (%s)\n", path, strerror(first),
+			   ok ? "worked" : "failed", ok ? "ok" : strerror(errno));
+		if (ok) {
+			sync();
+		}
+		return ok;
 	}
 	FILE *f = fopen(path, "w");
 	if (!f) {
+		printf("bootdirect: on, cannot write %s (%s)\n", path, strerror(errno));
 		return false;
 	}
 	// The text is for whoever finds the file on the card; the boot menu only
@@ -86,5 +106,6 @@ bool bootdirect_set(bool on) {
 	if (ok) {
 		sync();
 	}
+	printf("bootdirect: on, %s %s\n", path, ok ? "written" : "not written");
 	return ok;
 }

@@ -313,6 +313,7 @@ static lv_obj_t *boot_direct_switch;
 static void boot_direct_cb(lv_event_t *e) {
 	(void)e;
 	bool on = lv_obj_has_state(boot_direct_switch, LV_STATE_CHECKED);
+	printf("bootdirect: switch tapped, now %s\n", on ? "on" : "off");
 	if (!bootdirect_set(on)) {
 		// The card refused (read-only, full): show what is really there.
 		if (bootdirect_enabled()) {
