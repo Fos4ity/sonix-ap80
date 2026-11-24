@@ -481,6 +481,18 @@ const char *theme_skin_name(int index) {
 
 int theme_get_skin(void) { return skin_index; }
 
+const theme_palette_t *theme_skin_palette(int index) {
+	static theme_palette_t preview;
+	if (index < 0 || index >= skin_count) {
+		return NULL;
+	}
+	preview = skins[index].pal;
+	if (!skins[index].has_accent) {
+		preview.accent = palette_dark.accent;
+	}
+	return &preview;
+}
+
 static void rebuild_active(void) {
 	theme_palette_t *base = dark_selected ? &palette_dark : &palette_light;
 	if (skin_index >= 0 && skin_index < skin_count) {
@@ -1238,6 +1250,13 @@ const char *theme_preset_name(int index) {
 }
 
 int theme_get_preset(void) { return preset_index; }
+
+const theme_palette_t *theme_preset_palette(int index) {
+	if (index < 0 || index >= THEME_PRESET_COUNT) {
+		index = 0;
+	}
+	return &THEME_PRESETS[index].palette;
+}
 
 typedef struct {
 	unsigned seq;

@@ -266,4 +266,4 @@ iconpack_entry_t iconpack_table[] = {
 	{&icon_ytmusic_badge, "ytmusic-badge", false},
 	{&icon_podcast_badge, "podcast-badge", false},
 };
-const int iconpack_table_count = 255;
+const int iconpack_table_count = (int)(sizeof(iconpack_table) / sizeof(iconpack_table[0]));

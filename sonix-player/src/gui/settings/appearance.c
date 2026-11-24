@@ -26,8 +26,6 @@
 
 lv_obj_t *appearance_screen;
 
-static lv_obj_t *btn_dark;
-static lv_obj_t *btn_light;
 static lv_obj_t *btn_clock[4]; // left / centre / right / hidden
 static lv_obj_t *btn_accent[THEME_ACCENT_COUNT]; // the coloured circles
 static lv_obj_t *tint_toggle;
@@ -35,7 +33,6 @@ static lv_obj_t *hue_slider;
 static lv_obj_t *hue_val_label;
 static lv_obj_t *sat_slider;
 static lv_obj_t *sat_val_label;
-static lv_obj_t *btn_preset[THEME_PRESET_COUNT];
 static lv_obj_t *battery_percent_toggle;
 static lv_obj_t *statusbar_always_toggle;
 static lv_obj_t *rounded_corners_toggle;
@@ -81,12 +78,24 @@ static void sync_tint_toggle(void) {
 
 static void refresh_nothing_toggle(void); // the Nothing preset's switch, below
 
+// Settings -> Appearance -> Theme: one row for the whole palette. A tap opens
+// the list of Sonix's own dark and light, the colour themes and the skins on
+// the card, each painted in its own colours.
+static lv_obj_t *theme_value;
+
+static void refresh_theme_row(void) {
+	if (theme_value) {
+		lv_label_set_text(theme_value, lookpicker_theme_name());
+	}
+}
+
 static void dynamic_tint_cb(lv_event_t *e) {
 	(void)e;
 	bool on = lv_obj_has_state(tint_toggle, LV_STATE_CHECKED);
 	bool had_skin = theme_get_skin() >= 0;
 	theme_set_dynamic_tint(on); // switches a Compas skin off
-	if (on && had_skin) toast_success(appearance_czech() ? "Compas skin vypnut" : "Compas skin turned off");
+	if (on && had_skin) toast_success(appearance_czech() ? "Skin vypnut" : "Skin turned off");
+	refresh_theme_row();
 	refresh_nothing_toggle();
 }
 
@@ -159,41 +168,6 @@ static void text_size_cb(lv_event_t *e) {
 	refresh_text_size_pills();
 }
 
-// Paints the pair: the active choice is the filled accent button, the other a
-// quiet neutral, like libadwaita's suggested-action beside a regular button.
-static lv_obj_t *skin_toggle;
-static lv_obj_t *skin_value;
-static int skin_last = 0; // the skin the toggle brings back
-
-static void refresh_skin_row(void) {
-	int idx = theme_get_skin();
-	if (skin_toggle) {
-		if (idx >= 0) {
-			lv_obj_add_state(skin_toggle, LV_STATE_CHECKED);
-		} else {
-			lv_obj_remove_state(skin_toggle, LV_STATE_CHECKED);
-		}
-	}
-	if (skin_value) {
-		int show = idx >= 0 ? idx : skin_last;
-		lv_label_set_text(skin_value, theme_skin_count() ? theme_skin_name(show) : "\xE2\x80\x94");
-	}
-}
-
-static void skin_toggle_cb(lv_event_t *e) {
-	(void)e;
-	bool on = lv_obj_has_state(skin_toggle, LV_STATE_CHECKED);
-	if (on && theme_skin_count() == 0) {
-		lv_obj_remove_state(skin_toggle, LV_STATE_CHECKED);
-		return;
-	}
-	bool had_tint = theme_dynamic_tint();
-	theme_set_skin(on ? skin_last : -1); // switches the dynamic tint off
-	sync_tint_toggle();
-	refresh_nothing_toggle();
-	if (on && had_tint) toast_success(appearance_czech() ? "Dynamický odstín vypnut" : "Dynamic tint turned off");
-}
-
 // The Nothing preset: one switch for the whole look -- the "Nothing" skin
 // (black, red accent), the dot-matrix font and the Nothing icon pack. On when
 // all three are in place; switching it off goes back to Sonix's own skin-less
@@ -238,7 +212,6 @@ static void nothing_toggle_cb(lv_event_t *e) {
 			refresh_nothing_toggle();
 			return;
 		}
-		skin_last = idx;
 		theme_set_skin(idx); // switches the dynamic tint off
 		fonts_custom_count();
 		bool font_ok = fonts_set_custom(NOTHING_FONT);
@@ -256,14 +229,13 @@ static void nothing_toggle_cb(lv_event_t *e) {
 		iconpack_set("");
 	}
 	sync_tint_toggle();
-	refresh_skin_row();
+	refresh_theme_row();
 	refresh_font_row();
 	refresh_iconpack_row();
 	refresh_nothing_toggle();
 }
 
 
-// A tap on the row steps to the next skin, and switches skins on.
 static lv_obj_t *splash_value;
 static lv_obj_t *splash_toggle;
 
@@ -306,60 +278,6 @@ static void splash_next_cb(lv_event_t *e) {
 	config_set_bool("ui", "splash_random", false);
 	config_save();
 	refresh_splash_row();
-}
-
-static void skin_next_cb(lv_event_t *e) {
-	(void)e;
-	int n = theme_skin_count();
-	if (n == 0) {
-		return;
-	}
-	int idx = theme_get_skin();
-	skin_last = idx >= 0 ? (idx + 1) % n : skin_last;
-	bool had_tint = theme_dynamic_tint();
-	theme_set_skin(skin_last);
-	// The two Nothing skins each have an icon pack of the same name (white
-	// tiles for the dark one, black for the light): keep them in step.
-	const char *skin = theme_skin_name(skin_last);
-	const char *pack = iconpack_current();
-	if ((strcmp(pack, NOTHING_SKIN) == 0 || strcmp(pack, NOTHING_SKIN_LIGHT) == 0) && strcmp(pack, skin) != 0 &&
-		(strcmp(skin, NOTHING_SKIN) == 0 || strcmp(skin, NOTHING_SKIN_LIGHT) == 0)) {
-		iconpack_count();
-		iconpack_set(skin);
-		refresh_iconpack_row();
-	}
-	sync_tint_toggle();
-	refresh_skin_row();
-	refresh_nothing_toggle();
-	if (had_tint) toast_success(appearance_czech() ? "Dynamický odstín vypnut" : "Dynamic tint turned off");
-}
-
-static void refresh_buttons(void) {
-	bool dark = theme_is_dark();
-
-	lv_obj_t *on = dark ? btn_dark : btn_light;
-	lv_obj_t *off = dark ? btn_light : btn_dark;
-
-	if (theme_get_skin() >= 0) {
-		on = NULL; // a skin is neither of the two
-	}
-	if (theme_get_skin() >= 0) {
-		lv_obj_set_style_bg_color(btn_dark, theme()->surface_pressed, 0);
-		lv_obj_set_style_text_color(lv_obj_get_child(btn_dark, 0), theme()->text_primary, 0);
-		lv_obj_set_style_bg_color(btn_light, theme()->surface_pressed, 0);
-		lv_obj_set_style_text_color(lv_obj_get_child(btn_light, 0), theme()->text_primary, 0);
-		refresh_skin_row();
-		sync_tint_toggle();
-		return;
-	}
-	refresh_skin_row();
-	sync_tint_toggle();
-
-	lv_obj_set_style_bg_color(on, theme()->accent, 0);
-	lv_obj_set_style_text_color(lv_obj_get_child(on, 0), lv_color_white(), 0);
-
-	lv_obj_set_style_bg_color(off, theme()->surface_pressed, 0);
-	lv_obj_set_style_text_color(lv_obj_get_child(off, 0), theme()->text_primary, 0);
 }
 
 // The active circle wears a ring in the text colour; the rest sit flat.
@@ -502,27 +420,6 @@ static lv_obj_t *make_hs_slider(lv_obj_t *card, const char *title, int min_v, in
 	return s;
 }
 
-// SonixOS HUE's palettes: a pill each, the active one filled.
-static void refresh_preset_pills(void) {
-	int chosen = theme_get_skin() >= 0 ? -1 : theme_get_preset();
-	for (int i = 0; i < THEME_PRESET_COUNT; i++) {
-		if (btn_preset[i]) {
-			settingsrow_pill_active(btn_preset[i], i == chosen);
-		}
-	}
-}
-
-static void preset_pick_cb(lv_event_t *e) {
-	if (switcher_back_drag_active()) {
-		return;
-	}
-	theme_set_preset((int)(intptr_t)lv_event_get_user_data(e));
-	refresh_preset_pills();
-	refresh_buttons();
-	refresh_accent_buttons();
-	refresh_nothing_toggle();
-}
-
 // Paints the clock-position pills the same way: accent on the active one.
 static void refresh_clock_buttons(void) {
 	int active = (int)config_get_int("screen", "clock_pos", TOPBAR_CLOCK_CENTER);
@@ -565,33 +462,30 @@ static lv_obj_t *make_clock_choice(lv_obj_t *parent, const char *text, int pos) 
 	return btn;
 }
 
-static void pick_cb(lv_event_t *e) {
-	bool dark = (bool)(uintptr_t)lv_event_get_user_data(e);
-	theme_set_dark(dark);
-	refresh_buttons();
+// The page's own widgets after the palette moved, whoever moved it.
+static void refresh_theme_widgets(void) {
+	refresh_theme_row();
+	sync_tint_toggle();
+	refresh_nothing_toggle();
 }
 
-static lv_obj_t *make_choice(lv_obj_t *parent, const char *text, bool dark) {
-	lv_obj_t *btn = lv_btn_create(parent);
-	lv_obj_set_size(btn, LV_SIZE_CONTENT, 64);
-	lv_obj_set_style_pad_hor(btn, 34, 0);
-	lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0); // Adwaita pill button
-	lv_obj_set_style_shadow_width(btn, 0, 0);
-	lv_obj_set_style_border_width(btn, 0, 0);
-	lv_obj_add_event_cb(btn, pick_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)dark);
-
-	lv_obj_t *label = lv_label_create(btn);
-	lv_label_set_text(label, tr(text));
-	lv_obj_set_style_text_font(label, &font_ui_24, 0);
-	lv_obj_center(label);
-
-	return btn;
+static void theme_picked(void) {
+	refresh_theme_widgets();
+	refresh_iconpack_row();
+	refresh_accent_buttons();
 }
 
-void appearance_init(gui_config_t *cfg) {
-	lv_obj_t *container = settingsrow_page(appearance_screen, cfg, "appearance");
+static void theme_open_cb(lv_event_t *e) {
+	(void)e;
+	if (switcher_back_drag_active()) {
+		return;
+	}
+	lookpicker_themes(tr("appearance_theme"), theme_picked);
+}
 
-	// One tall card: the option's name on top, the two choices under it.
+// A card with a name on top and a row of choices under it.
+static lv_obj_t *make_choice_card(lv_obj_t *container, const char *title, int gap, lv_flex_flow_t flow,
+								  lv_flex_align_t main_align, lv_obj_t **card_out) {
 	lv_obj_t *card = lv_obj_create(container);
 	lv_obj_set_width(card, lv_pct(100));
 	lv_obj_set_height(card, LV_SIZE_CONTENT);
@@ -602,11 +496,12 @@ void appearance_init(gui_config_t *cfg) {
 	lv_obj_set_style_pad_all(card, 20, 0);
 	lv_obj_set_style_pad_gap(card, 18, 0);
 	lv_obj_set_scrollable(card, false);
+	lv_obj_set_event_bubble(card, true);
 	lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
 	lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
 
 	lv_obj_t *name = lv_label_create(card);
-	lv_label_set_text(name, tr("appearance_theme"));
+	lv_label_set_text(name, tr(title));
 	lv_obj_add_style(name, &theme_style_text, 0);
 	lv_obj_set_style_text_font(name, &font_ui_24, 0);
 
@@ -615,155 +510,81 @@ void appearance_init(gui_config_t *cfg) {
 	lv_obj_set_style_bg_opa(row, 0, 0);
 	lv_obj_set_style_border_width(row, 0, 0);
 	lv_obj_set_style_pad_all(row, 0, 0);
-	lv_obj_set_style_pad_gap(row, 14, 0);
+	lv_obj_set_style_pad_gap(row, gap, 0);
 	lv_obj_set_scrollable(row, false);
-	lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-	lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-	btn_dark = make_choice(row, "appearance_dark", true);
-	btn_light = make_choice(row, "appearance_light", false);
-
-	// Compas skins from <resource>/themes: a switch, and a row that steps
-	// through them on each tap.
-	if (theme_get_skin() >= 0) {
-		skin_last = theme_get_skin();
+	lv_obj_set_flex_flow(row, flow);
+	lv_obj_set_flex_align(row, main_align, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
+	if (card_out) {
+		*card_out = card;
 	}
-	settingsrow_toggle(container, "Compas skin", &skin_toggle, skin_toggle_cb);
-	settingsrow_add(container, "Skin", &skin_value, skin_next_cb, NULL);
-	// The start screen: one of the three, or a different one each start.
-	settingsrow_toggle(container, appearance_czech() ? "Střídat úvodní obrazovky" : "Rotate start screens",
-					   &splash_toggle, splash_toggle_cb);
-	settingsrow_add(container, appearance_czech() ? "Úvodní obrazovka" : "Start screen",
-					&splash_value, splash_next_cb, NULL);
-	refresh_splash_row();
-	// Shown only when the Nothing skin is on the card.
+	return row;
+}
+
+static lv_obj_t *add_note(lv_obj_t *container, const char *text) {
+	lv_obj_t *note = lv_label_create(container);
+	lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
+	lv_obj_set_width(note, lv_pct(100));
+	lv_obj_add_style(note, &theme_style_text_dim, 0);
+	lv_obj_set_style_text_font(note, &font_ui_22, 0);
+	lv_label_set_text(note, text);
+	return note;
+}
+
+// Five groups, each under its heading, in the order one sets a look up: the
+// colours, the letters and pictures, how the pages are laid out, the status
+// bar, and what shows while the player starts.
+void appearance_init(gui_config_t *cfg) {
+	lv_obj_t *container = settingsrow_page(appearance_screen, cfg, "appearance");
+	bool cz = appearance_czech();
+
+	// ---- Theme and colours -------------------------------------------------
+	settingsrow_heading(container, cz ? "Motiv a barvy" : "Theme and colours");
+
+	// One row for the whole palette: Sonix dark and light, the colour themes
+	// (from SonixOS HUE) and the Compas skins from <resource>/themes.
+	settingsrow_add(container, "appearance_theme", &theme_value, theme_open_cb, NULL);
+	refresh_theme_row();
+
+	// One switch for the whole Nothing look: skin, font and icons. Shown only
+	// when the Nothing skin is on the card.
 	if (nothing_skin_index(NOTHING_SKIN) >= 0) {
-		settingsrow_toggle(container, appearance_czech() ? "Preset Nothing" : "Nothing preset",
-						   &nothing_toggle, nothing_toggle_cb);
+		settingsrow_toggle(container, cz ? "Preset Nothing" : "Nothing preset", &nothing_toggle, nothing_toggle_cb);
 		refresh_nothing_toggle();
 	}
 
-	// A second card: where the clock sits in the status bar.
-	lv_obj_t *clock_card = lv_obj_create(container);
-	lv_obj_set_width(clock_card, lv_pct(100));
-	lv_obj_set_height(clock_card, LV_SIZE_CONTENT);
-	lv_obj_add_style(clock_card, &theme_style_card, 0);
-	lv_obj_set_style_radius(clock_card, 12, 0);
-	lv_obj_set_style_border_width(clock_card, 0, 0);
-	lv_obj_set_style_shadow_width(clock_card, 0, 0);
-	lv_obj_set_style_pad_all(clock_card, 20, 0);
-	lv_obj_set_style_pad_gap(clock_card, 18, 0);
-	lv_obj_set_scrollable(clock_card, false);
-	lv_obj_set_event_bubble(clock_card, true);
-	lv_obj_set_flex_flow(clock_card, LV_FLEX_FLOW_COLUMN);
-	lv_obj_set_flex_align(clock_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-
-	lv_obj_t *clock_name = lv_label_create(clock_card);
-	lv_label_set_text(clock_name, tr("appearance_clock_position"));
-	lv_obj_add_style(clock_name, &theme_style_text, 0);
-	lv_obj_set_style_text_font(clock_name, &font_ui_24, 0);
-
-	lv_obj_t *clock_row = lv_obj_create(clock_card);
-	lv_obj_set_size(clock_row, lv_pct(100), LV_SIZE_CONTENT);
-	lv_obj_set_style_bg_opa(clock_row, 0, 0);
-	lv_obj_set_style_border_width(clock_row, 0, 0);
-	lv_obj_set_style_pad_all(clock_row, 0, 0);
-	lv_obj_set_style_pad_gap(clock_row, 10, 0);
-	lv_obj_set_scrollable(clock_row, false);
-	// Wrapped, not a single line: four pills of translated words do not fit
-	// across 480 pixels in every language, and one that does not fit is drawn
-	// off the card rather than shrunk.
-	lv_obj_set_flex_flow(clock_row, LV_FLEX_FLOW_ROW_WRAP);
-	lv_obj_set_flex_align(clock_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-
-	btn_clock[TOPBAR_CLOCK_LEFT] = make_clock_choice(clock_row, "left", TOPBAR_CLOCK_LEFT);
-	btn_clock[TOPBAR_CLOCK_CENTER] = make_clock_choice(clock_row, "centre", TOPBAR_CLOCK_CENTER);
-	btn_clock[TOPBAR_CLOCK_RIGHT] = make_clock_choice(clock_row, "right", TOPBAR_CLOCK_RIGHT);
-	btn_clock[TOPBAR_CLOCK_HIDDEN] = make_clock_choice(clock_row, "hide", TOPBAR_CLOCK_HIDDEN);
-
-	// A third card: the accent colour, as a row of coloured circles.
-	lv_obj_t *accent_card = lv_obj_create(container);
-	lv_obj_set_width(accent_card, lv_pct(100));
-	lv_obj_set_height(accent_card, LV_SIZE_CONTENT);
-	lv_obj_add_style(accent_card, &theme_style_card, 0);
-	lv_obj_set_style_radius(accent_card, 12, 0);
-	lv_obj_set_style_border_width(accent_card, 0, 0);
-	lv_obj_set_style_shadow_width(accent_card, 0, 0);
-	lv_obj_set_style_pad_all(accent_card, 20, 0);
-	lv_obj_set_style_pad_gap(accent_card, 18, 0);
-	lv_obj_set_scrollable(accent_card, false);
-	lv_obj_set_event_bubble(accent_card, true);
-	lv_obj_set_flex_flow(accent_card, LV_FLEX_FLOW_COLUMN);
-	lv_obj_set_flex_align(accent_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-
-	lv_obj_t *accent_name = lv_label_create(accent_card);
-	lv_label_set_text(accent_name, tr("appearance_accent_colour"));
-	lv_obj_add_style(accent_name, &theme_style_text, 0);
-	lv_obj_set_style_text_font(accent_name, &font_ui_24, 0);
-
-	lv_obj_t *accent_row = lv_obj_create(accent_card);
-	lv_obj_set_size(accent_row, lv_pct(100), LV_SIZE_CONTENT);
-	lv_obj_set_style_bg_opa(accent_row, 0, 0);
-	lv_obj_set_style_border_width(accent_row, 0, 0);
-	lv_obj_set_style_pad_all(accent_row, 0, 0);
-	lv_obj_set_style_pad_gap(accent_row, 14, 0);
-	lv_obj_set_scrollable(accent_row, false);
-	lv_obj_set_flex_flow(accent_row, LV_FLEX_FLOW_ROW);
-	lv_obj_set_flex_align(accent_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
+	// The accent colour, as a row of coloured circles, and any colour at all
+	// under it: hue and saturation (from SonixOS HUE).
+	lv_obj_t *accent_card;
+	lv_obj_t *accent_row = make_choice_card(container, "appearance_accent_colour", 14, LV_FLEX_FLOW_ROW,
+											LV_FLEX_ALIGN_SPACE_BETWEEN, &accent_card);
 	for (int i = 0; i < THEME_ACCENT_COUNT; i++) {
 		btn_accent[i] = make_accent_circle(accent_row, i);
 	}
-	// Any colour at all: hue and saturation (from SonixOS HUE).
-	hue_slider = make_hs_slider(accent_card, appearance_czech() ? "Vlastní odstín" : "Custom hue", 0, 359, &hue_val_label,
+	hue_slider = make_hs_slider(accent_card, cz ? "Vlastní odstín" : "Custom hue", 0, 359, &hue_val_label,
 								hue_slider_cb);
-	sat_slider = make_hs_slider(accent_card, appearance_czech() ? "Vlastní sytost" : "Custom saturation", 0, 100,
-								&sat_val_label, sat_slider_cb);
+	sat_slider = make_hs_slider(accent_card, cz ? "Vlastní sytost" : "Custom saturation", 0, 100, &sat_val_label,
+								sat_slider_cb);
 
 	// Straight under the accent, because it is what the tint is made from: the
 	// same hue carried across the backgrounds, the cards and the status bar.
 	settingsrow_toggle(container, "appearance_dynamic_tint", &tint_toggle, dynamic_tint_cb);
-	if (theme_dynamic_tint()) {
-		lv_obj_add_state(tint_toggle, LV_STATE_CHECKED);
-	}
+	sync_tint_toggle();
+	char tint_text[400];
+	snprintf(tint_text, sizeof(tint_text), "%s %s", tr("appearance_dynamic_tint_note"),
+			 cz ? "Nejde spolu se skinem: zapnutí jedno vypne druhé."
+				: "Not together with a skin: turning one on turns the other off.");
+	add_note(container, tint_text);
 
-	lv_obj_t *tint_note = lv_label_create(container);
-	lv_label_set_long_mode(tint_note, LV_LABEL_LONG_WRAP);
-	lv_obj_set_width(tint_note, lv_pct(100));
-	lv_obj_add_style(tint_note, &theme_style_text_dim, 0);
-	lv_obj_set_style_text_font(tint_note, &font_ui_22, 0);
-	lv_label_set_text_fmt(tint_note, "%s %s", tr("appearance_dynamic_tint_note"),
-						  appearance_czech() ? "Nejde spolu s Compas skinem: zapnutí jedno vypne druhé."
-										  : "Not together with a Compas skin: turning one on turns the other off.");
+	settingsrow_add(container, cz ? "Tapeta" : "Wallpaper", NULL, switch_screen_cb, wallpaperpage_screen);
 
-	// The picture shown while the player boots, which follows the theme and
-	// the accent unless one of the user's own is chosen.
-	settingsrow_add(container, "bootlogo", NULL, switch_screen_cb, bootlogopage_screen);
-
-	// From SonixOS HUE: ready-made palettes (each with its own wallpaper), a
-	// wallpaper of your own, and how the player and the menus are drawn.
-	lv_obj_t *preset_pills;
-	settingsrow_pills(container, appearance_czech() ? "Barevný motiv" : "Colour theme", &preset_pills);
-	lv_obj_set_flex_flow(preset_pills, LV_FLEX_FLOW_ROW_WRAP);
-	for (int i = 0; i < THEME_PRESET_COUNT; i++) {
-		btn_preset[i] = settingsrow_pill(preset_pills, theme_preset_name(i), i, preset_pick_cb);
-	}
-	refresh_preset_pills();
-	theme_register_refresh(refresh_preset_pills);
-	settingsrow_add(container, appearance_czech() ? "Tapeta" : "Wallpaper", NULL, switch_screen_cb, wallpaperpage_screen);
-	settingsrow_add(container, appearance_czech() ? "Vzhled přehrávače" : "Player style", NULL, switch_screen_cb,
-					playerstylepage_screen);
-	settingsrow_add(container, appearance_czech() ? "Vzhled menu a lišty" : "Menu & bar style", NULL, switch_screen_cb,
-					menustylepage_screen);
-
+	// ---- Font and icons ----------------------------------------------------
+	settingsrow_heading(container, cz ? "Písmo a ikony" : "Font and icons");
+	settingsrow_add(container, cz ? "P\xC3\xADsmo" : "Font", &font_value, font_next_cb, NULL);
+	refresh_font_row();
+	settingsrow_add(container, cz ? "Ikony" : "Icons", &iconpack_value, iconpack_next_cb, NULL);
+	refresh_iconpack_row();
 	// How big the small text on every page is: the secondary lines, notes,
 	// clocks and counters. See fonts.c for which sizes grow and by how much.
-	settingsrow_add(container, appearance_czech() ? "P\xC3\xADsmo" : "Font", &font_value, font_next_cb, NULL);
-	refresh_font_row();
-
-	settingsrow_add(container, appearance_czech() ? "Ikony" : "Icons", &iconpack_value, iconpack_next_cb, NULL);
-	refresh_iconpack_row();
-
 	lv_obj_t *text_size_pills;
 	settingsrow_pills(container, "appearance_text_size", &text_size_pills);
 	text_size_pill[FONTS_TEXT_NORMAL] =
@@ -771,37 +592,56 @@ void appearance_init(gui_config_t *cfg) {
 	text_size_pill[FONTS_TEXT_LARGE] =
 		settingsrow_pill(text_size_pills, "appearance_text_large", FONTS_TEXT_LARGE, text_size_cb);
 
-	// A fifth card, and a plain switch: whether the status
-	// bar prints the charge as a number as well as drawing it.
-	settingsrow_toggle(container, "appearance_battery_percentage", &battery_percent_toggle, battery_percent_cb);
-	if (config_get_int("screen", "battery_percent", 1) != 0) {
-		lv_obj_add_state(battery_percent_toggle, LV_STATE_CHECKED);
-	}
-
-	// The bar up in the player too, where it otherwise steps aside for the
-	// artwork.
-	settingsrow_toggle(container, "appearance_statusbar_always", &statusbar_always_toggle, statusbar_always_cb);
-	if (player_statusbar_always()) {
-		lv_obj_add_state(statusbar_always_toggle, LV_STATE_CHECKED);
-	}
-	lv_obj_t *statusbar_note = lv_label_create(container);
-	lv_label_set_long_mode(statusbar_note, LV_LABEL_LONG_WRAP);
-	lv_obj_set_width(statusbar_note, lv_pct(100));
-	lv_obj_add_style(statusbar_note, &theme_style_text_dim, 0);
-	lv_obj_set_style_text_font(statusbar_note, &font_ui_22, 0);
-	lv_label_set_text(statusbar_note, tr("appearance_statusbar_always_note"));
-
+	// ---- Layout ------------------------------------------------------------
+	settingsrow_heading(container, cz ? "Rozložení" : "Layout");
+	settingsrow_add(container, cz ? "Vzhled přehrávače" : "Player style", NULL, switch_screen_cb,
+					playerstylepage_screen);
+	settingsrow_add(container, cz ? "Vzhled menu a lišty" : "Menu & bar style", NULL, switch_screen_cb,
+					menustylepage_screen);
 	// Rounds off the four corners of the screen, over every page and overlay.
 	settingsrow_toggle(container, "appearance_rounded_corners", &rounded_corners_toggle, rounded_corners_cb);
 	if (corners_enabled()) {
 		lv_obj_add_state(rounded_corners_toggle, LV_STATE_CHECKED);
 	}
 
-	refresh_buttons();
+	// ---- Status bar --------------------------------------------------------
+	settingsrow_heading(container, cz ? "Stavový řádek" : "Status bar");
+	// Wrapped, not a single line: four pills of translated words do not fit
+	// across the panel in every language.
+	lv_obj_t *clock_row = make_choice_card(container, "appearance_clock_position", 10, LV_FLEX_FLOW_ROW_WRAP,
+										   LV_FLEX_ALIGN_START, NULL);
+	btn_clock[TOPBAR_CLOCK_LEFT] = make_clock_choice(clock_row, "left", TOPBAR_CLOCK_LEFT);
+	btn_clock[TOPBAR_CLOCK_CENTER] = make_clock_choice(clock_row, "centre", TOPBAR_CLOCK_CENTER);
+	btn_clock[TOPBAR_CLOCK_RIGHT] = make_clock_choice(clock_row, "right", TOPBAR_CLOCK_RIGHT);
+	btn_clock[TOPBAR_CLOCK_HIDDEN] = make_clock_choice(clock_row, "hide", TOPBAR_CLOCK_HIDDEN);
+	// Whether the bar prints the charge as a number as well as drawing it.
+	settingsrow_toggle(container, "appearance_battery_percentage", &battery_percent_toggle, battery_percent_cb);
+	if (config_get_int("screen", "battery_percent", 1) != 0) {
+		lv_obj_add_state(battery_percent_toggle, LV_STATE_CHECKED);
+	}
+	// The bar up in the player too, where it otherwise steps aside for the
+	// artwork.
+	settingsrow_toggle(container, "appearance_statusbar_always", &statusbar_always_toggle, statusbar_always_cb);
+	if (player_statusbar_always()) {
+		lv_obj_add_state(statusbar_always_toggle, LV_STATE_CHECKED);
+	}
+	add_note(container, tr("appearance_statusbar_always_note"));
+
+	// ---- Start -------------------------------------------------------------
+	settingsrow_heading(container, cz ? "Spuštění" : "Start");
+	// The start screen: one of the three, or a different one each start.
+	settingsrow_add(container, cz ? "Úvodní obrazovka" : "Start screen", &splash_value, splash_next_cb, NULL);
+	settingsrow_toggle(container, cz ? "Střídat úvodní obrazovky" : "Rotate start screens", &splash_toggle,
+					   splash_toggle_cb);
+	refresh_splash_row();
+	// The picture shown while the player boots, which follows the theme and
+	// the accent unless one of the user's own is chosen.
+	settingsrow_add(container, "bootlogo", NULL, switch_screen_cb, bootlogopage_screen);
+
 	refresh_clock_buttons();
 	refresh_accent_buttons();
 	refresh_text_size_pills();
-	theme_register_refresh(refresh_buttons);
+	theme_register_refresh(refresh_theme_widgets);
 	theme_register_refresh(refresh_text_size_pills);
 	theme_register_refresh(refresh_clock_buttons);
 	theme_register_refresh(refresh_accent_buttons);

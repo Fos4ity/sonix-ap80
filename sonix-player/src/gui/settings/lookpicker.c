@@ -11,14 +11,15 @@
 #include "src/gui/shell/icons.h"
 #include "src/gui/shell/theme.h"
 #include "src/gui/shell/toast.h"
+#include "src/system/core/lang.h"
 
-#define MAX_ROWS 26			// built-in + FONTS_CUSTOM_MAX (24) / ICONPACK_MAX (16)
+#define MAX_ROWS 60			// built-in + FONTS_CUSTOM_MAX (24) / ICONPACK_MAX (16); 8 themes + 48 skins
 #define PREVIEW_FONT_PX 26
 #define GLYPH_PX 30
 #define TILE_PX 44
 #define GLYPHS_PER_ROW 4
 
-typedef enum { PICK_FONTS, PICK_ICONS } pick_kind_t;
+typedef enum { PICK_FONTS, PICK_ICONS, PICK_THEMES } pick_kind_t;
 
 static lv_obj_t *veil;
 static pick_kind_t kind;
@@ -31,6 +32,51 @@ static lv_image_dsc_t *row_image[MAX_ROWS][GLYPHS_PER_ROW + 1];
 
 static char pending[64];
 static bool have_pending;
+
+// Theme rows: a colour theme (preset) or a Compas skin, by its index there.
+static bool row_is_skin[MAX_ROWS];
+static int row_index[MAX_ROWS];
+static int pending_row;
+
+static bool picker_czech(void) {
+	const char *l = lang_current();
+	return l && strncmp(l, "\xC4\x8C" "e", 3) == 0; // "Čeština"
+}
+
+// Sonix's two own palettes get plain names; the rest keep theirs.
+static const char *preset_label(int index) {
+	const theme_palette_t *p = theme_preset_palette(index);
+	if (index == 0) {
+		return picker_czech() ? "Sonix tmav\xC3\xBD" : "Sonix dark";
+	}
+	if (!p->dark && strcmp(theme_preset_name(index), "Light") == 0) {
+		return picker_czech() ? "Sonix sv\xC4\x9Btl\xC3\xBD" : "Sonix light";
+	}
+	return theme_preset_name(index);
+}
+
+const char *lookpicker_theme_name(void) {
+	int skin = theme_get_skin();
+	return skin >= 0 ? theme_skin_name(skin) : preset_label(theme_get_preset());
+}
+
+static void apply_theme_row(int i) {
+	if (!row_is_skin[i]) {
+		theme_set_preset(row_index[i]);
+		return;
+	}
+	theme_set_skin(row_index[i]);
+	// The two Nothing skins each have an icon pack of the same name (white
+	// tiles for the dark one, black for the light): keep them in step.
+	const char *skin = theme_skin_name(row_index[i]);
+	const char *pack = iconpack_current();
+	bool pack_nothing = strcmp(pack, "Nothing") == 0 || strcmp(pack, "Nothing Light") == 0;
+	bool skin_nothing = strcmp(skin, "Nothing") == 0 || strcmp(skin, "Nothing Light") == 0;
+	if (pack_nothing && skin_nothing && strcmp(pack, skin) != 0) {
+		iconpack_count();
+		iconpack_set(skin);
+	}
+}
 
 static void free_previews(void) {
 	for (int i = 0; i < MAX_ROWS; i++) {
@@ -55,7 +101,9 @@ static void finish_cb(void *unused) {
 	free_previews();
 	if (have_pending) {
 		have_pending = false;
-		if (kind == PICK_FONTS) {
+		if (kind == PICK_THEMES) {
+			apply_theme_row(pending_row);
+		} else if (kind == PICK_FONTS) {
 			if (!fonts_set_custom(pending)) {
 				toast_error("Font?");
 			}
@@ -77,6 +125,7 @@ static void row_cb(lv_event_t *e) {
 	int i = (int)(intptr_t)lv_event_get_user_data(e);
 	if (i >= 0 && i < row_count) {
 		snprintf(pending, sizeof(pending), "%s", row_name[i]);
+		pending_row = i;
 		have_pending = true;
 	}
 	lv_async_call(finish_cb, NULL);
@@ -117,6 +166,107 @@ static lv_obj_t *add_label(lv_obj_t *parent, const char *text, const lv_font_t *
 	return label;
 }
 
+static lv_obj_t *add_section(lv_obj_t *list, const char *text) {
+	lv_obj_t *label = add_label(list, text, &font_ui_20_bold, true);
+	lv_obj_set_style_pad_left(label, 6, 0);
+	lv_obj_set_style_pad_top(label, 6, 0);
+	return label;
+}
+
+// One theme, painted in its own colours: the page behind, a card with the
+// name and a line of small text on it, and the accent as a dot.
+static lv_obj_t *add_theme_row(lv_obj_t *list, int index, const char *name, const theme_palette_t *p, bool current) {
+	lv_obj_t *row = add_row(list, index, current);
+	lv_obj_set_style_bg_color(row, p->screen_bg, 0);
+	lv_obj_set_style_bg_color(row, p->screen_bg, LV_STATE_PRESSED);
+	lv_obj_set_style_border_color(row, current ? theme()->accent : p->text_secondary, 0);
+	lv_obj_set_style_border_width(row, current ? 3 : 1, 0);
+	lv_obj_set_style_border_opa(row, current ? LV_OPA_COVER : LV_OPA_40, 0);
+	lv_obj_set_style_pad_all(row, 8, 0);
+
+	lv_obj_t *card = lv_obj_create(row);
+	lv_obj_set_size(card, lv_pct(100), LV_SIZE_CONTENT);
+	lv_obj_set_style_radius(card, 8, 0);
+	lv_obj_set_style_bg_color(card, p->surface, 0);
+	lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+	lv_obj_set_style_border_width(card, 0, 0);
+	lv_obj_set_style_pad_hor(card, 12, 0);
+	lv_obj_set_style_pad_ver(card, 8, 0);
+	lv_obj_set_style_pad_column(card, 10, 0);
+	lv_obj_set_scrollable(card, false);
+	lv_obj_set_clickable(card, false);
+	lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
+	lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+	lv_obj_t *text = lv_label_create(card);
+	lv_obj_set_flex_grow(text, 1);
+	lv_label_set_long_mode(text, LV_LABEL_LONG_DOT);
+	lv_obj_set_style_text_font(text, &font_ui_22, 0);
+	lv_obj_set_style_text_color(text, p->text_primary, 0);
+	lv_label_set_text(text, name);
+	lv_obj_set_clickable(text, false);
+
+	lv_obj_t *small = lv_label_create(card);
+	lv_obj_set_style_text_font(small, &font_ui_20, 0);
+	lv_obj_set_style_text_color(small, p->text_secondary, 0);
+	lv_label_set_text(small, "Aa");
+	lv_obj_set_clickable(small, false);
+
+	lv_obj_t *dot = lv_obj_create(card);
+	lv_obj_set_size(dot, 22, 22);
+	lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+	lv_obj_set_style_bg_color(dot, p->accent, 0);
+	lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
+	lv_obj_set_style_border_width(dot, 0, 0);
+	lv_obj_set_scrollable(dot, false);
+	lv_obj_set_clickable(dot, false);
+	return row;
+}
+
+// Sonix's own two first, then the colour themes, then the skins on the card.
+static lv_obj_t *fill_themes(lv_obj_t *list) {
+	lv_obj_t *current_row = NULL;
+	int skin = theme_get_skin(), preset = theme_get_preset();
+	row_count = 0;
+	add_section(list, "Sonix");
+	for (int pass = 0; pass < 2; pass++) {
+		if (pass == 1) {
+			add_section(list, picker_czech() ? "Barevn\xC3\xA9 motivy" : "Colour themes");
+		}
+		for (int i = 0; i < THEME_PRESET_COUNT && row_count < MAX_ROWS; i++) {
+			bool own = i == 0 || strcmp(theme_preset_name(i), "Light") == 0;
+			if (own != (pass == 0)) {
+				continue;
+			}
+			bool cur = skin < 0 && preset == i;
+			row_is_skin[row_count] = false;
+			row_index[row_count] = i;
+			row_name[row_count][0] = 0;
+			lv_obj_t *row = add_theme_row(list, row_count, preset_label(i), theme_preset_palette(i), cur);
+			row_count++;
+			if (cur) {
+				current_row = row;
+			}
+		}
+	}
+	int n = theme_skin_count();
+	if (n > 0) {
+		add_section(list, picker_czech() ? "Skiny" : "Skins");
+	}
+	for (int i = 0; i < n && row_count < MAX_ROWS; i++) {
+		bool cur = skin == i;
+		row_is_skin[row_count] = true;
+		row_index[row_count] = i;
+		row_name[row_count][0] = 0;
+		lv_obj_t *row = add_theme_row(list, row_count, theme_skin_name(i), theme_skin_palette(i), cur);
+		row_count++;
+		if (cur) {
+			current_row = row;
+		}
+	}
+	return current_row;
+}
+
 static void open_list(pick_kind_t what, const char *title, void (*on_done)(void)) {
 	if (veil) {
 		return;
@@ -128,12 +278,12 @@ static void open_list(pick_kind_t what, const char *title, void (*on_done)(void)
 	// The choices: built-in first, then what the card holds.
 	row_count = 0;
 	row_name[row_count++][0] = 0;
-	int n = what == PICK_FONTS ? fonts_custom_count() : iconpack_count();
+	int n = what == PICK_THEMES ? 0 : what == PICK_FONTS ? fonts_custom_count() : iconpack_count();
 	for (int i = 0; i < n && row_count < MAX_ROWS; i++) {
 		snprintf(row_name[row_count++], sizeof(row_name[0]), "%s",
 				 what == PICK_FONTS ? fonts_custom_name(i) : iconpack_name(i));
 	}
-	const char *current = what == PICK_FONTS ? fonts_get_custom() : iconpack_current();
+	const char *current = what == PICK_THEMES ? "" : what == PICK_FONTS ? fonts_get_custom() : iconpack_current();
 
 	veil = lv_obj_create(lv_layer_top());
 	lv_obj_set_size(veil, lv_pct(100), lv_pct(100));
@@ -176,7 +326,10 @@ static void open_list(pick_kind_t what, const char *title, void (*on_done)(void)
 
 	static const char *const GLYPHS[GLYPHS_PER_ROW] = {"play", "heart", "folder", "search"};
 	lv_obj_t *current_row = NULL;
-	for (int i = 0; i < row_count; i++) {
+	if (what == PICK_THEMES) {
+		current_row = fill_themes(list);
+	}
+	for (int i = 0; what != PICK_THEMES && i < row_count; i++) {
 		bool is_current = strcmp(row_name[i], current) == 0;
 		lv_obj_t *row = add_row(list, i, is_current);
 		if (is_current) {
@@ -226,3 +379,4 @@ static void open_list(pick_kind_t what, const char *title, void (*on_done)(void)
 
 void lookpicker_fonts(const char *title, void (*on_done)(void)) { open_list(PICK_FONTS, title, on_done); }
 void lookpicker_icons(const char *title, void (*on_done)(void)) { open_list(PICK_ICONS, title, on_done); }
+void lookpicker_themes(const char *title, void (*on_done)(void)) { open_list(PICK_THEMES, title, on_done); }

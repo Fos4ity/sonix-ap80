@@ -9,4 +9,11 @@
 void lookpicker_fonts(const char *title, void (*on_done)(void));
 void lookpicker_icons(const char *title, void (*on_done)(void));
 
+// "Theme": every look the whole interface can take, in one list -- Sonix's own
+// dark and light, the colour themes and the Compas skins from the card -- each
+// row painted in its own colours. A tap applies it at once.
+void lookpicker_themes(const char *title, void (*on_done)(void));
+// The name of the theme in force, as that list shows it.
+const char *lookpicker_theme_name(void);
+
 #endif /* LOOKPICKER_H */

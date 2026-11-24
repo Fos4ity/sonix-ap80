@@ -94,6 +94,8 @@ void theme_set_dark(bool dark);
 // Named theme presets (Settings -> Appearance -> Theme).
 #define THEME_PRESET_COUNT 8
 const char *theme_preset_name(int index);
+// The colours of preset `index` as they are defined, for a picker's preview.
+const theme_palette_t *theme_preset_palette(int index);
 int theme_get_preset(void);
 void theme_set_preset(int index);
 
@@ -112,6 +114,9 @@ void theme_set_dynamic_tint(bool on);
 // sets accent=0xRRGGBB. -1 is no skin.
 int theme_skin_count(void);
 const char *theme_skin_name(int index);
+// The colours of skin `index` (its accent is Sonix's when the skin brings
+// none), for a picker's preview. NULL when there is no such skin.
+const theme_palette_t *theme_skin_palette(int index);
 int theme_get_skin(void);
 void theme_set_skin(int index);
 // Menu wallpaper support (480x800 for HiBy R1, rendered at configurable opacity,
