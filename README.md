@@ -159,6 +159,24 @@ New in 1.6, taken from other Sonix forks (see Credits):
   on the lock screen, a question before adding a track to a playlist twice, and a
   fix for clipping in MSEB's extended bass.
 
+New in 1.7:
+
+- **Rearrange the tiles.** Hold a tile for half a second and carry it to a new
+  place, on the main menu, More, Wireless, Streaming, Audiobooks and Music. The
+  order is remembered.
+- **Appearance, tidied up.** Four groups: theme and colours, font and icons,
+  interface, wallpaper and start screen. Colour themes and skins are one list
+  now, stepped through with the arrows on the theme card or picked from
+  *Theme selector*. Settings that used to be on two pages are on one.
+- **Rockbox DSP in the control centre.** An optional button: tap switches the
+  effects on and off, hold opens their page. *Settings > Control centre* is
+  where buttons are added and removed, with a double tap on a row.
+- **Icon packs filled in.** Every pack now covers every icon it should (the
+  metronome in Nothing, the Navidrome tile everywhere), and *Monochrome menu
+  icons* draws properly with every pack.
+- **Fixes**: the Streaming page scrolls, so its seventh tile (Navidrome) can be
+  reached, and the clock no longer shows twice after its position is changed.
+
 ## How it works
 
 ```
