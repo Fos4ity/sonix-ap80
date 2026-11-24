@@ -1,5 +1,7 @@
 #include "ccsettings.h"
 
+#include <string.h>
+
 #include "lvgl/lvgl.h"
 
 #include "src/gui/fonts/fonts.h"
@@ -8,6 +10,7 @@
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
 #include "src/gui/shell/theme.h"
+#include "src/gui/shell/toast.h"
 #include "src/system/core/lang.h"
 
 lv_obj_t *ccsettings_screen;
@@ -126,6 +129,26 @@ static void refresh(void) {
 static void refresh_async(void *unused) {
 	(void)unused;
 	refresh();
+}
+
+
+// The page in Czech? Its two lines of help are not in the language files.
+static bool page_czech(void) {
+	const char *language = lang_current();
+	return language && strncmp(language, "\xC4\x8C" "e", 3) == 0; // "Čeština"
+}
+
+// One line over the lists saying what a tap and the grip do.
+static void make_hint(lv_obj_t *parent) {
+	lv_obj_t *hint = lv_label_create(parent);
+	lv_label_set_text(hint, page_czech() ? "\xC5\xA4uknut\xC3\xADm \xC5\x99\xC3\xA1" "dek p\xC5\x99" "esune\xC5\xA1 mezi seznamy, "
+										   "ta\xC5\xBE" "en\xC3\xADm za te\xC4\x8Dky zm\xC4\x9Bn\xC3\xAD\xC5\xA1 po\xC5\x99" "ad\xC3\xAD."
+										 : "Tap a row to move it to the other list, drag it by the dots to reorder.");
+	lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
+	lv_obj_set_width(hint, lv_pct(100));
+	lv_obj_add_style(hint, &theme_style_text_dim, 0);
+	lv_obj_set_style_text_font(hint, &font_ui_20, 0);
+	lv_obj_set_style_pad_hor(hint, 4, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -275,6 +298,37 @@ static void drag_cb(lv_event_t *e) {
 }
 
 // ---------------------------------------------------------------------------
+// A tap moves a row to the other list
+//
+// The quick way, next to the grip: a button in the panel leaves it for the top
+// of the ones left out, where it can be seen and tapped back, and one left out
+// joins the panel at its end. Carrying a row is still how the order is set.
+// ---------------------------------------------------------------------------
+
+static void row_tapped_cb(lv_event_t *e) {
+	if (switcher_back_drag_active() || drag_row >= 0) {
+		return; // a swipe back across the row, or a row in the hand
+	}
+	lv_obj_t *row = lv_event_get_current_target(e);
+	int in_n = quickpanel_in_use_count();
+	for (int i = 0; i < row_count; i++) {
+		if (entries[i].row != row) {
+			continue;
+		}
+		if (i < in_n) {
+			quickpanel_move_hidden(row_button[i], 0);
+		} else if (in_n >= QP_SLOT_COUNT) {
+			toast_plain(page_czech() ? "Panel je pln\xC3\xBD, nejd\xC5\x99\xC3\xADv n\xC4\x9B" "co odeber."
+									 : "The panel is full, take something out first.");
+		} else {
+			quickpanel_move_in_use(row_button[i], in_n);
+		}
+		lv_async_call(refresh_async, NULL);
+		return;
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Construction
 // ---------------------------------------------------------------------------
 
@@ -303,6 +357,8 @@ static void make_row(entry_t *entry, int width) {
 	lv_obj_set_style_pad_hor(row, ROW_PAD, 0);
 	lv_obj_set_style_pad_ver(row, 0, 0);
 	lv_obj_set_scrollable(row, false);
+	lv_obj_add_style(row, &theme_style_card_pressed, LV_STATE_PRESSED);
+	lv_obj_add_event_cb(row, row_tapped_cb, LV_EVENT_CLICKED, NULL);
 	entry->row = row;
 
 	lv_obj_t *box = lv_obj_create(row);
@@ -357,6 +413,8 @@ void ccsettings_init(gui_config_t *cfg) {
 	page = settingsrow_page(ccsettings_screen, cfg, "control_centre");
 
 	int width = cfg->screen_width - 2 * cfg->padding;
+
+	make_hint(page);
 
 	body = lv_obj_create(page);
 	lv_obj_set_width(body, width);

@@ -1,5 +1,7 @@
 #include "musictiles.h"
 
+#include <string.h>
+
 #include "lvgl/lvgl.h"
 
 #include "src/gui/fonts/fonts.h"
@@ -127,6 +129,26 @@ static void refresh(void) {
 static void refresh_async(void *unused) {
 	(void)unused;
 	refresh();
+}
+
+
+// The page in Czech? Its two lines of help are not in the language files.
+static bool page_czech(void) {
+	const char *language = lang_current();
+	return language && strncmp(language, "\xC4\x8C" "e", 3) == 0; // "Čeština"
+}
+
+// One line over the lists saying what a tap and the grip do.
+static void make_hint(lv_obj_t *parent) {
+	lv_obj_t *hint = lv_label_create(parent);
+	lv_label_set_text(hint, page_czech() ? "\xC5\xA4uknut\xC3\xADm \xC5\x99\xC3\xA1" "dek p\xC5\x99" "esune\xC5\xA1 mezi seznamy, "
+										   "ta\xC5\xBE" "en\xC3\xADm za te\xC4\x8Dky zm\xC4\x9Bn\xC3\xAD\xC5\xA1 po\xC5\x99" "ad\xC3\xAD."
+										 : "Tap a row to move it to the other list, drag it by the dots to reorder.");
+	lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
+	lv_obj_set_width(hint, lv_pct(100));
+	lv_obj_add_style(hint, &theme_style_text_dim, 0);
+	lv_obj_set_style_text_font(hint, &font_ui_20, 0);
+	lv_obj_set_style_pad_hor(hint, 4, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -276,6 +298,32 @@ static void drag_cb(lv_event_t *e) {
 }
 
 // ---------------------------------------------------------------------------
+// A tap moves a row to the other list, as on the control centre's page: a tile
+// on the page leaves it for the top of the ones left out, one left out joins
+// the page at its end.
+// ---------------------------------------------------------------------------
+
+static void row_tapped_cb(lv_event_t *e) {
+	if (switcher_back_drag_active() || drag_row >= 0) {
+		return;
+	}
+	lv_obj_t *row = lv_event_get_current_target(e);
+	int in_n = music_tiles_in_use_count();
+	for (int i = 0; i < row_count; i++) {
+		if (entries[i].row != row) {
+			continue;
+		}
+		if (i >= in_n) {
+			music_tiles_move_in_use(row_button[i], in_n);
+		} else if (!music_tiles_move_hidden(row_button[i], 0)) {
+			toast_error("musictiles_keep_one");
+		}
+		lv_async_call(refresh_async, NULL);
+		return;
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Construction
 // ---------------------------------------------------------------------------
 
@@ -298,6 +346,8 @@ static void make_row(entry_t *entry, int width) {
 	lv_obj_set_size(row, width, ROW_HEIGHT);
 	lv_obj_set_x(row, 0);
 	lv_obj_add_style(row, &theme_style_card, 0);
+	lv_obj_add_style(row, &theme_style_card_pressed, LV_STATE_PRESSED);
+	lv_obj_add_event_cb(row, row_tapped_cb, LV_EVENT_CLICKED, NULL);
 	lv_obj_set_style_radius(row, ROW_RADIUS, 0);
 	lv_obj_set_style_border_width(row, 0, 0);
 	lv_obj_set_style_shadow_width(row, 0, 0);
@@ -361,6 +411,8 @@ void musictiles_init(gui_config_t *cfg) {
 	settingsrow_title_corner_slots(settingsrow_page_title(musictiles_screen), cfg, 0);
 
 	int width = cfg->screen_width - 2 * cfg->padding;
+
+	make_hint(page);
 
 	body = lv_obj_create(page);
 	lv_obj_set_width(body, width);
