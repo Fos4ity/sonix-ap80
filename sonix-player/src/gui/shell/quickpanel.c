@@ -39,6 +39,7 @@
 #include "src/system/core/lang.h"
 #include "src/system/library/library.h"
 #include "src/system/audio/eq.h"
+#include "src/system/audio/pbe.h"
 #include "src/system/playback/playlist.h"
 #include "src/system/playback/sleeptimer.h"
 #include "src/system/device/power.h"
@@ -100,6 +101,7 @@ static lv_obj_t *sleep_audiobook_btn;
 static lv_obj_t *sleep_podcast_btn;
 static lv_obj_t *wifi_transfer_btn;
 static lv_obj_t *gapless_btn;
+static lv_obj_t *rockbox_btn;
 
 // ---------------------------------------------------------------------------
 // Which buttons the panel carries, and where
@@ -134,6 +136,7 @@ static const char *const button_key[QP_BTN_COUNT] = {
 	[QP_BTN_SLEEP_PODCAST] = "sleep_podcast",
 	[QP_BTN_WIFI_TRANSFER] = "wifi_transfer",
 	[QP_BTN_GAPLESS] = "gapless",
+	[QP_BTN_ROCKBOX] = "rockbox",
 };
 
 static const char *const button_tag[QP_BTN_COUNT] = {
@@ -153,6 +156,8 @@ static const char *const button_tag[QP_BTN_COUNT] = {
 	[QP_BTN_SLEEP_PODCAST] = "quickpanel_sleep_podcast",
 	[QP_BTN_WIFI_TRANSFER] = "wifitransfer_title",
 	[QP_BTN_GAPLESS] = "musicsettings_gapless_playback",
+	// The page's own name, which no language translates.
+	[QP_BTN_ROCKBOX] = "Rockbox DSP",
 };
 
 static uint8_t slots[QP_SLOT_COUNT];  // the grid, QP_BTN_NONE where it is empty
@@ -1061,7 +1066,8 @@ static void order_load(void) {
 		// panel nobody asked to change, so they wait among the unused ones, where
 		// the settings page shows them.
 		bool waits = i == QP_BTN_DLNA || i == QP_BTN_SLEEP_MUSIC || i == QP_BTN_SLEEP_AUDIOBOOK ||
-					 i == QP_BTN_SLEEP_PODCAST || i == QP_BTN_WIFI_TRANSFER || i == QP_BTN_GAPLESS;
+					 i == QP_BTN_SLEEP_PODCAST || i == QP_BTN_WIFI_TRANSFER || i == QP_BTN_GAPLESS ||
+					 i == QP_BTN_ROCKBOX;
 		if ((saved_version < 2 && i == QP_BTN_FADE) || waits) {
 			hidden[hidden_n++] = (uint8_t)i;
 		} else {
@@ -1180,6 +1186,8 @@ static lv_obj_t *button_widget(quickpanel_button_t which) {
 		return wifi_transfer_btn;
 	case QP_BTN_GAPLESS:
 		return gapless_btn;
+	case QP_BTN_ROCKBOX:
+		return rockbox_btn;
 	default:
 		return NULL;
 	}
@@ -1394,6 +1402,8 @@ const lv_image_dsc_t *quickpanel_button_icon(quickpanel_button_t button) {
 		return &icon_wifi_transfer_quick;
 	case QP_BTN_GAPLESS:
 		return &icon_gapless_on_quick;
+	case QP_BTN_ROCKBOX:
+		return &icon_rockbox_dsp_quick;
 	default:
 		return &icon_wifi;
 	}
@@ -1481,6 +1491,7 @@ static void refresh_audio_buttons(void) {
 	circle_button_set_on(sleep_audiobook_btn, sleep_timer_armed(SLEEPTIMER_AUDIOBOOK));
 	circle_button_set_on(sleep_podcast_btn, sleep_timer_armed(SLEEPTIMER_PODCAST));
 	circle_button_set_on(wifi_transfer_btn, wifitransfer_get_enabled());
+	circle_button_set_on(rockbox_btn, rbdsp_enabled());
 
 	// Bit-perfect holds the effects off (musicsettings.c): their buttons are
 	// greyed out and take no touch, the press that opens their page included.
@@ -1669,6 +1680,18 @@ static void mseb_clicked_cb(lv_event_t *e) {
 		return;
 	}
 	musicsettings_set_mseb_enabled(!mseb_get_enabled());
+	toggled();
+}
+
+// The Rockbox DSP master switch: everything on that page on or off at once,
+// the settings themselves left as they are.
+static void rockbox_clicked_cb(lv_event_t *e) {
+	(void)e;
+	if (long_press_consumed) {
+		long_press_consumed = false;
+		return;
+	}
+	musicsettings_set_rockbox_enabled(!rbdsp_enabled());
 	toggled();
 }
 
@@ -2150,6 +2173,11 @@ void quickpanel_init(gui_config_t *cfg) {
 	wifi_transfer_btn = make_circle_button(row, &icon_wifi_transfer_quick);
 	lv_obj_add_event_cb(wifi_transfer_btn, wifi_transfer_clicked_cb, LV_EVENT_CLICKED, NULL);
 	lv_obj_add_event_cb(wifi_transfer_btn, open_page_cb, LV_EVENT_LONG_PRESSED, wifitransfer_screen);
+
+	// Rockbox DSP: tap for the master switch, hold for the page.
+	rockbox_btn = make_circle_button(row, &icon_rockbox_dsp_quick);
+	lv_obj_add_event_cb(rockbox_btn, rockbox_clicked_cb, LV_EVENT_CLICKED, NULL);
+	lv_obj_add_event_cb(rockbox_btn, open_page_cb, LV_EVENT_LONG_PRESSED, musicsettings_rockbox_screen());
 
 	gapless_btn = make_circle_button(row, &icon_gapless_off_quick);
 	lv_obj_add_event_cb(gapless_btn, gapless_clicked_cb, LV_EVENT_CLICKED, NULL);

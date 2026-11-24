@@ -67,6 +67,9 @@ typedef enum {
 	QP_BTN_SLEEP_PODCAST,
 	QP_BTN_WIFI_TRANSFER,
 	QP_BTN_GAPLESS,
+	// The master switch of the Rockbox DSP page. After the others, so a saved
+	// layout keeps the numbers it was written with.
+	QP_BTN_ROCKBOX,
 	QP_BTN_COUNT,
 	QP_BTN_NONE = QP_BTN_COUNT, // an empty place in the grid
 } quickpanel_button_t;

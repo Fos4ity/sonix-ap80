@@ -51,4 +51,8 @@ void musicsettings_set_gapless_enabled(bool enabled);
 // Settings list opens from a row of its own.
 lv_obj_t *musicsettings_rockbox_screen(void);
 
+// Its master switch, which the control centre also carries: the engine and
+// the page's own switch together.
+void musicsettings_set_rockbox_enabled(bool enabled);
+
 #endif /* MUSICSETTINGS_H */

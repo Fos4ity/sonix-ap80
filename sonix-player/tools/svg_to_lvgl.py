@@ -201,6 +201,8 @@ ICONS = [
     # circle size: the toggle and the symbol it raises must read as one thing.
     ("airplay-status.svg", "airplay_quick", 46),
     ("peq.svg", "peq_quick", 46),
+    # The control centre's Rockbox DSP switch (Lucide "audio-lines").
+    ("rockbox-dsp.svg", "rockbox_dsp_quick", 46),
     ("sonixlink-status.svg", "sonixlink_quick", 46),
     # DLNA's menu tile is a coloured square, so the circle carries the line
     # drawing of the logo instead.

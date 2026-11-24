@@ -110,6 +110,7 @@ iconpack_entry_t iconpack_table[] = {
 	{&icon_high_gain, "high-gain", true},
 	{&icon_airplay_quick, "airplay-status", true},
 	{&icon_peq_quick, "peq", true},
+	{&icon_rockbox_dsp_quick, "rockbox-dsp", true},
 	{&icon_sonixlink_quick, "sonixlink-status", true},
 	{&icon_dlna_quick, "dlna-quick", true},
 	{&icon_wifi_transfer_quick, "wifi-transfer-quick", true},

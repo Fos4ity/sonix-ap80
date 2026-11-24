@@ -2313,3 +2313,11 @@ void musicsettings_init(gui_config_t *cfg) {
 }
 
 lv_obj_t *musicsettings_rockbox_screen(void) { return rbbass_screen; }
+
+void musicsettings_set_rockbox_enabled(bool enabled) {
+	rbdsp_set_enabled(enabled);
+	config_save();
+	if (rbdsp_switch) {
+		lv_obj_set_state(rbdsp_switch, LV_STATE_CHECKED, enabled);
+	}
+}

@@ -117,6 +117,7 @@ extern lv_image_dsc_t icon_low_gain;
 extern lv_image_dsc_t icon_high_gain;
 extern lv_image_dsc_t icon_airplay_quick;
 extern lv_image_dsc_t icon_peq_quick;
+extern lv_image_dsc_t icon_rockbox_dsp_quick;
 extern lv_image_dsc_t icon_sonixlink_quick;
 extern lv_image_dsc_t icon_dlna_quick;
 extern lv_image_dsc_t icon_wifi_transfer_quick;
