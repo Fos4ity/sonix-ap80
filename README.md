@@ -5,7 +5,7 @@ open-source music player, to the **Hidizs AP80 Pro Max**. It is fitted to the
 player's 360x640 screen and adds Rockbox DSP effects, PEQdB targets for AutoEq,
 skins, fonts and icon packs, YouTube Music, Navidrome and Audiobookshelf.
 
-Sonix runs from the SD card. The original HiBy OS stays on the player untouched:
+Sonix runs from the SD card and the original HiBy OS stays on the player:
 when you switch it on, a small menu lets you pick Sonix or HiBy OS (or
 [Rockbox](https://www.rockbox.org), if you have it).
 
