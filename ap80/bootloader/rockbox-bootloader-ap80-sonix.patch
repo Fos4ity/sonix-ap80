@@ -52,7 +52,7 @@ literal 0
 HcmV?d00001
 
 diff --git a/bootloader/hibyos_linux.c b/bootloader/hibyos_linux.c
-index abb3719bab..026d5b500c 100644
+index abb3719bab..d38715d571 100644
 --- a/bootloader/hibyos_linux.c
 +++ b/bootloader/hibyos_linux.c
 @@ -46,6 +46,8 @@
@@ -113,7 +113,7 @@ index abb3719bab..026d5b500c 100644
          else
              return 10 * HZ; /* Default timeout */
  }
-@@ -241,11 +261,129 @@ static void mount_storage(int enable)
+@@ -241,11 +261,110 @@ static void mount_storage(int enable)
      mounted = enable;
  }
  
@@ -158,10 +158,8 @@ index abb3719bab..026d5b500c 100644
 +/* "Boot straight into Sonix": Sonix creates this file on the card from its
 + * settings. While it is there the menu is skipped at power-on and Sonix is
 + * started at once. Holding a button (other than power) while the player
-+ * starts, or pressing one during the short notice, shows the menu instead;
-+ * so does leaving Sonix. */
++ * starts shows the menu instead; so does leaving Sonix. */
 +#define SONIX_DIRECT_FILE BASE_DIR "/sonix/boot_direct.txt"
-+#define SONIX_DIRECT_NOTICE (HZ) /* how long the notice stays up */
 +
 +/* the keys that are down right now, asked from the kernel: a key pressed
 + * before this program started never shows up as an event */
@@ -200,27 +198,10 @@ index abb3719bab..026d5b500c 100644
 +        return false;
 +    if(key_held())
 +        return false;
-+    /* a short notice, and a second chance to ask for the menu */
-+    lcd_clear_display();
-+    lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
-+    lcd_bmp(&bm_sonixicon, (LCD_WIDTH - ICON_WIDTH) / 2, get_icon_y());
-+    lcd_set_foreground(LCD_RGBPACK(255, 255, 255));
-+    int h;
-+    lcd_getstringsize("X", NULL, &h);
-+    display_text_center(get_icon_y() + ICON_HEIGHT + h, "SONIX");
-+    lcd_set_foreground(LCD_RGBPACK(0, 255, 0));
-+    display_text_center(LCD_HEIGHT - h * 3, "any button: menu");
-+    lcd_update();
-+    long end = current_tick + SONIX_DIRECT_NOTICE;
-+    while(TIME_BEFORE(current_tick, end))
-+    {
-+        int btn = button_get_w_tmo(HZ / 20);
-+        if((btn & BUTTON_MAIN) && !(btn & BUTTON_REL))
-+        {
-+            button_clear_queue();
-+            return false;
-+        }
-+    }
++    /* no notice on the way: Sonix starts at once. Holding a button is the
++     * only way to the menu, so ask twice, a moment apart, for a press that
++     * began just now */
++    usleep(150000);
 +    return !key_held();
 +}
 +
@@ -243,7 +224,7 @@ index abb3719bab..026d5b500c 100644
      if(fd >= 0)
      {
          read(fd, &mode, sizeof(mode));
-@@ -256,8 +394,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
+@@ -256,8 +375,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
  
  static void save_boot_mode(enum boot_mode mode)
  {
@@ -259,7 +240,7 @@ index abb3719bab..026d5b500c 100644
      if(fd >= 0)
      {
          write(fd, &mode, sizeof(mode));
-@@ -265,18 +410,110 @@ static void save_boot_mode(enum boot_mode mode)
+@@ -265,18 +391,110 @@ static void save_boot_mode(enum boot_mode mode)
      }
  }
  
@@ -370,7 +351,7 @@ index abb3719bab..026d5b500c 100644
          /* on usb detect, immediately boot with last choice */
  #if !defined(HIBY_R3PROII) && !defined(HIBY_R1) && !defined(HIDIZS_AP80MAX)
          if(!adb_running && power_input_status() & POWER_INPUT_USB_CHARGER)
-@@ -312,10 +549,16 @@ static enum boot_mode get_boot_mode(void)
+@@ -312,10 +530,16 @@ static enum boot_mode get_boot_mode(void)
          lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
          /* display icon */
          const struct bitmap *icon = (mode == BOOT_OF) ? &ICON_NAME :
@@ -387,7 +368,7 @@ index abb3719bab..026d5b500c 100644
              (mode == BOOT_ROCKBOX) ? "ROCKBOX" : "TOOLS";
  
          int desc_height;
-@@ -358,11 +601,19 @@ static enum boot_mode get_boot_mode(void)
+@@ -358,11 +582,19 @@ static enum boot_mode get_boot_mode(void)
              break;
          /* left/right/up/down: change mode */
          if(btn == BUTTON_LEFT || btn == BUTTON_DOWN) {
@@ -407,7 +388,7 @@ index abb3719bab..026d5b500c 100644
              init_mode = BOOT_CANARY;
          }
      }
-@@ -553,7 +804,18 @@ static void tools_screen(void)
+@@ -553,7 +785,18 @@ static void tools_screen(void)
      printf("Version: %s\n", rbversion);
      printf("%s\n", MODEL_NAME);
      const char *choices[] = {"ADB start", "ADB stop", "Run script", "Remount SD", "Restart", "Shutdown", "Recovery", "Back"};
@@ -426,7 +407,7 @@ index abb3719bab..026d5b500c 100644
      if(choice == 0)
      {
          /* run service menu */
-@@ -597,6 +859,9 @@ static void tools_screen(void)
+@@ -597,6 +840,9 @@ static void tools_screen(void)
      {
          return;
      }
@@ -436,7 +417,7 @@ index abb3719bab..026d5b500c 100644
  }
  
  #ifdef ENABLE_LOGGING
-@@ -675,6 +940,35 @@ int main(int argc, char **argv)
+@@ -675,6 +921,35 @@ int main(int argc, char **argv)
              close(fileno(stderr));
  #endif
              mount_storage(false);
@@ -472,7 +453,7 @@ index abb3719bab..026d5b500c 100644
              /* boot OF */
              execvp("/usr/bin/hiby_player", argv);
              error_screen("Cannot boot OF");
-@@ -684,8 +978,56 @@ int main(int argc, char **argv)
+@@ -684,8 +959,56 @@ int main(int argc, char **argv)
          {
              tools_screen();
          }
