@@ -738,6 +738,12 @@ void topbar_set_clock_position(int pos) {
 		return;
 	}
 
+	// The whole bar is repainted, before the move and after it: the label
+	// leaves one flex row or the bar's centre for another, and the place it
+	// left kept a second, stale clock on screen until something else happened
+	// to redraw it.
+	lv_obj_invalidate(top_bar);
+
 	if (pos == TOPBAR_CLOCK_HIDDEN) {
 		lv_obj_set_hidden(clock_label, true);
 		return;
@@ -755,6 +761,11 @@ void topbar_set_clock_position(int pos) {
 		lv_obj_set_parent(clock_label, top_bar);
 		lv_obj_align(clock_label, LV_ALIGN_CENTER, 0, 0);
 	}
+	// A little air between the clock and its neighbour in the group.
+	lv_obj_set_style_margin_right(clock_label, pos == TOPBAR_CLOCK_LEFT ? 8 : 0, 0);
+	lv_obj_set_style_margin_left(clock_label, pos == TOPBAR_CLOCK_RIGHT ? 8 : 0, 0);
+	lv_obj_update_layout(top_bar);
+	lv_obj_invalidate(top_bar);
 }
 
 // Re-runs the battery paint so its colours follow a theme switch. The reading

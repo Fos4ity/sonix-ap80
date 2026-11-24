@@ -27,40 +27,13 @@
 
 lv_obj_t *appearance_screen;
 
-static lv_obj_t *btn_clock[4]; // left / centre / right / hidden
 static lv_obj_t *btn_accent[THEME_ACCENT_COUNT]; // the coloured circles
 static lv_obj_t *tint_toggle;
 static lv_obj_t *hue_slider;
 static lv_obj_t *hue_val_label;
 static lv_obj_t *sat_slider;
 static lv_obj_t *sat_val_label;
-static lv_obj_t *battery_percent_toggle;
-static lv_obj_t *statusbar_always_toggle;
-static lv_obj_t *rounded_corners_toggle;
 static lv_obj_t *text_size_pill[2]; // normal / large
-// The status bar draws the battery either way; this setting is only about the
-// number beside it, and is on by default.
-static void battery_percent_cb(lv_event_t *e) {
-	(void)e;
-	bool shown = lv_obj_has_state(battery_percent_toggle, LV_STATE_CHECKED);
-	topbar_set_battery_percent(shown);
-	config_set_int("screen", "battery_percent", shown ? 1 : 0);
-	config_save();
-}
-
-static void statusbar_always_cb(lv_event_t *e) {
-	(void)e;
-	bool on = lv_obj_has_state(statusbar_always_toggle, LV_STATE_CHECKED);
-	player_set_statusbar_always(on);
-	config_set_int("screen", "statusbar_always", on ? 1 : 0);
-	config_save();
-}
-
-static void rounded_corners_cb(lv_event_t *e) {
-	(void)e;
-	corners_set_enabled(lv_obj_has_state(rounded_corners_toggle, LV_STATE_CHECKED));
-}
-
 // The accent's hue spread over the backgrounds and cards. theme_set_dynamic_tint
 // repaints the interface itself, including this page.
 static bool appearance_czech(void) {
@@ -421,48 +394,6 @@ static lv_obj_t *make_hs_slider(lv_obj_t *card, const char *title, int min_v, in
 	return s;
 }
 
-// Paints the clock-position pills the same way: accent on the active one.
-static void refresh_clock_buttons(void) {
-	int active = (int)config_get_int("screen", "clock_pos", TOPBAR_CLOCK_CENTER);
-	for (int i = 0; i < 4; i++) {
-		if (!btn_clock[i]) {
-			continue;
-		}
-		if (i == active) {
-			lv_obj_set_style_bg_color(btn_clock[i], theme()->accent, 0);
-			lv_obj_set_style_text_color(lv_obj_get_child(btn_clock[i], 0), lv_color_white(), 0);
-		} else {
-			lv_obj_set_style_bg_color(btn_clock[i], theme()->surface_pressed, 0);
-			lv_obj_set_style_text_color(lv_obj_get_child(btn_clock[i], 0), theme()->text_primary, 0);
-		}
-	}
-}
-
-static void clock_pos_cb(lv_event_t *e) {
-	int pos = (int)(intptr_t)lv_event_get_user_data(e);
-	config_set_int("screen", "clock_pos", pos);
-	config_save();
-	topbar_set_clock_position(pos);
-	refresh_clock_buttons();
-}
-
-static lv_obj_t *make_clock_choice(lv_obj_t *parent, const char *text, int pos) {
-	lv_obj_t *btn = lv_btn_create(parent);
-	lv_obj_set_size(btn, LV_SIZE_CONTENT, 64);
-	lv_obj_set_style_pad_hor(btn, 14, 0);
-	lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0); // Adwaita pill button
-	lv_obj_set_style_shadow_width(btn, 0, 0);
-	lv_obj_set_style_border_width(btn, 0, 0);
-	lv_obj_add_event_cb(btn, clock_pos_cb, LV_EVENT_CLICKED, (void *)(intptr_t)pos);
-
-	lv_obj_t *label = lv_label_create(btn);
-	lv_label_set_text(label, tr(text));
-	lv_obj_set_style_text_font(label, &font_ui_24, 0);
-	lv_obj_center(label);
-
-	return btn;
-}
-
 // The page's own widgets after the palette moved, whoever moved it.
 static void refresh_theme_widgets(void) {
 	refresh_theme_row();
@@ -560,9 +491,9 @@ static lv_obj_t *add_note(lv_obj_t *container, const char *text) {
 	return note;
 }
 
-// Five groups, each under its heading, in the order one sets a look up: the
-// colours, the letters and pictures, how the pages are laid out, the status
-// bar, and what shows while the player starts.
+// Four groups, each under its heading, in the order one sets a look up: the
+// theme and its colours, the letters and pictures, how the player and the menus
+// are built, and last the wallpaper and what shows while the player starts.
 void appearance_init(gui_config_t *cfg) {
 	lv_obj_t *container = settingsrow_page(appearance_screen, cfg, "appearance");
 	bool cz = appearance_czech();
@@ -618,8 +549,6 @@ void appearance_init(gui_config_t *cfg) {
 				: "Not together with a skin: turning one on turns the other off.");
 	add_note(container, tint_text);
 
-	settingsrow_add(container, cz ? "Tapeta" : "Wallpaper", NULL, switch_screen_cb, wallpaperpage_screen);
-
 	// ---- Font and icons ----------------------------------------------------
 	settingsrow_heading(container, cz ? "Písmo a ikony" : "Font and icons");
 	settingsrow_add(container, cz ? "P\xC3\xADsmo" : "Font", &font_value, font_next_cb, NULL);
@@ -635,43 +564,19 @@ void appearance_init(gui_config_t *cfg) {
 	text_size_pill[FONTS_TEXT_LARGE] =
 		settingsrow_pill(text_size_pills, "appearance_text_large", FONTS_TEXT_LARGE, text_size_cb);
 
-	// ---- Layout ------------------------------------------------------------
-	settingsrow_heading(container, cz ? "Rozložení" : "Layout");
-	settingsrow_add(container, cz ? "Vzhled přehrávače" : "Player style", NULL, switch_screen_cb,
-					playerstylepage_screen);
-	settingsrow_add(container, cz ? "Vzhled menu a lišty" : "Menu & bar style", NULL, switch_screen_cb,
-					menustylepage_screen);
-	// Rounds off the four corners of the screen, over every page and overlay.
-	settingsrow_toggle(container, "appearance_rounded_corners", &rounded_corners_toggle, rounded_corners_cb);
-	if (corners_enabled()) {
-		lv_obj_add_state(rounded_corners_toggle, LV_STATE_CHECKED);
-	}
+	// ---- Interface ---------------------------------------------------------
+	// How the player and the menus are built. The status bar's settings (where
+	// the clock sits, the battery number, the bar over the artwork) and the
+	// rounded corners live on the second page and nowhere else.
+	settingsrow_heading(container, cz ? "Rozhraní" : "Interface");
+	settingsrow_add(container, "Player style", NULL, switch_screen_cb, playerstylepage_screen);
+	settingsrow_add(container, "Menu & bar style", NULL, switch_screen_cb, menustylepage_screen);
+	add_note(container, cz ? "Karty, stavový řádek, poloha hodin, procenta baterie a zaoblené rohy."
+						   : "Cards, the status bar, clock position, battery percentage and rounded corners.");
 
-	// ---- Status bar --------------------------------------------------------
-	settingsrow_heading(container, cz ? "Stavový řádek" : "Status bar");
-	// Wrapped, not a single line: four pills of translated words do not fit
-	// across the panel in every language.
-	lv_obj_t *clock_row = make_choice_card(container, "appearance_clock_position", 10, LV_FLEX_FLOW_ROW_WRAP,
-										   LV_FLEX_ALIGN_START, NULL);
-	btn_clock[TOPBAR_CLOCK_LEFT] = make_clock_choice(clock_row, "left", TOPBAR_CLOCK_LEFT);
-	btn_clock[TOPBAR_CLOCK_CENTER] = make_clock_choice(clock_row, "centre", TOPBAR_CLOCK_CENTER);
-	btn_clock[TOPBAR_CLOCK_RIGHT] = make_clock_choice(clock_row, "right", TOPBAR_CLOCK_RIGHT);
-	btn_clock[TOPBAR_CLOCK_HIDDEN] = make_clock_choice(clock_row, "hide", TOPBAR_CLOCK_HIDDEN);
-	// Whether the bar prints the charge as a number as well as drawing it.
-	settingsrow_toggle(container, "appearance_battery_percentage", &battery_percent_toggle, battery_percent_cb);
-	if (config_get_int("screen", "battery_percent", 1) != 0) {
-		lv_obj_add_state(battery_percent_toggle, LV_STATE_CHECKED);
-	}
-	// The bar up in the player too, where it otherwise steps aside for the
-	// artwork.
-	settingsrow_toggle(container, "appearance_statusbar_always", &statusbar_always_toggle, statusbar_always_cb);
-	if (player_statusbar_always()) {
-		lv_obj_add_state(statusbar_always_toggle, LV_STATE_CHECKED);
-	}
-	add_note(container, tr("appearance_statusbar_always_note"));
-
-	// ---- Start -------------------------------------------------------------
-	settingsrow_heading(container, cz ? "Spuštění" : "Start");
+	// ---- Wallpaper and start -----------------------------------------------
+	settingsrow_heading(container, cz ? "Tapeta a spuštění" : "Wallpaper and start");
+	settingsrow_add(container, "Menu wallpaper", NULL, switch_screen_cb, wallpaperpage_screen);
 	// The start screen: one of the three, or a different one each start.
 	settingsrow_add(container, cz ? "Úvodní obrazovka" : "Start screen", &splash_value, splash_next_cb, NULL);
 	settingsrow_toggle(container, cz ? "Střídat úvodní obrazovky" : "Rotate start screens", &splash_toggle,
@@ -681,11 +586,9 @@ void appearance_init(gui_config_t *cfg) {
 	// the accent unless one of the user's own is chosen.
 	settingsrow_add(container, "bootlogo", NULL, switch_screen_cb, bootlogopage_screen);
 
-	refresh_clock_buttons();
 	refresh_accent_buttons();
 	refresh_text_size_pills();
 	theme_register_refresh(refresh_theme_widgets);
 	theme_register_refresh(refresh_text_size_pills);
-	theme_register_refresh(refresh_clock_buttons);
 	theme_register_refresh(refresh_accent_buttons);
 }
