@@ -604,6 +604,15 @@ static void power_menu_async_cb(void *unused) {
 void gui_notify_power_menu(void) { gui_post(power_menu_async_cb, NULL); }
 
 
+// A label whose text or style changed waits for the next layout pass, and
+// LVGL keeps one handler per waiting label on the display. Nothing is laid
+// out while the pages are being built, so by the end thousands were waiting
+// -- and every style set on every new widget walks that whole list (a redraw
+// request is a display event too). That walk was half the time gui_init took.
+// Letting the labels settle after each page keeps the list a page long. It is
+// the same notice the first frame's layout pass would have sent them.
+static void labels_settle(void) { lv_display_send_event(lv_display_get_default(), LV_EVENT_UPDATE_LAYOUT_COMPLETED, NULL); }
+
 void gui_init(gui_config_t *cfg) {
 	// Colours first: every screen below styles itself from the active palette.
 	theme_init();
@@ -667,99 +676,99 @@ void gui_init(gui_config_t *cfg) {
 	metronomepage_screen = lv_obj_create(NULL);
 
 	// Persistent topbar that stays above every screen.
-	topbar_init(cfg);
+	topbar_init(cfg); labels_settle();
 
 	// Persistent back button that hides when on the main page
-	back_btn_init(cfg);
+	back_btn_init(cfg); labels_settle();
 
 	// Before the settings pages: the display page draws its screensaver switch
 	// from screensaver_get_enabled(), which is only true once this has read the
 	// config. Built the other way round, a screensaver saved as on comes up
 	// showing an off switch.
-	screensaver_init(cfg);
+	screensaver_init(cfg); labels_settle();
 
 	// The rounded screen corners, if they are on: above everything, including
 	// the screensaver, which is why they live on the system layer.
-	corners_init(cfg);
+	corners_init(cfg); labels_settle();
 
-	main_menu_init(cfg);
+	main_menu_init(cfg); labels_settle();
 
-	music_init(cfg);
-	coverflow_init(cfg);
+	music_init(cfg); labels_settle();
+	coverflow_init(cfg); labels_settle();
 
 	// wireless section: the two radio pages first, so the section's tiles
 	// have somewhere to point and the control centre's round buttons have a
 	// page to open on a long press.
-	wifisettings_init(cfg);
-	wifitransfer_page_init(cfg); // after wifisettings: its "no Wi-Fi" row points there
-	airplay_page_init(cfg);		 // likewise
-	dlna_page_init(cfg);		 // likewise: its "no Wi-Fi" row points there too
-	sonixlink_page_init(cfg);	 // likewise
-	airpodspage_init(cfg);		 // before btaudio: its AirPods row points at this page
-	btaudio_init(cfg);			 // before btsettings: its gear points at this page
-	btreceiverpage_init(cfg);	 // likewise, for the button beside the gear
-	btsettings_init(cfg);
-	wireless_init(cfg);
+	wifisettings_init(cfg); labels_settle();
+	wifitransfer_page_init(cfg); labels_settle(); // after wifisettings: its "no Wi-Fi" row points there
+	airplay_page_init(cfg); labels_settle();		 // likewise
+	dlna_page_init(cfg); labels_settle();		 // likewise: its "no Wi-Fi" row points there too
+	sonixlink_page_init(cfg); labels_settle();	 // likewise
+	airpodspage_init(cfg); labels_settle();		 // before btaudio: its AirPods row points at this page
+	btaudio_init(cfg); labels_settle();			 // before btsettings: its gear points at this page
+	btreceiverpage_init(cfg); labels_settle();	 // likewise, for the button beside the gear
+	btsettings_init(cfg); labels_settle();
+	wireless_init(cfg); labels_settle();
 
 	// streaming section: three services that are not implemented yet, so the
 	// page exists and is walkable but its tiles say so when tapped.
 	// radio before the section, so its tile has somewhere to point.
-	radiopage_init(cfg);
-	dacpage_init(cfg);
+	radiopage_init(cfg); labels_settle();
+	dacpage_init(cfg); labels_settle();
 	// After dacpage: the More section points at its pages.
-	gearboyplay_init(cfg);  // before the list: one of its rows leads here
-	gearboysettings_init(cfg); // before the page: its gear opens this
-	gearboypage_init(cfg);
-	flappybird_init(cfg);
-	metronomepage_init(cfg);
+	gearboyplay_init(cfg); labels_settle();  // before the list: one of its rows leads here
+	gearboysettings_init(cfg); labels_settle(); // before the page: its gear opens this
+	gearboypage_init(cfg); labels_settle();
+	flappybird_init(cfg); labels_settle();
+	metronomepage_init(cfg); labels_settle();
 	// before morepage: the books tile opens the shelf, and the shelf opens the
 	// reader.
-	ebookreader_init(cfg);
+	ebookreader_init(cfg); labels_settle();
 	// before ebookpage: its corner button opens the bookmarks
-	ebookmarkspage_init(cfg);
-	ebooksettings_init(cfg); // likewise: the other corner button opens this
-	ebookpage_init(cfg);
-	morepage_init(cfg);
-	textview_init(cfg);	 // before filespage: a text file tapped there opens here
-	imageview_init(cfg); // likewise, for a picture
-	filespage_init(cfg);
-	streaming_init(cfg);
+	ebookmarkspage_init(cfg); labels_settle();
+	ebooksettings_init(cfg); labels_settle(); // likewise: the other corner button opens this
+	ebookpage_init(cfg); labels_settle();
+	morepage_init(cfg); labels_settle();
+	textview_init(cfg); labels_settle();	 // before filespage: a text file tapped there opens here
+	imageview_init(cfg); labels_settle(); // likewise, for a picture
+	filespage_init(cfg); labels_settle();
+	streaming_init(cfg); labels_settle();
 
-	player_init(cfg);
+	player_init(cfg); labels_settle();
 
-	browser_init(cfg);
+	browser_init(cfg); labels_settle();
 
 	// remap_init before settings_init: the key-remap row carries the pointer to
 	// its screen, which has to exist already. The control centre's order page
 	// is reached from the same page and has to exist for the same reason.
-	remap_init(cfg);
-	ccsettings_init(cfg);
-	kblayoutpage_init(cfg); // the keyboard-language row on the same page
-	settings_init(cfg);
-	devoptions_init(cfg);
-	processespage_init(cfg); // the processes page the devoptions entry opens
+	remap_init(cfg); labels_settle();
+	ccsettings_init(cfg); labels_settle();
+	kblayoutpage_init(cfg); labels_settle(); // the keyboard-language row on the same page
+	settings_init(cfg); labels_settle();
+	devoptions_init(cfg); labels_settle();
+	processespage_init(cfg); labels_settle(); // the processes page the devoptions entry opens
 	// after devoptions: the system entry opens the page that can unlock it
-	systempage_init(cfg);
-	bootlogopage_init(cfg); // before appearance: its row carries the screen
-	wallpaperpage_init(cfg); // before appearance: its row carries the screen
-	playerstylepage_init(cfg);
-	menustylepage_init(cfg);
-	appearance_init(cfg);
-	language_init(cfg);
-	libraryscan_init(cfg);
-	msebsettings_init(cfg); // before musicsettings: the MSEB page hangs its gear off it
-	eqsettings_init(cfg);	// and the equalizer page hangs its own off this
-	peqsettings_init(cfg); // the parametric page hangs its preset screen off the gear
-	peqautoeq_init(cfg);  // the waveform entry on that page searches AutoEq profiles
-	musicsettings_init(cfg);
-	search_init(cfg);
-	medialist_init(cfg);
-	playlistpage_init(cfg);
-	audiobookextras_init(cfg); // the bookmarks and summary pages
-	audiobooks_init(cfg);
-	chapters_init(cfg);
-	lyricsearch_init(cfg);
-	trackmenu_init(cfg);
+	systempage_init(cfg); labels_settle();
+	bootlogopage_init(cfg); labels_settle(); // before appearance: its row carries the screen
+	wallpaperpage_init(cfg); labels_settle(); // before appearance: its row carries the screen
+	playerstylepage_init(cfg); labels_settle();
+	menustylepage_init(cfg); labels_settle();
+	appearance_init(cfg); labels_settle();
+	language_init(cfg); labels_settle();
+	libraryscan_init(cfg); labels_settle();
+	msebsettings_init(cfg); labels_settle(); // before musicsettings: the MSEB page hangs its gear off it
+	eqsettings_init(cfg); labels_settle();	// and the equalizer page hangs its own off this
+	peqsettings_init(cfg); labels_settle(); // the parametric page hangs its preset screen off the gear
+	peqautoeq_init(cfg); labels_settle();  // the waveform entry on that page searches AutoEq profiles
+	musicsettings_init(cfg); labels_settle();
+	search_init(cfg); labels_settle();
+	medialist_init(cfg); labels_settle();
+	playlistpage_init(cfg); labels_settle();
+	audiobookextras_init(cfg); labels_settle(); // the bookmarks and summary pages
+	audiobooks_init(cfg); labels_settle();
+	chapters_init(cfg); labels_settle();
+	lyricsearch_init(cfg); labels_settle();
+	trackmenu_init(cfg); labels_settle();
 
 	// The leftward swipe that pulls the player in works on the browsing pages
 	// -- menu, library lists, file browser -- but NOT on the settings pages
@@ -801,12 +810,12 @@ void gui_init(gui_config_t *cfg) {
 		switcher_attach_back_gesture(back_swipe_screens[i]);
 	}
 
-	quickpanel_init(cfg); // above the pages, under the popover/power menu
+	quickpanel_init(cfg); labels_settle(); // above the pages, under the popover/power menu
 	popover_init(); // last: its veil must sit above the other top-layer chrome
-	powersettings_init(cfg);
-	confirm_init(cfg);
-	toast_init(cfg);
-	lowbattery_init(cfg);
+	powersettings_init(cfg); labels_settle();
+	confirm_init(cfg); labels_settle();
+	toast_init(cfg); labels_settle();
+	lowbattery_init(cfg); labels_settle();
 
 	// The screensaver is drawn both when the panel goes dark (so the wake opens
 	// on it rather than on the page) and when it lights up again; and the
@@ -871,17 +880,17 @@ void gui_init(gui_config_t *cfg) {
 	post_timer = lv_timer_create(post_drain_cb, post_wake_fd >= 0 ? POST_TIMER_MS : POST_TIMER_FALLBACK_MS, NULL);
 
 	// The other kind of notice: the one that stays until it is over.
-	modal_init(cfg);
+	modal_init(cfg); labels_settle();
 
 	// Volume HUD and the power menu, both above every page.
-	volume_overlay_init(cfg);
-	powermenu_init(cfg);
+	volume_overlay_init(cfg); labels_settle();
+	powermenu_init(cfg); labels_settle();
 
 	// On a first boot the clock panel comes straight up over everything else:
 	// with no network and an RTC that has never been written, the player has no
 	// way to know the time, and nothing it timestamps can be trusted until it
 	// does.
-	timeset_init(cfg);
+	timeset_init(cfg); labels_settle();
 
 	// A player that has never run asks two questions, in this order: which
 	// language, then what time it is. That way the clock panel is already in
@@ -889,8 +898,8 @@ void gui_init(gui_config_t *cfg) {
 	// language you cannot read is a poor way to meet a device. Confirming the
 	// language brings the clock up itself, so the two only chain here on the
 	// path where the language has already been answered before.
-	welcome_init(cfg);
-	setupwifi_init(cfg); // the step between the language and the clock
+	welcome_init(cfg); labels_settle();
+	setupwifi_init(cfg); labels_settle(); // the step between the language and the clock
 
 	// Ahead of everything else, and only on a device that has never been booted:
 	// the greeting. Its button opens the language picker itself, which in turn

@@ -147,9 +147,160 @@ static void restore_builtin(void) {
 	}
 }
 
+// --- Decoded-pack cache -----------------------------------------------------
+// Decoding and scaling a pack's PNGs takes seconds on the player, every start.
+// After the first load the finished pixels are kept in <pack>/icons.cache and
+// later starts read that one file. The cache is tied to a signature of every
+// icon's target size and its PNG's size and date, so a changed, added or
+// removed PNG (or a build that draws an icon at another size) rebuilds it.
+
+#define CACHE_MAGIC 0x31434953u // "SIC1"
+
+static uint32_t sig_add(uint32_t h, const void *data, size_t n) {
+	const uint8_t *p = data;
+	while (n--) {
+		h = (h ^ *p++) * 16777619u;
+	}
+	return h;
+}
+
+static void entry_path(char *path, size_t size, const char *name, const iconpack_entry_t *e) {
+	snprintf(path, size, "%s/%.63s/%s%s.png", PACK_DIR, name, e->glyph ? "" : "tiles/", e->file);
+}
+
+static uint32_t pack_signature(const char *name) {
+	uint32_t h = 2166136261u;
+	for (int i = 0; i < iconpack_table_count; i++) {
+		iconpack_entry_t *e = &iconpack_table[i];
+		char path[700];
+		entry_path(path, sizeof(path), name, e);
+		struct stat st;
+		int64_t meta[2] = {-1, -1};
+		if (stat(path, &st) == 0 && S_ISREG(st.st_mode)) {
+			meta[0] = (int64_t)st.st_size;
+			meta[1] = (int64_t)st.st_mtime;
+		}
+		uint32_t dims[4] = {e->dsc->header.w, e->dsc->header.h, e->dsc->header.stride, e->glyph};
+		h = sig_add(h, e->file, strlen(e->file) + 1);
+		h = sig_add(h, dims, sizeof(dims));
+		h = sig_add(h, meta, sizeof(meta));
+	}
+	return h;
+}
+
+static void cache_path(char *path, size_t size, const char *name) {
+	snprintf(path, size, "%s/%.63s/icons.cache", PACK_DIR, name);
+}
+
+// File: magic, signature, count, then per icon: table index, pixel bytes.
+// Glyphs keep only their alpha (colour is always white), a quarter the size.
+static int cache_load(const char *name, uint32_t sig) {
+	char path[700];
+	cache_path(path, sizeof(path), name);
+	FILE *f = fopen(path, "rb");
+	if (!f) {
+		return -1;
+	}
+	uint32_t head[3];
+	int replaced = 0;
+	bool ok = fread(head, sizeof(head), 1, f) == 1 && head[0] == CACHE_MAGIC && head[1] == sig &&
+			  head[2] <= (uint32_t)iconpack_table_count;
+	for (uint32_t n = 0; ok && n < head[2]; n++) {
+		uint32_t rec[2];
+		ok = fread(rec, sizeof(rec), 1, f) == 1 && rec[0] < (uint32_t)iconpack_table_count;
+		if (!ok) {
+			break;
+		}
+		iconpack_entry_t *e = &iconpack_table[rec[0]];
+		size_t dw = e->dsc->header.w, dh = e->dsc->header.h, stride = e->dsc->header.stride;
+		size_t want = e->glyph ? dw * dh : stride * dh;
+		ok = rec[1] == want && !e->pack_data && stride >= dw * 4;
+		if (!ok) {
+			break;
+		}
+		uint8_t *pixels = calloc(1, stride * dh);
+		if (!pixels) {
+			ok = false;
+			break;
+		}
+		if (e->glyph) {
+			// Read the alphas into the tail of the buffer, then spread them
+			// out front to back: the write position never passes the read one.
+			uint8_t *alpha = pixels + stride * dh - want;
+			ok = fread(alpha, 1, want, f) == want;
+			for (size_t y = 0; ok && y < dh; y++) {
+				uint8_t *o = pixels + y * stride;
+				for (size_t x = 0; x < dw; x++) {
+					uint8_t a = alpha[y * dw + x];
+					o[x * 4] = o[x * 4 + 1] = o[x * 4 + 2] = 255;
+					o[x * 4 + 3] = a;
+				}
+			}
+		} else {
+			ok = fread(pixels, 1, want, f) == want;
+		}
+		if (!ok) {
+			free(pixels);
+			break;
+		}
+		e->pack_data = pixels;
+		e->dsc->data = pixels;
+		lv_image_cache_drop(e->dsc);
+		replaced++;
+	}
+	fclose(f);
+	if (!ok) {
+		restore_builtin();
+		return -1;
+	}
+	return replaced;
+}
+
+static void cache_save(const char *name, uint32_t sig, int replaced) {
+	char path[700], tmp[720];
+	cache_path(path, sizeof(path), name);
+	snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+	FILE *f = fopen(tmp, "wb");
+	if (!f) {
+		return;
+	}
+	uint32_t head[3] = {CACHE_MAGIC, sig, (uint32_t)replaced};
+	bool ok = fwrite(head, sizeof(head), 1, f) == 1;
+	for (int i = 0; ok && i < iconpack_table_count; i++) {
+		iconpack_entry_t *e = &iconpack_table[i];
+		if (!e->pack_data) {
+			continue;
+		}
+		size_t dw = e->dsc->header.w, dh = e->dsc->header.h, stride = e->dsc->header.stride;
+		uint32_t rec[2] = {(uint32_t)i, (uint32_t)(e->glyph ? dw * dh : stride * dh)};
+		ok = fwrite(rec, sizeof(rec), 1, f) == 1;
+		if (!e->glyph) {
+			ok = ok && fwrite(e->pack_data, 1, rec[1], f) == rec[1];
+			continue;
+		}
+		for (size_t y = 0; ok && y < dh; y++) {
+			uint8_t row[1024];
+			for (size_t x = 0; x < dw && x < sizeof(row); x++) {
+				row[x] = e->pack_data[y * stride + x * 4 + 3];
+			}
+			ok = dw <= sizeof(row) && fwrite(row, 1, dw, f) == dw;
+		}
+	}
+	ok = fclose(f) == 0 && ok;
+	if (!ok || rename(tmp, path) != 0) {
+		remove(tmp);
+	}
+}
+
 static int load_pack(const char *name) {
 	if (!name[0] || strchr(name, '/')) {
 		return -1;
+	}
+	uint32_t sig = pack_signature(name);
+	int cached = cache_load(name, sig);
+	if (cached > 0) {
+		fprintf(stderr, "iconpack: %s from cache\n", name);
+		return cached;
 	}
 	int replaced = 0;
 	for (int i = 0; i < iconpack_table_count; i++) {
@@ -157,7 +308,7 @@ static int load_pack(const char *name) {
 		char path[700];
 		// Coloured artwork (the big tiles) lives in the pack's "tiles" folder:
 		// several tiles share a name with a glyph (album, artist, bluetooth).
-		snprintf(path, sizeof(path), "%s/%.63s/%s%s.png", PACK_DIR, name, e->glyph ? "" : "tiles/", e->file);
+		entry_path(path, sizeof(path), name, e);
 		int w = 0, h = 0;
 		uint8_t *rgba = read_png(path, &w, &h);
 		if (!rgba) {
@@ -173,6 +324,9 @@ static int load_pack(const char *name) {
 			replaced++;
 		}
 		stbi_image_free(rgba);
+	}
+	if (replaced) {
+		cache_save(name, sig, replaced);
 	}
 	return replaced ? replaced : -1;
 }
