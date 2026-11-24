@@ -60,7 +60,15 @@ player has now is replaced by 1.2. Your music and the card are not touched.
 ## Using it
 
 Every time you switch the player on you get **10 seconds** to choose, then your
-last choice starts again. The menu only offers what is really on the card:
+last choice starts again.
+
+**Straight into Sonix.** Since 1.8 Sonix has a switch, *Settings > System > Boot
+straight into Sonix*. With it on, the menu is skipped and Sonix starts at once.
+To get the menu back, hold any button other than Power while the player starts
+(or delete `sonix/boot_direct.txt` from the card on a computer). The switch needs
+the boot menu from the 1.8 release or later; with an older one it is greyed out.
+
+The menu only offers what is really on the card:
 
 | Menu entry | Shown when the card has | |
 |---|---|---|
@@ -132,8 +140,13 @@ original [README](https://github.com/Fos4ity/sonix-ap80/blob/ap80/README.sonix.m
 - **Rockbox DSP.** Rockbox's sound effects inside Sonix: perceptual bass enhancement
   (PBE), bass and treble, auditory fatigue reduction and Haas surround.
   *Music > gear icon > Rockbox DSP.*
-- **PEQdB target for AutoEq.** Downloaded headphone corrections can be re-targeted
-  from Harman to the [PEQdB](https://peqdb.com/) "Diamond β" curve. *PEQ > gear icon > AutoEQ target.*
+- **PEQdB targets for AutoEq.** Downloaded headphone corrections can be re-targeted
+  from AutoEq's own target to any curve [PEQdB](https://peqdb.com/) lists in its studio:
+  Diamond and Diamond β, PEQdB Ultra and HiFi, HiFiEndgame to MKV, Harman MoA 2025,
+  IEF Preference 2025, JM-1, Moondrop VDSF, Knowles, KEMAR KB50xx, older Harman
+  curves and plain diffuse field. *PEQ > gear icon > AutoEQ target.*
+- **Bit-perfect in the control centre.** A button for the bit-perfect switch;
+  add it in *Settings > Control centre*.
 - **Skins.** Colour skins in the simple `.theme` format used by
   [Compas player](https://github.com/Starnished66/compas-player), with an
   optional accent colour. 23 are included: Nothing and Nothing Light made for
@@ -180,6 +193,22 @@ New in 1.7:
   icons* draws properly with every pack.
 - **Fixes**: the Streaming page scrolls, so its seventh tile (Navidrome) can be
   reached, and the clock no longer shows twice after its position is changed.
+
+New in 1.8:
+
+- **Straight into Sonix.** *Settings > System > Boot straight into Sonix* skips
+  the boot menu; hold any button other than Power at start to get the menu back.
+  Needs the boot menu from this release.
+- **Qobuz and Tidal without a keys file.** Sonix reads the application keys from
+  the stock player on your own device each time it starts; nothing is shipped
+  and nothing is written to the card. Playback needs a subscription with the
+  service, as everywhere.
+- **Eighteen more AutoEQ targets** from PEQdB, picked from a list, and a
+  **bit-perfect button** for the control centre.
+- **Faster start.** An icon pack is decoded once and kept on the card, and the
+  on-screen keyboards are built when first opened instead of all at startup.
+- **Boot menu**: HiBy OS no longer hangs on a frozen picture when it is chosen
+  after a long wait in the menu; the menu restarts the player into it instead.
 
 ## How it works
 
@@ -275,7 +304,8 @@ This fork stands on other people's work. Thank you.
 | Crossfade, A-Z index, hold-to-seek, stop after track, hidden Wi-Fi, browser memory, lock screen date, duplicate prompt, MSEB fix, Navidrome / Subsonic | [CookieCaptainD/sonix-player](https://github.com/CookieCaptainD/sonix-player) | CookieCaptainD | GPL v3 |
 | Theme presets, accent hue and saturation, wallpapers, player and menu style pages | [SonixOS HUE](https://github.com/Xkalin1990/SonixOS-HUE) | Xkalin1990 | GPL v3 |
 | Audiobookshelf | [Sonix Audiobooks](https://github.com/yetisoldier/sonix-audiobooks) | yetisoldier | GPL v3 |
-| "Diamond β" target curve | [PEQdB](https://peqdb.com/) | sharur (S. Chala, *An Optimized Headphone Target Response Curve*) | curve values only |
+| Target curves for AutoEq (Diamond β, HiFiEndgame, PEQdB Ultra and the others in the list) | [PEQdB](https://peqdb.com/) studio; the curves' own authors are named there (Diamond: S. Chala, *An Optimized Headphone Target Response Curve*) | PEQdB and the authors of each curve | curve values only, as differences from AutoEq's target |
+| AutoEq targets the differences are taken from | [AutoEq](https://github.com/jaakkopasanen/AutoEq) `targets/` | Jaakko Pasanen | curve values only |
 | Headphone corrections | [AutoEq](https://github.com/jaakkopasanen/AutoEq) (already used by Sonix) | Jaakko Pasanen | MIT |
 | Skin file format and 21 skins | [Compas player](https://github.com/Starnished66/compas-player) | Starnished66 and the Compas contributors | GPL v3 (format and `.theme` files, no code taken; see `themes/CREDITS.txt`) |
 | Icons | [Lucide](https://lucide.dev), [Phosphor](https://phosphoricons.com) | their contributors | ISC, MIT |
