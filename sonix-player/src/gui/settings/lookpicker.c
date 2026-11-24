@@ -223,48 +223,69 @@ static lv_obj_t *add_theme_row(lv_obj_t *list, int index, const char *name, cons
 	return row;
 }
 
-// Sonix's own two first, then the colour themes, then the skins on the card.
-static lv_obj_t *fill_themes(lv_obj_t *list) {
-	lv_obj_t *current_row = NULL;
-	int skin = theme_get_skin(), preset = theme_get_preset();
-	row_count = 0;
-	add_section(list, "Sonix");
+// The order of the themes: Sonix's own two, then the colour themes, then the
+// skins on the card. `section[i]` is 0, 1 or 2 for those three groups.
+static int theme_order(bool is_skin[], int index[], int section[], int max) {
+	int n = 0;
 	for (int pass = 0; pass < 2; pass++) {
-		if (pass == 1) {
-			add_section(list, picker_czech() ? "Barevn\xC3\xA9 motivy" : "Colour themes");
-		}
-		for (int i = 0; i < THEME_PRESET_COUNT && row_count < MAX_ROWS; i++) {
+		for (int i = 0; i < THEME_PRESET_COUNT && n < max; i++) {
 			bool own = i == 0 || strcmp(theme_preset_name(i), "Light") == 0;
 			if (own != (pass == 0)) {
 				continue;
 			}
-			bool cur = skin < 0 && preset == i;
-			row_is_skin[row_count] = false;
-			row_index[row_count] = i;
-			row_name[row_count][0] = 0;
-			lv_obj_t *row = add_theme_row(list, row_count, preset_label(i), theme_preset_palette(i), cur);
-			row_count++;
-			if (cur) {
-				current_row = row;
-			}
+			is_skin[n] = false;
+			index[n] = i;
+			section[n++] = pass;
 		}
 	}
-	int n = theme_skin_count();
-	if (n > 0) {
-		add_section(list, picker_czech() ? "Skiny" : "Skins");
+	for (int i = 0; i < theme_skin_count() && n < max; i++) {
+		is_skin[n] = true;
+		index[n] = i;
+		section[n++] = 2;
 	}
-	for (int i = 0; i < n && row_count < MAX_ROWS; i++) {
-		bool cur = skin == i;
-		row_is_skin[row_count] = true;
-		row_index[row_count] = i;
-		row_name[row_count][0] = 0;
-		lv_obj_t *row = add_theme_row(list, row_count, theme_skin_name(i), theme_skin_palette(i), cur);
-		row_count++;
+	return n;
+}
+
+static lv_obj_t *fill_themes(lv_obj_t *list) {
+	static int section[MAX_ROWS];
+	lv_obj_t *current_row = NULL;
+	int skin = theme_get_skin(), preset = theme_get_preset();
+	row_count = theme_order(row_is_skin, row_index, section, MAX_ROWS);
+	for (int i = 0; i < row_count; i++) {
+		if (i == 0 || section[i] != section[i - 1]) {
+			static const char *const cs[] = {"Sonix", "Barevn\xC3\xA9 motivy", "Skiny"};
+			static const char *const en[] = {"Sonix", "Colour themes", "Skins"};
+			add_section(list, (picker_czech() ? cs : en)[section[i]]);
+		}
+		row_name[i][0] = 0;
+		bool cur = row_is_skin[i] ? skin == row_index[i] : skin < 0 && preset == row_index[i];
+		const char *name = row_is_skin[i] ? theme_skin_name(row_index[i]) : preset_label(row_index[i]);
+		const theme_palette_t *p = row_is_skin[i] ? theme_skin_palette(row_index[i]) : theme_preset_palette(row_index[i]);
+		lv_obj_t *row = add_theme_row(list, i, name, p, cur);
 		if (cur) {
 			current_row = row;
 		}
 	}
 	return current_row;
+}
+
+void lookpicker_theme_step(int dir) {
+	if (veil) {
+		return; // the list is open and owns the row tables
+	}
+	static int section[MAX_ROWS];
+	int n = theme_order(row_is_skin, row_index, section, MAX_ROWS);
+	if (n <= 0) {
+		return;
+	}
+	int skin = theme_get_skin(), preset = theme_get_preset(), at = 0;
+	for (int i = 0; i < n; i++) {
+		if (row_is_skin[i] ? skin == row_index[i] : skin < 0 && preset == row_index[i]) {
+			at = i;
+			break;
+		}
+	}
+	apply_theme_row(((at + (dir < 0 ? -1 : 1)) % n + n) % n);
 }
 
 static void open_list(pick_kind_t what, const char *title, void (*on_done)(void)) {

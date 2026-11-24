@@ -14,6 +14,7 @@
 #include "src/gui/settings/wallpaperpage.h"
 #include "src/gui/shell/corners.h"
 #include "src/gui/shell/iconpack.h"
+#include "src/gui/shell/icons.h"
 #include "src/gui/settings/lookpicker.h"
 #include "src/gui/shell/settingsrow.h"
 #include "src/gui/shell/switcher.h"
@@ -475,6 +476,35 @@ static void theme_picked(void) {
 	refresh_accent_buttons();
 }
 
+// The arrows either side of the theme's name: the one before or after, in the
+// list's order.
+static void theme_step_cb(lv_event_t *e) {
+	if (switcher_back_drag_active()) {
+		return;
+	}
+	bool had_tint = theme_dynamic_tint();
+	lookpicker_theme_step((int)(intptr_t)lv_event_get_user_data(e));
+	theme_picked();
+	if (had_tint && !theme_dynamic_tint()) {
+		toast_success(appearance_czech() ? "Dynamický odstín vypnut" : "Dynamic tint turned off");
+	}
+}
+
+static lv_obj_t *make_step_button(lv_obj_t *parent, const lv_image_dsc_t *icon, int dir) {
+	lv_obj_t *btn = lv_btn_create(parent);
+	lv_obj_set_size(btn, 64, 64);
+	lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
+	lv_obj_set_style_shadow_width(btn, 0, 0);
+	lv_obj_set_style_border_width(btn, 0, 0);
+	lv_obj_add_style(btn, &theme_style_card_pressed, 0); // a shade off the card it sits on
+	lv_obj_add_event_cb(btn, theme_step_cb, LV_EVENT_CLICKED, (void *)(intptr_t)dir);
+	lv_obj_t *img = lv_image_create(btn);
+	lv_image_set_src(img, icon);
+	lv_obj_add_style(img, &theme_style_icon, 0);
+	lv_obj_center(img);
+	return btn;
+}
+
 static void theme_open_cb(lv_event_t *e) {
 	(void)e;
 	if (switcher_back_drag_active()) {
@@ -542,8 +572,21 @@ void appearance_init(gui_config_t *cfg) {
 
 	// One row for the whole palette: Sonix dark and light, the colour themes
 	// (from SonixOS HUE) and the Compas skins from <resource>/themes.
-	settingsrow_add(container, "appearance_theme", &theme_value, theme_open_cb, NULL);
+	// The name between two arrows that step through them, and the whole list
+	// behind a row of its own so that the page stays short.
+	lv_obj_t *theme_row = make_choice_card(container, "appearance_theme", 10, LV_FLEX_FLOW_ROW,
+										   LV_FLEX_ALIGN_SPACE_BETWEEN, NULL);
+	lv_obj_set_flex_align(theme_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+	make_step_button(theme_row, &icon_chevron_left, -1);
+	theme_value = lv_label_create(theme_row);
+	lv_obj_set_flex_grow(theme_value, 1);
+	lv_label_set_long_mode(theme_value, LV_LABEL_LONG_DOT);
+	lv_obj_set_style_text_align(theme_value, LV_TEXT_ALIGN_CENTER, 0);
+	lv_obj_add_style(theme_value, &theme_style_text, 0);
+	lv_obj_set_style_text_font(theme_value, &font_ui_24, 0);
+	make_step_button(theme_row, &icon_chevron_right, 1);
 	refresh_theme_row();
+	settingsrow_add(container, cz ? "Výběr motivu" : "Theme selector", NULL, theme_open_cb, NULL);
 
 	// One switch for the whole Nothing look: skin, font and icons. Shown only
 	// when the Nothing skin is on the card.

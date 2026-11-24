@@ -13,6 +13,9 @@ void lookpicker_icons(const char *title, void (*on_done)(void));
 // dark and light, the colour themes and the Compas skins from the card -- each
 // row painted in its own colours. A tap applies it at once.
 void lookpicker_themes(const char *title, void (*on_done)(void));
+// The theme before (-1) or after (+1) the one in force, in that list's order,
+// going round at the ends: for arrows that step through them without the list.
+void lookpicker_theme_step(int dir);
 // The name of the theme in force, as that list shows it.
 const char *lookpicker_theme_name(void);
 
