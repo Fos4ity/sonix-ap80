@@ -7,6 +7,7 @@
 #include "build_gen/streamkeys_key.h"
 #include "src/system/core/config.h"
 #include "src/system/core/sha1.h"
+#include "src/system/streaming/hibykeys.h"
 
 #define STREAMKEYS_MAX_FILE 16384 // mirrored as MAX_FILE in the tool
 
@@ -269,10 +270,25 @@ void streamkeys_init(void) {
 		path = STREAMKEYS_PLAIN_PATH;
 	}
 
-	if (!path) {
+	// No Qobuz keys in a file: beside the stock firmware they can be read from
+	// the stock player itself (hibykeys.h). A file always wins, so keys someone
+	// put on the card are never overridden.
+	bool from_hiby = false;
+	if (!(qobuz_app_id[0] && qobuz_app_secret[0])) {
+		from_hiby = hibykeys_qobuz(qobuz_app_id, sizeof(qobuz_app_id), qobuz_app_secret, sizeof(qobuz_app_secret));
+		if (from_hiby) {
+			loaded_any = true;
+			printf("streamkeys: Qobuz keys read from the stock player on this device\n");
+		}
+	}
+
+	if (!path && !from_hiby) {
 		printf("streamkeys: no %s, Tidal, Qobuz, podcasts and Last.fm stay off\n",
 			   configured && configured[0] ? configured : STREAMKEYS_PATH);
 		return;
+	}
+	if (!path) {
+		path = HIBYKEYS_BIN;
 	}
 
 	snprintf(source_path, sizeof(source_path), "%s", path);
