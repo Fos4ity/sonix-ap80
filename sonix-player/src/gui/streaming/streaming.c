@@ -37,7 +37,9 @@ void streaming_init(gui_config_t *cfg) {
 	// tile here is the same size as a tile there. Five of them fill the first
 	// two rows and the first cell of the third; the rest of it stays empty
 	// rather than the tiles growing to fill it.
-	gridpage_build(streaming_screen, cfg, entries, (int)(sizeof(entries) / sizeof(entries[0])), 2, 3, true);
+	lv_obj_t *grid =
+		gridpage_build(streaming_screen, cfg, entries, (int)(sizeof(entries) / sizeof(entries[0])), 2, 3, true);
+	gridpage_set_arrangeable(grid, "streaming", NULL);
 
 	settingsrow_title(streaming_screen, cfg, "streaming");
 }

@@ -43,6 +43,22 @@ lv_obj_t *gridpage_build(lv_obj_t *screen, gui_config_t *cfg, const grid_entry_t
 void gridpage_set_entries(lv_obj_t *grid, gui_config_t *cfg, const grid_entry_t *entries, int count, int columns,
 						  int rows, bool clear_corner_buttons);
 
+// Lets the tiles of a grid be put in another order by hand, the way icons on
+// a phone's home screen are: a tile held for a moment comes up under the
+// finger, the others make room where it is carried, and it stays where it is
+// let go.
+//
+// With `key`, the grid keeps the order itself, under [tiles] `key` in the
+// config, and puts its tiles in that order here. A page that keeps its own
+// order (Music) passes NULL and is told through `moved` instead: the tile's
+// tag and the place it now has. `moved` is called once the release has
+// unwound, so it may rebuild the grid.
+typedef void (*grid_moved_cb_t)(const char *label, int position);
+void gridpage_set_arrangeable(lv_obj_t *grid, const char *key, grid_moved_cb_t moved);
+
+// True while a tile is being carried.
+bool gridpage_carry_active(void);
+
 // Lets a grid built with more entries than `columns` x `rows` scroll to the
 // rest, the tiles keeping the size that grid gives them.
 void gridpage_set_scrolling(lv_obj_t *grid);

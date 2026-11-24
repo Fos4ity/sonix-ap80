@@ -32,5 +32,8 @@ void main_menu_init(gui_config_t *cfg) {
 		{"settings", &icon_menu_settings, &settings_screen},
 	};
 
-	gridpage_build(main_menu_screen, cfg, entries, (int)(sizeof(entries) / sizeof(entries[0])), 2, 3, false);
+	lv_obj_t *grid =
+		gridpage_build(main_menu_screen, cfg, entries, (int)(sizeof(entries) / sizeof(entries[0])), 2, 3, false);
+	// A tile held for a moment can be carried to another place.
+	gridpage_set_arrangeable(grid, "main", NULL);
 }

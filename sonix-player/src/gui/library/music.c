@@ -254,6 +254,20 @@ void music_rebuild_tiles(void) {
 	lv_obj_scroll_to_y(tile_grid, 0, LV_ANIM_OFF);
 }
 
+// A tile carried to another place on the page itself (see
+// gridpage_set_arrangeable()): the saved order follows, and the page stays
+// where it was scrolled to.
+static void tile_carried(const char *label, int position) {
+	for (int i = 0; i < MUSIC_TILE_COUNT; i++) {
+		if (strcmp(TILES[i].entry.label, label) == 0) {
+			int scroll = lv_obj_get_scroll_y(tile_grid);
+			music_tiles_move_in_use((music_tile_t)i, position);
+			lv_obj_scroll_to_y(tile_grid, scroll, LV_ANIM_OFF);
+			return;
+		}
+	}
+}
+
 static void search_cb(lv_event_t *e) {
 	(void)e;
 	search_open();
@@ -358,6 +372,7 @@ void music_init(gui_config_t *cfg) {
 	lv_obj_t *grid = gridpage_build(music_screen, cfg, NULL, 0, 2, 3, true);
 	tile_grid = grid;
 	gridpage_set_scrolling(grid);
+	gridpage_set_arrangeable(grid, NULL, tile_carried);
 	music_rebuild_tiles();
 
 	// The pull from the bottom edge that opens the album carousel. It goes on

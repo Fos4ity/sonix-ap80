@@ -1075,6 +1075,7 @@ static void build_section_page(gui_config_t *cfg) {
 	// The Music page's grid of two by three, so the tiles are the same size.
 	section_grid =
 		gridpage_build(audiobooks_screen, cfg, entries, (int)(sizeof(entries) / sizeof(entries[0])), 2, 3, true);
+	gridpage_set_arrangeable(section_grid, "audiobooks", NULL);
 	section_empty =
 		gridpage_empty_panel(audiobooks_screen, cfg, &icon_book_headphones, "audiobook_no_database", section_scan_cb);
 

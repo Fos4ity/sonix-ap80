@@ -39,7 +39,9 @@ void morepage_init(gui_config_t *cfg) {
 	// here is exactly the size of a tile there. The grid is laid out as full
 	// even with fewer entries, so the only tile sits where it would with six --
 	// top left -- instead of floating in the middle of a page of its own.
-	gridpage_build(morepage_screen, cfg, entries, (int)(sizeof(entries) / sizeof(entries[0])), 2, 3, true);
+	lv_obj_t *grid =
+		gridpage_build(morepage_screen, cfg, entries, (int)(sizeof(entries) / sizeof(entries[0])), 2, 3, true);
+	gridpage_set_arrangeable(grid, "more", NULL);
 
 	settingsrow_title(morepage_screen, cfg, "more");
 }
