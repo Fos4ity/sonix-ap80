@@ -140,6 +140,23 @@ original [README](https://github.com/Fos4ity/sonix-ap80/blob/ap80/README.sonix.m
   there is no sign-in button.
 - **Small fixes for the narrow screen**: scrolling labels, Flappy Bird, the top bar.
 
+New in 1.6, taken from other Sonix forks (see Credits):
+
+- **ListenBrainz scrobbling** (from upstream Sonix). Last.fm stays available here
+  for anyone with their own keys.
+- **True crossfade** between tracks, up to 12 seconds. *Music > Crossfade and gapless.*
+- **Colour themes, any accent colour and wallpapers** from SonixOS HUE: ready-made
+  palettes, hue and saturation sliders, a wallpaper from the card, and pages for how
+  the player and the menus are drawn (layouts, cover double-tap, card style).
+  *Appearance.* The skins, fonts and icon packs above are all still there.
+- **Audiobookshelf**: browse your server, download books to the card, progress
+  synced back. **Navidrome / Subsonic**: browse, stream, playlists and an offline
+  cache. Both under *Streaming*; both keep their sign-in on the card.
+- **Smaller things**: A-Z index in long lists, hold a button to seek, stop after the
+  current track, hidden Wi-Fi networks, the browser remembers its folder, the date
+  on the lock screen, a question before adding a track to a playlist twice, and a
+  fix for clipping in MSEB's extended bass.
+
 ## How it works
 
 ```
@@ -231,6 +248,9 @@ This fork stands on other people's work. Thank you.
 | Haas surround | Rockbox, [`lib/rbcodec/dsp/surround.c`](https://github.com/Rockbox/rockbox/blob/master/lib/rbcodec/dsp/surround.c) | Chiwen Chang | GPL v2 or later |
 | Bass / treble | Rockbox, [`lib/rbcodec/dsp/tone_controls.c`](https://github.com/Rockbox/rockbox/blob/master/lib/rbcodec/dsp/tone_controls.c) | Thom Johansen, Michael Sevakis | GPL v2 or later |
 | Compiler toolchain | Rockbox, `rockboxdev.sh` (already used by Sonix) | the Rockbox team | GPL v2 or later |
+| Crossfade, A-Z index, hold-to-seek, stop after track, hidden Wi-Fi, browser memory, lock screen date, duplicate prompt, MSEB fix, Navidrome / Subsonic | [CookieCaptainD/sonix-player](https://github.com/CookieCaptainD/sonix-player) | CookieCaptainD | GPL v3 |
+| Theme presets, accent hue and saturation, wallpapers, player and menu style pages | [SonixOS HUE](https://github.com/Xkalin1990/SonixOS-HUE) | Xkalin1990 | GPL v3 |
+| Audiobookshelf | [Sonix Audiobooks](https://github.com/yetisoldier/sonix-audiobooks) | yetisoldier | GPL v3 |
 | "Diamond β" target curve | [PEQdB](https://peqdb.com/) | sharur (S. Chala, *An Optimized Headphone Target Response Curve*) | curve values only |
 | Headphone corrections | [AutoEq](https://github.com/jaakkopasanen/AutoEq) (already used by Sonix) | Jaakko Pasanen | MIT |
 | Skin file format and 21 skins | [Compas player](https://github.com/Starnished66/compas-player) | Starnished66 and the Compas contributors | GPL v3 (format and `.theme` files, no code taken; see `themes/CREDITS.txt`) |
