@@ -5,6 +5,8 @@ player, on the **Hidizs AP80 Pro Max**, as a third choice next to the original
 HiBy OS and [Rockbox](https://www.rockbox.org). When you switch the player on, a
 small menu lets you pick which one starts.
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/Fos4)
+
 **Only for the AP80 Pro Max.** Not for the AP80, AP80 Pro or AP80 Pro-X.
 
 > [!CAUTION]
@@ -265,8 +267,6 @@ Not affiliated with Hidizs, HiBy, Rockbox, Google, Nothing or the Sonix authors.
 All product names belong to their owners.
 
 ## Support
-
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/Fos4)
 
 If this port is useful to you, you can
 [buy me a coffee](https://buymeacoffee.com/Fos4). It is entirely optional.
