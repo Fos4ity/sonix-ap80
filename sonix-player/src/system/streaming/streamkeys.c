@@ -8,6 +8,7 @@
 #include "src/system/core/config.h"
 #include "src/system/core/sha1.h"
 #include "src/system/streaming/hibykeys.h"
+#include "src/system/streaming/hibytidal.h"
 #include "src/system/streaming/tidalsource.h"
 
 #define STREAMKEYS_MAX_FILE 16384 // mirrored as MAX_FILE in the tool
@@ -283,8 +284,29 @@ void streamkeys_init(void) {
 		}
 	}
 
-	// No Tidal keys in a file either: they can come from a source file the
-	// owner saved to the card (tidalsource.h). Again a keys file wins.
+	// Tidal, same source: the stock player holds its client secret as plain
+	// text, and the client id it pairs with is a public value (hibytidal.h).
+	// The keys file always wins here as well.
+	bool from_hiby_tidal = false;
+	if (!(tidal_client_id[0] && tidal_client_secret[0])) {
+		char secret[128];
+		if (hibytidal_secret(secret, sizeof(secret))) {
+			if (!tidal_client_secret[0]) {
+				snprintf(tidal_client_secret, sizeof(tidal_client_secret), "%s", secret);
+			}
+			if (!tidal_client_id[0]) {
+				snprintf(tidal_client_id, sizeof(tidal_client_id), "%s", HIBYTIDAL_CLIENT_ID);
+			}
+			from_hiby_tidal = true;
+			loaded_any = true;
+			printf("streamkeys: Tidal keys read from the stock player on this device\n");
+		}
+		wipe(secret, sizeof(secret));
+	}
+
+	// No stock player to read from, or its layout not recognised: the keys can
+	// come from a source file the owner saved to the card (tidalsource.h).
+	// Lowest priority; a keys file and the stock player both win over it.
 	bool from_source = false;
 	if (!(tidal_client_id[0] && tidal_client_secret[0])) {
 		from_source = tidalsource_read(tidal_client_id, sizeof(tidal_client_id), tidal_client_secret,
@@ -295,13 +317,13 @@ void streamkeys_init(void) {
 		}
 	}
 
-	if (!path && !from_hiby && !from_source) {
+	if (!path && !from_hiby && !from_hiby_tidal && !from_source) {
 		printf("streamkeys: no %s, Tidal, Qobuz, podcasts and Last.fm stay off\n",
 			   configured && configured[0] ? configured : STREAMKEYS_PATH);
 		return;
 	}
 	if (!path) {
-		path = from_hiby ? HIBYKEYS_BIN : TIDALSOURCE_PATH;
+		path = (from_hiby || from_hiby_tidal) ? HIBYKEYS_BIN : TIDALSOURCE_PATH;
 	}
 
 	snprintf(source_path, sizeof(source_path), "%s", path);

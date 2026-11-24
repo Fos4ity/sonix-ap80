@@ -3,6 +3,11 @@ app_id =
 app_secret =
 
 [tidal]
+; On the AP80 Pro Max leave both empty: the client secret is read from the
+; stock player on the device, and the client id is a built-in public value.
+; Elsewhere: fill these in by hand, or save an unmodified public source file
+; that carries them on the card as sonix/resource/components/tidal-source.py
+; - the values are read out of it.
 client_id =
 client_secret =
 

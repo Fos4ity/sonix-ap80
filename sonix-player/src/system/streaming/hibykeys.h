@@ -15,8 +15,8 @@
 // player starts, stay in memory, and are never written to the card or the log.
 // They are not in this source either -- only the way to find them is.
 //
-// Tidal's keys cannot be had this way: the stock player assembles them at run
-// time and they are nowhere in the file as text.
+// Tidal: the client secret can be had the very same way (hibytidal.h); only
+// the client id is assembled at run time, and that one is a public value.
 //
 // SONIX_HIBY_BIN names another file to read, for the simulator.
 

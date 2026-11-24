@@ -8,8 +8,9 @@
 //
 // Qobuz and Tidal offer no way to talk to their APIs without a pair of
 // application keys, and the ones this device has are HiBy's: they live inside
-// /usr/bin/hiby_player, Tidal's even assembled byte by byte at run time so it
-// never appears as a string. They are HiBy's keys, not this project's, and open
+// /usr/bin/hiby_player, Qobuz's as plain strings, Tidal's client secret too
+// (its client id is assembled at run time, but that one is a public value --
+// see hibytidal.h). They are HiBy's keys, not this project's, and open
 // source that carries them publishes them.
 //
 // So they sit in a file on the rootfs, which whoever assembles the firmware puts
