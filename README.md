@@ -194,6 +194,22 @@ New in 1.7:
 - **Fixes**: the Streaming page scrolls, so its seventh tile (Navidrome) can be
   reached, and the clock no longer shows twice after its position is changed.
 
+New in 1.8:
+
+- **Straight into Sonix.** *Settings > System > Boot straight into Sonix* skips
+  the boot menu; hold any button other than Power at start to get the menu back.
+  Needs the boot menu from this release.
+- **Qobuz and Tidal without a keys file.** Sonix reads the application keys from
+  the stock player on your own device each time it starts; nothing is shipped
+  and nothing is written to the card. Playback needs a subscription with the
+  service, as everywhere.
+- **Eighteen more AutoEQ targets** from PEQdB, picked from a list, and a
+  **bit-perfect button** for the control centre.
+- **Faster start.** An icon pack is decoded once and kept on the card, and the
+  on-screen keyboards are built when first opened instead of all at startup.
+- **Boot menu**: HiBy OS no longer hangs on a frozen picture when it is chosen
+  after a long wait in the menu; the menu restarts the player into it instead.
+
 ## How it works
 
 ```
