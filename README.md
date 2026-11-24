@@ -1,9 +1,13 @@
-# Sonix Player for the Hidizs AP80 Pro Max
+# Sonix Player, ported to the Hidizs AP80 Pro Max
 
-Run [Sonix Player](https://github.com/Tartarus6/sonix-player), a modern music
-player, on the **Hidizs AP80 Pro Max**, as a third choice next to the original
-HiBy OS and [Rockbox](https://www.rockbox.org). When you switch the player on, a
-small menu lets you pick which one starts.
+A port of [Sonix Player](https://github.com/Tartarus6/sonix-player), the modern
+open-source music player, to the **Hidizs AP80 Pro Max**. It is fitted to the
+player's 360x640 screen and adds Rockbox DSP effects, PEQdB targets for AutoEq,
+skins, fonts and icon packs, YouTube Music, Navidrome and Audiobookshelf.
+
+Sonix runs from the SD card. The original HiBy OS stays on the player untouched:
+when you switch it on, a small menu lets you pick Sonix or HiBy OS (or
+[Rockbox](https://www.rockbox.org), if you have it).
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/Fos4)
 
