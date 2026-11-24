@@ -52,7 +52,7 @@ literal 0
 HcmV?d00001
 
 diff --git a/bootloader/hibyos_linux.c b/bootloader/hibyos_linux.c
-index abb3719bab..79535d4ef7 100644
+index abb3719bab..79b136b953 100644
 --- a/bootloader/hibyos_linux.c
 +++ b/bootloader/hibyos_linux.c
 @@ -46,6 +46,8 @@
@@ -113,7 +113,7 @@ index abb3719bab..79535d4ef7 100644
          else
              return 10 * HZ; /* Default timeout */
  }
-@@ -241,11 +261,127 @@ static void mount_storage(int enable)
+@@ -241,11 +261,129 @@ static void mount_storage(int enable)
      mounted = enable;
  }
  
@@ -194,6 +194,8 @@ index abb3719bab..79535d4ef7 100644
 +    if(tried)
 +        return false; /* only once, at power-on */
 +    tried = true;
++    /* the switch is a file on the card: the card has to be there first */
++    mount_storage(true);
 +    if(access(SONIX_DIRECT_FILE, F_OK) != 0 || access(SONIX_SCRIPT, R_OK) != 0)
 +        return false;
 +    if(key_held())
@@ -241,7 +243,7 @@ index abb3719bab..79535d4ef7 100644
      if(fd >= 0)
      {
          read(fd, &mode, sizeof(mode));
-@@ -256,8 +392,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
+@@ -256,8 +394,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
  
  static void save_boot_mode(enum boot_mode mode)
  {
@@ -257,7 +259,7 @@ index abb3719bab..79535d4ef7 100644
      if(fd >= 0)
      {
          write(fd, &mode, sizeof(mode));
-@@ -267,16 +410,39 @@ static void save_boot_mode(enum boot_mode mode)
+@@ -267,16 +412,39 @@ static void save_boot_mode(enum boot_mode mode)
  
  static enum boot_mode get_boot_mode(void)
  {
@@ -297,7 +299,7 @@ index abb3719bab..79535d4ef7 100644
          /* on usb detect, immediately boot with last choice */
  #if !defined(HIBY_R3PROII) && !defined(HIBY_R1) && !defined(HIDIZS_AP80MAX)
          if(!adb_running && power_input_status() & POWER_INPUT_USB_CHARGER)
-@@ -312,10 +478,16 @@ static enum boot_mode get_boot_mode(void)
+@@ -312,10 +480,16 @@ static enum boot_mode get_boot_mode(void)
          lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
          /* display icon */
          const struct bitmap *icon = (mode == BOOT_OF) ? &ICON_NAME :
@@ -314,7 +316,7 @@ index abb3719bab..79535d4ef7 100644
              (mode == BOOT_ROCKBOX) ? "ROCKBOX" : "TOOLS";
  
          int desc_height;
-@@ -358,11 +530,19 @@ static enum boot_mode get_boot_mode(void)
+@@ -358,11 +532,19 @@ static enum boot_mode get_boot_mode(void)
              break;
          /* left/right/up/down: change mode */
          if(btn == BUTTON_LEFT || btn == BUTTON_DOWN) {
@@ -334,7 +336,7 @@ index abb3719bab..79535d4ef7 100644
              init_mode = BOOT_CANARY;
          }
      }
-@@ -553,7 +733,18 @@ static void tools_screen(void)
+@@ -553,7 +735,18 @@ static void tools_screen(void)
      printf("Version: %s\n", rbversion);
      printf("%s\n", MODEL_NAME);
      const char *choices[] = {"ADB start", "ADB stop", "Run script", "Remount SD", "Restart", "Shutdown", "Recovery", "Back"};
@@ -353,7 +355,7 @@ index abb3719bab..79535d4ef7 100644
      if(choice == 0)
      {
          /* run service menu */
-@@ -597,6 +788,9 @@ static void tools_screen(void)
+@@ -597,6 +790,9 @@ static void tools_screen(void)
      {
          return;
      }
@@ -363,7 +365,7 @@ index abb3719bab..79535d4ef7 100644
  }
  
  #ifdef ENABLE_LOGGING
-@@ -675,6 +869,12 @@ int main(int argc, char **argv)
+@@ -675,6 +871,12 @@ int main(int argc, char **argv)
              close(fileno(stderr));
  #endif
              mount_storage(false);
@@ -376,7 +378,7 @@ index abb3719bab..79535d4ef7 100644
              /* boot OF */
              execvp("/usr/bin/hiby_player", argv);
              error_screen("Cannot boot OF");
-@@ -684,8 +884,56 @@ int main(int argc, char **argv)
+@@ -684,8 +886,56 @@ int main(int argc, char **argv)
          {
              tools_screen();
          }
