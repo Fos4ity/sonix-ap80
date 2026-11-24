@@ -53,11 +53,6 @@ lv_obj_t *ccsettings_screen;
 
 // How close to the top or bottom of the page a held row has to be before the
 // page moves under it, and how far it moves each time the event comes round.
-// The panel shows its first QP_SLOT_VISIBLE buttons and opens the rest when its
-// card is pulled down. The list says so where that happens: a note between the
-// eighth row and the ninth, there only while a ninth exists.
-#define FOLD_NOTE_H 60
-
 #define EDGE_PX 70
 #define EDGE_STEP 18
 
@@ -73,7 +68,6 @@ static lv_obj_t *body;
 static lv_obj_t *in_use_count;
 static lv_obj_t *others_heading;
 static lv_obj_t *drop_line;
-static lv_obj_t *fold_note;
 static entry_t entries[QP_BTN_COUNT];
 
 // Which button each row is showing. The first quickpanel_in_use_count() rows
@@ -94,18 +88,9 @@ static void refresh_async(void *unused);
 // list, so both move as buttons cross between them.
 static int in_use_top(void) { return HEADING_H; }
 
-// The room the note takes in the first list, and where it sits.
-static int fold_gap(void) { return quickpanel_in_use_count() > QP_SLOT_VISIBLE ? FOLD_NOTE_H : 0; }
-
-static int fold_y(void) { return in_use_top() + QP_SLOT_VISIBLE * ROW_PITCH; }
-
-// Where the gap before row `at` of the first list is; row `at` starts there.
-// The gap after the eighth row is above the note, the ninth row under it.
-static int in_use_row_y(int at) { return in_use_top() + at * ROW_PITCH + (at >= QP_SLOT_VISIBLE ? fold_gap() : 0); }
-
 static int others_heading_y(void) {
 	int n = quickpanel_in_use_count();
-	return in_use_top() + (n < LIST_MIN_ROWS ? LIST_MIN_ROWS : n) * ROW_PITCH + fold_gap() + 8;
+	return in_use_top() + (n < LIST_MIN_ROWS ? LIST_MIN_ROWS : n) * ROW_PITCH + 8;
 }
 
 static int others_top(void) { return others_heading_y() + HEADING_H; }
@@ -117,7 +102,7 @@ static void refresh(void) {
 
 	for (int i = 0; i < in_n && row_count < QP_BTN_COUNT; i++, row_count++) {
 		row_button[row_count] = quickpanel_in_use_at(i);
-		lv_obj_set_y(entries[row_count].row, in_use_row_y(i));
+		lv_obj_set_y(entries[row_count].row, in_use_top() + i * ROW_PITCH);
 	}
 	for (int i = 0; i < out_n && row_count < QP_BTN_COUNT; i++, row_count++) {
 		row_button[row_count] = quickpanel_hidden_at(i);
@@ -136,8 +121,6 @@ static void refresh(void) {
 
 	lv_label_set_text_fmt(in_use_count, "%d/%d", in_n, QP_SLOT_COUNT);
 	lv_obj_set_y(others_heading, others_heading_y() + 10);
-	lv_obj_set_hidden(fold_note, fold_gap() == 0);
-	lv_obj_set_y(fold_note, fold_y());
 
 	int rows_below = out_n < LIST_MIN_ROWS ? LIST_MIN_ROWS : out_n;
 	lv_obj_set_height(body, others_top() + rows_below * ROW_PITCH + 8);
@@ -188,9 +171,6 @@ static target_t target_at(lv_point_t point) {
 	t.in_use = y < others_heading_y();
 	int top = t.in_use ? in_use_top() : others_top();
 	int count = t.in_use ? quickpanel_in_use_count() : quickpanel_hidden_count();
-	if (t.in_use && y > fold_y() + fold_gap() / 2) {
-		y -= fold_gap(); // under the note: the rows there sit that much lower
-	}
 	t.at = (y - top + ROW_PITCH / 2) / ROW_PITCH;
 	if (t.at < 0) {
 		t.at = 0;
@@ -204,9 +184,8 @@ static target_t target_at(lv_point_t point) {
 // The accent rule in the gap a drop would go into. On the canvas, so it
 // scrolls with the rows.
 static void drop_line_show(target_t t) {
-	int y = t.in_use ? in_use_top() + t.at * ROW_PITCH + (t.at > QP_SLOT_VISIBLE ? fold_gap() : 0)
-					 : others_top() + t.at * ROW_PITCH;
-	lv_obj_set_pos(drop_line, 0, y - ROW_GAP / 2 - 2);
+	int top = t.in_use ? in_use_top() : others_top();
+	lv_obj_set_pos(drop_line, 0, top + t.at * ROW_PITCH - ROW_GAP / 2 - 2);
 	lv_obj_set_hidden(drop_line, false);
 	lv_obj_move_foreground(drop_line);
 }
@@ -473,18 +452,6 @@ void ccsettings_init(gui_config_t *cfg) {
 	for (int i = 0; i < QP_BTN_COUNT; i++) {
 		make_row(&entries[i], width);
 	}
-
-	// The note under the eighth row. Not a row: it takes no press.
-	fold_note = lv_label_create(body);
-	lv_label_set_text(fold_note, page_czech() ? "Dal\xC5\xA1\xC3\xAD se uk\xC3\xA1\xC5\xBEou, a\xC5\xBE kartu st\xC3\xA1hne\xC5\xA1 "
-												"za \xC4\x8D\xC3\xA1rku pod jasem:"
-											  : "The rest show when you pull the card down by the line under brightness:");
-	lv_label_set_long_mode(fold_note, LV_LABEL_LONG_WRAP);
-	lv_obj_set_width(fold_note, width - 8);
-	lv_obj_set_x(fold_note, 4);
-	lv_obj_add_style(fold_note, &theme_style_text_dim, 0);
-	lv_obj_set_style_text_font(fold_note, &font_ui_20, 0);
-	lv_obj_set_hidden(fold_note, true);
 
 	drop_line = lv_obj_create(body);
 	lv_obj_set_size(drop_line, width, 4);
