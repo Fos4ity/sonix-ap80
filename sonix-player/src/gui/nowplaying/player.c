@@ -835,7 +835,11 @@ static void apply_playback_status(audio_status_t status) {
 	// is playing well enough to say which of the three it belongs to.
 	sleeptimer_note_playing(playing ? sleeptimer_kind_playing() : SLEEPTIMER_COUNT);
 	if (sleep_timer) {
-		if (sleeptimer_any_running()) {
+		sleeptimer_auto_t auto_cfg;
+		sleeptimer_auto_get(&auto_cfg);
+		// The nightly window can open while a track is already playing. Keep
+		// the slow tick alive so sleeptimer_check_auto() can arm the timer.
+		if (sleeptimer_any_running() || (playing && auto_cfg.enabled)) {
 			lv_timer_resume(sleep_timer);
 		} else {
 			lv_timer_pause(sleep_timer);
@@ -5379,6 +5383,7 @@ void player_output_unplugged(const char *what) {
 // of falling asleep to something is finding it where it was in the morning.
 static void sleep_timer_cb(lv_timer_t *timer) {
 	(void)timer;
+	sleeptimer_check_auto();
 	bool expired = false;
 	for (int i = 0; i < SLEEPTIMER_COUNT; i++) {
 		expired = sleeptimer_expired((sleeptimer_kind_t)i) || expired;
