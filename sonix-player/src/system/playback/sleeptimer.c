@@ -4,11 +4,17 @@
 #include <time.h>
 
 #include "src/system/core/config.h"
+#include "src/system/device/clock.h"
 
 // A whole day, which is the most the two wheels can be set to and well past
 // anything anybody means by a sleep timer. The clamp is here so a hand-edited
 // config cannot arm something that never expires.
 #define SLEEP_MAX_MINUTES (23 * 60 + 59)
+
+// The window defaults to the ordinary night: ten at night to six in the morning.
+#define AUTO_START_DEFAULT (22 * 60)
+#define AUTO_END_DEFAULT (6 * 60)
+#define AUTO_MAX_MINUTE (23 * 60 + 59)
 
 // Where each one is written down. The audiobook pair are the keys the audiobook
 // timer has always used, so an existing config keeps its switch and its length.
@@ -35,6 +41,9 @@ typedef struct {
 
 static timer_state_t timers[SLEEPTIMER_COUNT];
 
+static sleeptimer_auto_t auto_settings;
+static bool auto_active;
+
 // Which kind is playing, kept apart from the countdowns: "something is playing"
 // and "a stretch is running" are not the same thing, and folding them into one
 // flag is how switching the option off and on again while the music played
@@ -57,6 +66,23 @@ static int clamp_minutes(int minutes) {
 	return minutes > SLEEP_MAX_MINUTES ? SLEEP_MAX_MINUTES : minutes;
 }
 
+static int clamp_time(int minute) {
+	if (minute < 0) {
+		return 0;
+	}
+	return minute > AUTO_MAX_MINUTE ? AUTO_MAX_MINUTE : minute;
+}
+
+bool sleeptimer_span_contains(int now, int start, int end) {
+	if (start == end) {
+		return true;
+	}
+	if (start < end) {
+		return now >= start && now < end;
+	}
+	return now >= start || now < end;
+}
+
 void sleeptimer_init(void) {
 	for (int i = 0; i < SLEEPTIMER_COUNT; i++) {
 		timers[i].enabled = config_get_int(PROFILES[i].section, PROFILES[i].key_on, 0) != 0;
@@ -65,14 +91,28 @@ void sleeptimer_init(void) {
 		timers[i].remaining_ms = 0;
 	}
 	playing_kind = SLEEPTIMER_COUNT;
+	auto_settings.enabled = config_get_int("player", "auto_sleep_timer", 0) != 0;
+	auto_settings.start = clamp_time((int)config_get_int("player", "auto_sleep_start", AUTO_START_DEFAULT));
+	auto_settings.end = clamp_time((int)config_get_int("player", "auto_sleep_end", AUTO_END_DEFAULT));
+	auto_active = false;
+	sleeptimer_check_auto();
 }
 
 bool sleeptimer_enabled(sleeptimer_kind_t kind) { return in_range(kind) && timers[kind].enabled; }
 
 int sleeptimer_minutes(sleeptimer_kind_t kind) { return in_range(kind) ? timers[kind].minutes : 0; }
 
-// Armed means there is a stretch to count: switched on and longer than nothing.
-static bool armed(sleeptimer_kind_t kind) { return timers[kind].enabled && timers[kind].minutes > 0; }
+// Armed means there is a stretch to count: switched on, or inside the nightly
+// window for music and audiobooks, and longer than nothing.
+static bool armed(sleeptimer_kind_t kind) {
+	if (timers[kind].minutes <= 0) {
+		return false;
+	}
+	if (timers[kind].enabled) {
+		return true;
+	}
+	return auto_active && (kind == SLEEPTIMER_MUSIC || kind == SLEEPTIMER_AUDIOBOOK);
+}
 
 // Starts a full stretch, or stops counting, from the state as it stands. Every
 // change goes through here, so there is one place that decides and one place
@@ -82,6 +122,64 @@ static void restart(sleeptimer_kind_t kind) {
 	t->counting = playing_kind == kind && armed(kind);
 	t->remaining_ms = t->counting ? (long long)t->minutes * 60000 : 0;
 	t->last_ms = now_ms();
+}
+
+void sleeptimer_auto_get(sleeptimer_auto_t *out) {
+	if (out) {
+		*out = auto_settings;
+	}
+}
+
+void sleeptimer_check_auto(void) {
+	bool active = false;
+	if (auto_settings.enabled && clock_is_set()) {
+		time_t now = time(NULL);
+		struct tm local;
+		if (localtime_r(&now, &local)) {
+			active = sleeptimer_span_contains(local.tm_hour * 60 + local.tm_min, auto_settings.start,
+											  auto_settings.end);
+		}
+	}
+	if (active == auto_active) {
+		return;
+	}
+	auto_active = active;
+	restart(SLEEPTIMER_MUSIC);
+	restart(SLEEPTIMER_AUDIOBOOK);
+}
+
+void sleeptimer_auto_set(const sleeptimer_auto_t *value) {
+	if (!value) {
+		return;
+	}
+	bool changed = false;
+	if (value->enabled != auto_settings.enabled) {
+		auto_settings.enabled = value->enabled;
+		config_set_int("player", "auto_sleep_timer", value->enabled ? 1 : 0);
+		changed = true;
+	}
+	int start = clamp_time(value->start);
+	if (start != auto_settings.start) {
+		auto_settings.start = start;
+		config_set_int("player", "auto_sleep_start", start);
+		changed = true;
+	}
+	int end = clamp_time(value->end);
+	if (end != auto_settings.end) {
+		auto_settings.end = end;
+		config_set_int("player", "auto_sleep_end", end);
+		changed = true;
+	}
+	if (changed) {
+		config_save();
+	}
+	sleeptimer_check_auto();
+}
+
+void sleeptimer_note_activity(void) {
+	if (playing_kind != SLEEPTIMER_COUNT) {
+		restart(playing_kind);
+	}
 }
 
 void sleeptimer_set_enabled(sleeptimer_kind_t kind, bool on) {
