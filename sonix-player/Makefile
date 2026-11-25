@@ -236,7 +236,7 @@ TARGET_OBJS = $(APP_SRCS:src/%.c=build_target/%.o) $(APP_CXX_SRCS:src/%.cpp=buil
 
 all: host compile_commands.json
 
-host: $(HOST_BIN) compile_commands.json
+host: test-autosleep $(HOST_BIN) compile_commands.json
 
 $(HOST_BIN): $(HOST_OBJS)
 	$(HOST_LD) -o $@ $(HOST_OBJS) $(HOST_LDFLAGS)
@@ -244,7 +244,8 @@ $(HOST_BIN): $(HOST_OBJS)
 
 # Unit test for the sleep timer. It uses a virtual monotonic clock, so the
 # test's clock_gettime must replace the libc one at link time (--wrap). Run with
-# `make test-autosleep` from this directory; no other build target runs it.
+# `make test-autosleep` from this directory; `make host` (and so `make all`)
+# runs it too, so a normal build cannot silently break the timer.
 TEST_AUTOSLEEP_BIN = build_host/test_autosleep
 test-autosleep: $(TEST_AUTOSLEEP_BIN)
 	./$(TEST_AUTOSLEEP_BIN)

@@ -323,6 +323,23 @@ bool sleeptimer_any_running(void) {
 	return any;
 }
 
+bool sleeptimer_tick_needed(bool playing) {
+	pthread_mutex_lock(&state_lock);
+	bool any = false;
+	for (int i = 0; i < SLEEPTIMER_COUNT; i++) {
+		if (timers[i].counting) {
+			any = true;
+			break;
+		}
+	}
+	bool auto_enabled = auto_settings.enabled;
+	pthread_mutex_unlock(&state_lock);
+	// An automatic option that is on while something plays needs the tick even
+	// before a stretch is armed: the window may open mid-track. A manual timer
+	// paused with playback is not a reason to keep the tick alive.
+	return any || (playing && auto_enabled);
+}
+
 bool sleeptimer_expired(sleeptimer_kind_t kind) {
 	pthread_mutex_lock(&state_lock);
 	if (!running_unlocked(kind)) {

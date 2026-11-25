@@ -59,6 +59,13 @@ bool sleeptimer_running(sleeptimer_kind_t kind);
 // tick is worth running.
 bool sleeptimer_any_running(void);
 
+// Whether the one-second tick has work to do. It must stay alive while the
+// automatic option is on and something is playing, so a window opening
+// mid-track is noticed. A manual stretch paused with playback does not keep it
+// running. Callers that change the setting or the clock re-check the window
+// first, then ask this so the tick follows the setting too, not just playback.
+bool sleeptimer_tick_needed(bool playing);
+
 // True exactly once, on the tick that kind's time runs out. The caller stops
 // the music: this file has no business knowing how.
 bool sleeptimer_expired(sleeptimer_kind_t kind);

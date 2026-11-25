@@ -243,6 +243,76 @@ static void test_window_boundary_keeps_manual_timer(void) {
 	stub_manual_enabled = 0;
 }
 
+static void test_enabling_auto_mid_playback_arms_and_keeps_tick(void) {
+	stub_clock_set = true;
+	stub_manual_enabled = 0;
+	stub_auto_enabled = 0;
+	stub_minutes = 0;
+	virtual_ms = 1000;
+	sleeptimer_init();
+
+	// Music started while the switch was off: nothing is armed and the tick
+	// has no reason to run yet.
+	sleeptimer_note_playing(SLEEPTIMER_MUSIC);
+	CHECK(!sleeptimer_running(SLEEPTIMER_MUSIC));
+	CHECK(!sleeptimer_tick_needed(true));
+
+	// The Settings callback flips the switch while the track is still playing.
+	// It must arm the stretch and leave the tick alive without waiting for a
+	// playback-status change or for a tick that was never resumed.
+	sleeptimer_auto_t value = {.enabled = true, .start = 720, .end = 720};
+	sleeptimer_auto_set(&value);
+	CHECK(sleeptimer_running(SLEEPTIMER_MUSIC));
+	CHECK(sleeptimer_remaining(SLEEPTIMER_MUSIC) == 30 * 60);
+	CHECK(sleeptimer_tick_needed(true));
+
+	value.enabled = false;
+	sleeptimer_auto_set(&value);
+	CHECK(!sleeptimer_running(SLEEPTIMER_MUSIC));
+	CHECK(!sleeptimer_tick_needed(true));
+}
+
+static void test_daytime_enable_keeps_tick_for_the_window(void) {
+	stub_clock_set = true;
+	stub_manual_enabled = 0;
+	stub_auto_enabled = 0;
+	stub_minutes = 0;
+	virtual_ms = 1000;
+	sleeptimer_init();
+	sleeptimer_note_playing(SLEEPTIMER_MUSIC);
+
+	// A window that starts two minutes from now: nothing is armed yet, but a
+	// paused tick would never notice the window opening and a button press
+	// could not arm the stretch either.
+	time_t now = time(NULL);
+	struct tm local;
+	CHECK(localtime_r(&now, &local) != NULL);
+	int minute_now = local.tm_hour * 60 + local.tm_min;
+	sleeptimer_auto_t value = {.enabled = true,
+							   .start = (minute_now + 2) % 1440,
+							   .end = (minute_now + 3) % 1440};
+	sleeptimer_auto_set(&value);
+	CHECK(!sleeptimer_running(SLEEPTIMER_MUSIC));
+	CHECK(sleeptimer_tick_needed(true));
+
+	// Playback stopping puts the tick back to sleep despite the option being on.
+	sleeptimer_note_playing(SLEEPTIMER_COUNT);
+	CHECK(!sleeptimer_tick_needed(false));
+}
+
+static void test_paused_manual_timer_does_not_keep_tick(void) {
+	stub_clock_set = true;
+	stub_manual_enabled = 1;
+	stub_auto_enabled = 0;
+	stub_minutes = 30;
+	sleeptimer_init();
+	CHECK(!sleeptimer_any_running());
+	CHECK(!sleeptimer_tick_needed(false));
+	sleeptimer_note_activity();
+	CHECK(!sleeptimer_tick_needed(false));
+	stub_manual_enabled = 0;
+}
+
 int main(void) {
 	test_span();
 	test_no_arm_without_clock();
@@ -252,6 +322,9 @@ int main(void) {
 	test_auto_set_leaves_manual_keys_alone();
 	test_auto_arms_with_default_config();
 	test_window_boundary_keeps_manual_timer();
+	test_enabling_auto_mid_playback_arms_and_keeps_tick();
+	test_daytime_enable_keeps_tick_for_the_window();
+	test_paused_manual_timer_does_not_keep_tick();
 	puts("auto sleep timer tests passed");
 	return 0;
 }

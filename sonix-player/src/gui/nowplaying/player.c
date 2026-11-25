@@ -786,6 +786,28 @@ static sleeptimer_kind_t sleeptimer_kind_playing(void) {
 	return SLEEPTIMER_MUSIC;
 }
 
+static void sync_sleep_timer(bool playing) {
+	if (!sleep_timer) {
+		return;
+	}
+	// The nightly window can open while a track is already playing. Keep the
+	// slow tick alive for the automatic option even before a stretch is armed.
+	if (sleeptimer_tick_needed(playing)) {
+		lv_timer_resume(sleep_timer);
+	} else {
+		lv_timer_pause(sleep_timer);
+	}
+}
+
+void player_sleep_timer_sync(void) {
+	// Settings and the clock change outside the playback-status path, so ask
+	// about the window again before deciding on the tick. Without this, turning
+	// the switch on during a track arms nothing until the next status change,
+	// and the paused tick never gets the chance to run at all.
+	sleeptimer_check_auto();
+	sync_sleep_timer(audio_get_status() == AUDIO_STATUS_PLAYING);
+}
+
 static void apply_playback_status(audio_status_t status) {
 	bool playing = (status == AUDIO_STATUS_PLAYING);
 
@@ -834,17 +856,7 @@ static void apply_playback_status(audio_status_t status) {
 	// told without being told twice. It is also the one place that knows what
 	// is playing well enough to say which of the three it belongs to.
 	sleeptimer_note_playing(playing ? sleeptimer_kind_playing() : SLEEPTIMER_COUNT);
-	if (sleep_timer) {
-		sleeptimer_auto_t auto_cfg;
-		sleeptimer_auto_get(&auto_cfg);
-		// The nightly window can open while a track is already playing. Keep
-		// the slow tick alive so sleeptimer_check_auto() can arm the timer.
-		if (sleeptimer_any_running() || (playing && auto_cfg.enabled)) {
-			lv_timer_resume(sleep_timer);
-		} else {
-			lv_timer_pause(sleep_timer);
-		}
-	}
+	sync_sleep_timer(playing);
 }
 
 // "3/24": which track of the queue is playing.

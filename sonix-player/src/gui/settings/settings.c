@@ -81,6 +81,7 @@ static void auto_sleep_toggle_cb(lv_event_t *e) {
 	sleeptimer_auto_get(&value);
 	value.enabled = lv_obj_has_state(auto_sleep_switch, LV_STATE_CHECKED);
 	sleeptimer_auto_set(&value);
+	player_sleep_timer_sync();
 	auto_sleep_refresh();
 }
 
@@ -90,6 +91,7 @@ static void auto_sleep_start_cb(lv_event_t *e) {
 	sleeptimer_auto_get(&value);
 	value.start = settingsrow_duration_minutes(&auto_start_row);
 	sleeptimer_auto_set(&value);
+	player_sleep_timer_sync();
 }
 
 static void auto_sleep_end_cb(lv_event_t *e) {
@@ -98,6 +100,7 @@ static void auto_sleep_end_cb(lv_event_t *e) {
 	sleeptimer_auto_get(&value);
 	value.end = settingsrow_duration_minutes(&auto_end_row);
 	sleeptimer_auto_set(&value);
+	player_sleep_timer_sync();
 }
 
 static void build_auto_sleep_rows(lv_obj_t *container) {
