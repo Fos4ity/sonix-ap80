@@ -12,6 +12,7 @@
 #include "src/system/playback/sleeptimer.h"
 
 static bool stub_clock_set;
+static long stub_manual_enabled;
 static long stub_auto_enabled;
 static long stub_auto_start;
 static long stub_auto_end;
@@ -29,6 +30,7 @@ static int write_count;
 
 long config_get_int(const char *section, const char *key, long fallback) {
 	(void)section;
+	if (!strcmp(key, "sleep_timer")) return stub_manual_enabled;
 	if (!strcmp(key, "sleep_minutes")) return stub_minutes;
 	if (!strcmp(key, "auto_sleep_timer")) return stub_auto_enabled;
 	if (!strcmp(key, "auto_sleep_start")) return stub_auto_start;
@@ -192,6 +194,55 @@ static void test_auto_set_leaves_manual_keys_alone(void) {
 	}
 }
 
+static void test_auto_arms_with_default_config(void) {
+	// A fresh device has neither a manual switch nor a sleep_minutes value. The
+	// nightly switch must still arm a stretch on its own.
+	stub_clock_set = true;
+	stub_manual_enabled = 0;
+	stub_auto_enabled = 1;
+	stub_auto_start = 0;
+	stub_auto_end = 0;
+	stub_minutes = 0;
+	sleeptimer_init();
+	sleeptimer_note_playing(SLEEPTIMER_MUSIC);
+	sleeptimer_check_auto();
+	CHECK(sleeptimer_running(SLEEPTIMER_MUSIC));
+	CHECK(sleeptimer_remaining(SLEEPTIMER_MUSIC) == 30 * 60);
+
+	sleeptimer_note_playing(SLEEPTIMER_AUDIOBOOK);
+	CHECK(!sleeptimer_running(SLEEPTIMER_MUSIC));
+	CHECK(sleeptimer_running(SLEEPTIMER_AUDIOBOOK));
+	CHECK(sleeptimer_remaining(SLEEPTIMER_AUDIOBOOK) == 30 * 60);
+}
+
+static void test_window_boundary_keeps_manual_timer(void) {
+	stub_clock_set = true;
+	stub_manual_enabled = 1;
+	stub_auto_enabled = 0;
+	stub_auto_start = 0;
+	stub_auto_end = 0;
+	stub_minutes = 30;
+	virtual_ms = 1000;
+	sleeptimer_init();
+	sleeptimer_note_playing(SLEEPTIMER_MUSIC);
+	CHECK(sleeptimer_remaining(SLEEPTIMER_MUSIC) == 30 * 60);
+
+	virtual_ms = 1000 + 2 * 60000;
+	sleeptimer_expired(SLEEPTIMER_MUSIC);
+	int mid = sleeptimer_remaining(SLEEPTIMER_MUSIC);
+	CHECK(mid <= 28 * 60);
+
+	// Entering and leaving the window must not hand a manual timer that is
+	// already counting a fresh full length.
+	sleeptimer_auto_t value = {.enabled = true, .start = 720, .end = 720};
+	sleeptimer_auto_set(&value);
+	CHECK(sleeptimer_remaining(SLEEPTIMER_MUSIC) == mid);
+	value.enabled = false;
+	sleeptimer_auto_set(&value);
+	CHECK(sleeptimer_remaining(SLEEPTIMER_MUSIC) == mid);
+	stub_manual_enabled = 0;
+}
+
 int main(void) {
 	test_span();
 	test_no_arm_without_clock();
@@ -199,6 +250,8 @@ int main(void) {
 	test_activity_without_playback();
 	test_activity_restart_survives_a_concurrent_expiry();
 	test_auto_set_leaves_manual_keys_alone();
+	test_auto_arms_with_default_config();
+	test_window_boundary_keeps_manual_timer();
 	puts("auto sleep timer tests passed");
 	return 0;
 }

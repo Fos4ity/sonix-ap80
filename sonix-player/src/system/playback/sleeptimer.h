@@ -67,7 +67,8 @@ bool sleeptimer_expired(sleeptimer_kind_t kind);
 int sleeptimer_remaining(sleeptimer_kind_t kind);
 
 // The nightly window in which music and audiobooks arm themselves. Times are
-// minutes from midnight; equal endpoints mean every hour of the day.
+// minutes from midnight; equal endpoints mean every hour of the day. The
+// automatic stretch has its own length, so no manual sleep time has to be set.
 typedef struct {
 	bool enabled;
 	int start;
@@ -82,7 +83,8 @@ void sleeptimer_auto_set(const sleeptimer_auto_t *value);
 bool sleeptimer_span_contains(int now, int start, int end);
 
 // Called on the one-second tick: reads the clock and arms or disarms the two
-// eligible timers when the player enters or leaves the window.
+// eligible timers when the player enters or leaves the window, leaving a manual
+// timer that is already counting untouched.
 void sleeptimer_check_auto(void);
 
 // A button press means the listener is still awake: the stretch starts again.

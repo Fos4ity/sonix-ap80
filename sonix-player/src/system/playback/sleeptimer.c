@@ -17,6 +17,11 @@
 #define AUTO_END_DEFAULT (6 * 60)
 #define AUTO_MAX_MINUTE (23 * 60 + 59)
 
+// The nightly stretch has its own length. The Settings page offers only the
+// switch and the window, and a fresh device has no manual sleep_minutes at all,
+// so borrowing the manual duration would leave the new switch arming nothing.
+#define AUTO_MINUTES 30
+
 // Where each one is written down. The audiobook pair are the keys the audiobook
 // timer has always used, so an existing config keeps its switch and its length.
 // A length of nought there means no time chosen: "at the end of the chapter" is
@@ -44,7 +49,9 @@ static timer_state_t timers[SLEEPTIMER_COUNT];
 
 // Buttons arrive on input threads while the countdown is read on the UI
 // thread. One lock keeps a restart from losing an expiry and the other way
-// round.
+// round. It also covers `playing_kind` and `auto_active`: both are read when a
+// restart decides what to arm, so an input thread must not see a half-written
+// transition from the UI tick.
 static pthread_mutex_t state_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static sleeptimer_auto_t auto_settings;
@@ -104,31 +111,57 @@ void sleeptimer_init(void) {
 	sleeptimer_check_auto();
 }
 
-bool sleeptimer_enabled(sleeptimer_kind_t kind) { return in_range(kind) && timers[kind].enabled; }
-
-int sleeptimer_minutes(sleeptimer_kind_t kind) { return in_range(kind) ? timers[kind].minutes : 0; }
-
-// Armed means there is a stretch to count: switched on, or inside the nightly
-// window for music and audiobooks, and longer than nothing.
-static bool armed(sleeptimer_kind_t kind) {
-	if (timers[kind].minutes <= 0) {
+bool sleeptimer_enabled(sleeptimer_kind_t kind) {
+	if (!in_range(kind)) {
 		return false;
 	}
-	if (timers[kind].enabled) {
-		return true;
+	pthread_mutex_lock(&state_lock);
+	bool enabled = timers[kind].enabled;
+	pthread_mutex_unlock(&state_lock);
+	return enabled;
+}
+
+int sleeptimer_minutes(sleeptimer_kind_t kind) {
+	if (!in_range(kind)) {
+		return 0;
 	}
-	return auto_active && (kind == SLEEPTIMER_MUSIC || kind == SLEEPTIMER_AUDIOBOOK);
+	pthread_mutex_lock(&state_lock);
+	int minutes = timers[kind].minutes;
+	pthread_mutex_unlock(&state_lock);
+	return minutes;
+}
+
+// A manually configured stretch takes precedence; the nightly one supplies its
+// own length so it works with a default config. All of these helpers read state
+// that lives under `state_lock` and must be called with it held.
+static bool manual_armed_locked(sleeptimer_kind_t kind) {
+	return timers[kind].enabled && timers[kind].minutes > 0;
+}
+
+static int armed_minutes_locked(sleeptimer_kind_t kind) {
+	if (manual_armed_locked(kind)) {
+		return timers[kind].minutes;
+	}
+	if (auto_active && (kind == SLEEPTIMER_MUSIC || kind == SLEEPTIMER_AUDIOBOOK)) {
+		return AUTO_MINUTES;
+	}
+	return 0;
 }
 
 // Starts a full stretch, or stops counting, from the state as it stands. Every
 // change goes through here, so there is one place that decides and one place
 // where `remaining_ms` is ever set.
+static void restart_locked(sleeptimer_kind_t kind) {
+	timer_state_t *t = &timers[kind];
+	int minutes = armed_minutes_locked(kind);
+	t->counting = playing_kind == kind && minutes > 0;
+	t->remaining_ms = t->counting ? (long long)minutes * 60000 : 0;
+	t->last_ms = now_ms();
+}
+
 static void restart(sleeptimer_kind_t kind) {
 	pthread_mutex_lock(&state_lock);
-	timer_state_t *t = &timers[kind];
-	t->counting = playing_kind == kind && armed(kind);
-	t->remaining_ms = t->counting ? (long long)t->minutes * 60000 : 0;
-	t->last_ms = now_ms();
+	restart_locked(kind);
 	pthread_mutex_unlock(&state_lock);
 }
 
@@ -148,12 +181,22 @@ void sleeptimer_check_auto(void) {
 											  auto_settings.end);
 		}
 	}
+	pthread_mutex_lock(&state_lock);
 	if (active == auto_active) {
+		pthread_mutex_unlock(&state_lock);
 		return;
 	}
 	auto_active = active;
-	restart(SLEEPTIMER_MUSIC);
-	restart(SLEEPTIMER_AUDIOBOOK);
+	// A window boundary changes only the auto-armed stretches. A timer the
+	// listener switched on manually keeps counting from where it was instead of
+	// being handed a fresh full length on entering and leaving the window.
+	if (!manual_armed_locked(SLEEPTIMER_MUSIC)) {
+		restart_locked(SLEEPTIMER_MUSIC);
+	}
+	if (!manual_armed_locked(SLEEPTIMER_AUDIOBOOK)) {
+		restart_locked(SLEEPTIMER_AUDIOBOOK);
+	}
+	pthread_mutex_unlock(&state_lock);
 }
 
 void sleeptimer_auto_set(const sleeptimer_auto_t *value) {
@@ -185,16 +228,24 @@ void sleeptimer_auto_set(const sleeptimer_auto_t *value) {
 }
 
 void sleeptimer_note_activity(void) {
+	pthread_mutex_lock(&state_lock);
 	if (playing_kind != SLEEPTIMER_COUNT) {
-		restart(playing_kind);
+		restart_locked(playing_kind);
 	}
+	pthread_mutex_unlock(&state_lock);
 }
 
 void sleeptimer_set_enabled(sleeptimer_kind_t kind, bool on) {
-	if (!in_range(kind) || on == timers[kind].enabled) {
+	if (!in_range(kind)) {
+		return;
+	}
+	pthread_mutex_lock(&state_lock);
+	if (on == timers[kind].enabled) {
+		pthread_mutex_unlock(&state_lock);
 		return;
 	}
 	timers[kind].enabled = on;
+	pthread_mutex_unlock(&state_lock);
 	config_set_int(PROFILES[kind].section, PROFILES[kind].key_on, on ? 1 : 0);
 	config_save();
 	// Switching it off in the middle of a stretch disarms it now, and switching
@@ -208,10 +259,13 @@ void sleeptimer_set_minutes(sleeptimer_kind_t kind, int minutes) {
 		return;
 	}
 	minutes = clamp_minutes(minutes);
+	pthread_mutex_lock(&state_lock);
 	if (minutes == timers[kind].minutes) {
+		pthread_mutex_unlock(&state_lock);
 		return;
 	}
 	timers[kind].minutes = minutes;
+	pthread_mutex_unlock(&state_lock);
 	config_set_int(PROFILES[kind].section, PROFILES[kind].key_minutes, minutes);
 	config_save();
 	// Moving the wheel is choosing a new stretch, not editing the one running:
@@ -223,7 +277,11 @@ void sleeptimer_note_playing(sleeptimer_kind_t kind) {
 	if (!in_range(kind)) {
 		kind = SLEEPTIMER_COUNT; // nothing any of them counts
 	}
+	bool report[SLEEPTIMER_COUNT];
+	int minutes[SLEEPTIMER_COUNT];
+	pthread_mutex_lock(&state_lock);
 	if (kind == playing_kind) {
+		pthread_mutex_unlock(&state_lock);
 		return;
 	}
 	playing_kind = kind;
@@ -231,9 +289,14 @@ void sleeptimer_note_playing(sleeptimer_kind_t kind) {
 	// countdown to put away, and going from an album to a podcast is both at
 	// once.
 	for (int i = 0; i < SLEEPTIMER_COUNT; i++) {
-		restart((sleeptimer_kind_t)i);
-		if (sleeptimer_running((sleeptimer_kind_t)i)) {
-			fprintf(stderr, "sleeptimer: %s, %d min\n", PROFILES[i].name, timers[i].minutes);
+		restart_locked((sleeptimer_kind_t)i);
+		report[i] = timers[i].counting;
+		minutes[i] = armed_minutes_locked((sleeptimer_kind_t)i);
+	}
+	pthread_mutex_unlock(&state_lock);
+	for (int i = 0; i < SLEEPTIMER_COUNT; i++) {
+		if (report[i]) {
+			fprintf(stderr, "sleeptimer: %s, %d min\n", PROFILES[i].name, minutes[i]);
 		}
 	}
 }
