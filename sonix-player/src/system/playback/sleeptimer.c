@@ -1,5 +1,6 @@
 #include "sleeptimer.h"
 
+#include <pthread.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -40,6 +41,11 @@ typedef struct {
 } timer_state_t;
 
 static timer_state_t timers[SLEEPTIMER_COUNT];
+
+// Buttons arrive on input threads while the countdown is read on the UI
+// thread. One lock keeps a restart from losing an expiry and the other way
+// round.
+static pthread_mutex_t state_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static sleeptimer_auto_t auto_settings;
 static bool auto_active;
@@ -118,10 +124,12 @@ static bool armed(sleeptimer_kind_t kind) {
 // change goes through here, so there is one place that decides and one place
 // where `remaining_ms` is ever set.
 static void restart(sleeptimer_kind_t kind) {
+	pthread_mutex_lock(&state_lock);
 	timer_state_t *t = &timers[kind];
 	t->counting = playing_kind == kind && armed(kind);
 	t->remaining_ms = t->counting ? (long long)t->minutes * 60000 : 0;
 	t->last_ms = now_ms();
+	pthread_mutex_unlock(&state_lock);
 }
 
 void sleeptimer_auto_get(sleeptimer_auto_t *out) {
@@ -224,25 +232,38 @@ void sleeptimer_note_playing(sleeptimer_kind_t kind) {
 	// once.
 	for (int i = 0; i < SLEEPTIMER_COUNT; i++) {
 		restart((sleeptimer_kind_t)i);
-		if (timers[i].counting) {
+		if (sleeptimer_running((sleeptimer_kind_t)i)) {
 			fprintf(stderr, "sleeptimer: %s, %d min\n", PROFILES[i].name, timers[i].minutes);
 		}
 	}
 }
 
-bool sleeptimer_running(sleeptimer_kind_t kind) { return in_range(kind) && timers[kind].counting; }
+static bool running_unlocked(sleeptimer_kind_t kind) { return in_range(kind) && timers[kind].counting; }
+
+bool sleeptimer_running(sleeptimer_kind_t kind) {
+	pthread_mutex_lock(&state_lock);
+	bool running = running_unlocked(kind);
+	pthread_mutex_unlock(&state_lock);
+	return running;
+}
 
 bool sleeptimer_any_running(void) {
+	pthread_mutex_lock(&state_lock);
+	bool any = false;
 	for (int i = 0; i < SLEEPTIMER_COUNT; i++) {
 		if (timers[i].counting) {
-			return true;
+			any = true;
+			break;
 		}
 	}
-	return false;
+	pthread_mutex_unlock(&state_lock);
+	return any;
 }
 
 bool sleeptimer_expired(sleeptimer_kind_t kind) {
-	if (!sleeptimer_running(kind)) {
+	pthread_mutex_lock(&state_lock);
+	if (!running_unlocked(kind)) {
+		pthread_mutex_unlock(&state_lock);
 		return false;
 	}
 	timer_state_t *t = &timers[kind];
@@ -257,16 +278,21 @@ bool sleeptimer_expired(sleeptimer_kind_t kind) {
 	if (elapsed >= t->remaining_ms) {
 		t->counting = false;
 		t->remaining_ms = 0;
+		pthread_mutex_unlock(&state_lock);
 		fprintf(stderr, "sleeptimer: %s, time is up; stopping\n", PROFILES[kind].name);
 		return true;
 	}
 	t->remaining_ms -= elapsed;
+	pthread_mutex_unlock(&state_lock);
 	return false;
 }
 
 int sleeptimer_remaining(sleeptimer_kind_t kind) {
-	if (!sleeptimer_running(kind)) {
-		return 0;
+	pthread_mutex_lock(&state_lock);
+	int remaining = 0;
+	if (running_unlocked(kind)) {
+		remaining = (int)((timers[kind].remaining_ms + 999) / 1000);
 	}
-	return (int)((timers[kind].remaining_ms + 999) / 1000);
+	pthread_mutex_unlock(&state_lock);
+	return remaining;
 }
