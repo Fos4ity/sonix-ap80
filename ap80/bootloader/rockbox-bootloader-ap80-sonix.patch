@@ -1,5 +1,5 @@
 diff --git a/apps/bitmaps/native/SOURCES b/apps/bitmaps/native/SOURCES
-index 5fab111327..4c691e2c94 100644
+index 5fab11132..4c691e2c9 100644
 --- a/apps/bitmaps/native/SOURCES
 +++ b/apps/bitmaps/native/SOURCES
 @@ -50,6 +50,9 @@ toolsicon.70x70x16.bmp
@@ -52,7 +52,7 @@ literal 0
 HcmV?d00001
 
 diff --git a/bootloader/hibyos_linux.c b/bootloader/hibyos_linux.c
-index abb3719bab..d38715d571 100644
+index abb3719ba..13177be62 100644
 --- a/bootloader/hibyos_linux.c
 +++ b/bootloader/hibyos_linux.c
 @@ -46,6 +46,8 @@
@@ -113,10 +113,88 @@ index abb3719bab..d38715d571 100644
          else
              return 10 * HZ; /* Default timeout */
  }
-@@ -241,11 +261,110 @@ static void mount_storage(int enable)
+@@ -227,6 +247,75 @@ static enum boot_mode inactivity_action(enum boot_mode cur_selection)
+ 
+ static int mounted = 0;
+ 
++#ifdef HIDIZS_AP80MAX
++/* After a cold power-on the SD card can take a few seconds to show up as
++ * /dev/mmcblk0 (more for big or slow cards). The menu used to try to mount it
++ * once, right at start, and then count it as mounted even when that failed,
++ * so ROCKBOX and SONIX stayed hidden until a restart (a warm restart finds
++ * the card faster). Now "mounted" means what /proc/mounts says, and a failed
++ * mount is tried again later. */
++#define SD_WAIT_TICKS (8 * HZ) /* longest wait for the card at power-on */
++
++static bool storage_mounted(void)
++{
++    FILE *f = fopen("/proc/mounts", "r");
++    if(!f)
++        return false;
++    char line[512], dev[128], dir[128];
++    bool found = false;
++    while(fgets(line, sizeof(line), f))
++        if(sscanf(line, "%127s %127s", dev, dir) == 2 && strcmp(dir, BASE_DIR) == 0)
++        {
++            found = true;
++            break;
++        }
++    fclose(f);
++    return found;
++}
++
++static void mount_storage(int enable)
++{
++    if (enable) {
++        if (!storage_mounted() &&
++            (access("/dev/mmcblk0", F_OK) == 0 || access("/dev/mmcblk0p1", F_OK) == 0)) {
++            system("/bin/mkdir -p " BASE_DIR);
++            if (system("/bin/mount /dev/mmcblk0 " BASE_DIR " 2>/dev/null"))
++                system("/bin/mount /dev/mmcblk0p1 " BASE_DIR " 2>/dev/null");
++        }
++        mounted = storage_mounted();
++        return;
++    }
++    if (mounted)
++        system("/bin/unmount " BASE_DIR);
++    mounted = 0;
++}
++
++/* at power-on: wait until the card is mounted, at most SD_WAIT_TICKS. A
++ * button press stops the wait (no card in the player, or no patience). */
++static void wait_for_storage(void)
++{
++    long start = current_tick;
++    bool shown = false;
++    mount_storage(true);
++    while(!mounted && TIME_BEFORE(current_tick, start + SD_WAIT_TICKS))
++    {
++        if(!shown && TIME_AFTER(current_tick, start + HZ / 2))
++        {
++            lcd_clear_display();
++            lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
++            display_text_center(LCD_HEIGHT / 2 - 20, "Waiting for SD card...");
++            lcd_set_foreground(LCD_RGBPACK(0, 255, 0));
++            display_text_center(LCD_HEIGHT / 2 + 20, "any button: skip");
++            lcd_update();
++            shown = true;
++        }
++        int btn = button_get_w_tmo(HZ / 5);
++        if((btn & BUTTON_MAIN) && !(btn & BUTTON_REL))
++            break;
++        mount_storage(true);
++    }
++}
++#else
+ static void mount_storage(int enable)
+ {
+     if (enable && !mounted) {
+@@ -240,12 +329,112 @@ static void mount_storage(int enable)
+     }
      mounted = enable;
  }
- 
++#endif
++
 +#ifdef HAVE_SONIX_ENTRY
 +/* Without Rockbox on the card there is no .rockbox folder to keep the last
 + * choice in, so it goes next to Sonix instead. */
@@ -209,7 +287,7 @@ index abb3719bab..d38715d571 100644
 + * has no place to store it, so leaving TOOLS does not jump to another entry */
 +static enum boot_mode mem_mode = BOOT_CANARY;
 +#endif
-+
+ 
  /* we store the boot mode in a file so we can reload it between 'boots' */
  static enum boot_mode load_boot_mode(enum boot_mode mode)
  {
@@ -224,7 +302,7 @@ index abb3719bab..d38715d571 100644
      if(fd >= 0)
      {
          read(fd, &mode, sizeof(mode));
-@@ -256,8 +375,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
+@@ -256,8 +445,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
  
  static void save_boot_mode(enum boot_mode mode)
  {
@@ -240,7 +318,7 @@ index abb3719bab..d38715d571 100644
      if(fd >= 0)
      {
          write(fd, &mode, sizeof(mode));
-@@ -265,18 +391,110 @@ static void save_boot_mode(enum boot_mode mode)
+@@ -265,18 +461,145 @@ static void save_boot_mode(enum boot_mode mode)
      }
  }
  
@@ -311,6 +389,26 @@ index abb3719bab..d38715d571 100644
 +}
 +#endif
 +
++#ifdef HAVE_SONIX_ENTRY
++/* the "Boot straight into Sonix" switch is on and Sonix is on the card */
++static bool direct_wanted(void)
++{
++    return access(SONIX_DIRECT_FILE, F_OK) == 0 && access(SONIX_SCRIPT, R_OK) == 0;
++}
++
++/* the stored choice, or BOOT_CANARY when none can be used */
++static enum boot_mode stored_mode(void)
++{
++    enum boot_mode init_mode = load_boot_mode(BOOT_CANARY);
++    if (init_mode != BOOT_CANARY && ((int)init_mode < 0 || init_mode >= BOOT_COUNT))
++        init_mode = BOOT_CANARY;
++    /* the stored player is not on the card any more: start over */
++    if (init_mode != BOOT_CANARY && !mode_available(init_mode))
++        init_mode = BOOT_CANARY;
++    return init_mode;
++}
++#endif
++
  static enum boot_mode get_boot_mode(void)
  {
 +#ifdef HAVE_SONIX_ENTRY
@@ -319,17 +417,19 @@ index abb3719bab..d38715d571 100644
 +    if(sonix_direct())
 +        return BOOT_SONIX;
 +#endif
++#ifdef HAVE_SONIX_ENTRY
++    enum boot_mode init_mode = stored_mode();
++    enum boot_mode mode = (init_mode == BOOT_CANARY) ? default_mode() : init_mode;
++    /* the card was not there yet: look for it again once a second, and
++     * act as if it had been there from the start while nothing is pressed */
++    bool touched = false;
++    long next_mount_try = current_tick + HZ;
++#else
      /* load previous mode, or start with rockbox if none */
      enum boot_mode init_mode = load_boot_mode(BOOT_CANARY);
      /* wait for user action */
 +    if (init_mode != BOOT_CANARY && ((int)init_mode < 0 || init_mode >= BOOT_COUNT))
 +        init_mode = BOOT_CANARY;
-+#ifdef HAVE_SONIX_ENTRY
-+    /* the stored player is not on the card any more: start over */
-+    if (init_mode != BOOT_CANARY && !mode_available(init_mode))
-+        init_mode = BOOT_CANARY;
-+    enum boot_mode mode = (init_mode == BOOT_CANARY) ? default_mode() : init_mode;
-+#else
      enum boot_mode mode = (init_mode == BOOT_CANARY) ? BOOT_ROCKBOX : init_mode;
 +#endif
      int last_activity = current_tick;
@@ -339,6 +439,19 @@ index abb3719bab..d38715d571 100644
      while(true)
      {
 +#ifdef HAVE_SONIX_ENTRY
++        if(!mounted && TIME_AFTER(current_tick, next_mount_try))
++        {
++            next_mount_try = current_tick + HZ;
++            mount_storage(true);
++            if(mounted && !touched)
++            {
++                if(direct_wanted() && !key_held())
++                    return BOOT_SONIX;
++                init_mode = stored_mode();
++                mode = (init_mode == BOOT_CANARY) ? default_mode() : init_mode;
++                last_activity = current_tick;
++            }
++        }
 +        /* the card went away while the menu is up: fall back to the
 +         * original firmware, which is always there */
 +        if(!mode_available(mode))
@@ -351,7 +464,7 @@ index abb3719bab..d38715d571 100644
          /* on usb detect, immediately boot with last choice */
  #if !defined(HIBY_R3PROII) && !defined(HIBY_R1) && !defined(HIDIZS_AP80MAX)
          if(!adb_running && power_input_status() & POWER_INPUT_USB_CHARGER)
-@@ -312,10 +530,16 @@ static enum boot_mode get_boot_mode(void)
+@@ -312,10 +635,16 @@ static enum boot_mode get_boot_mode(void)
          lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
          /* display icon */
          const struct bitmap *icon = (mode == BOOT_OF) ? &ICON_NAME :
@@ -368,7 +481,18 @@ index abb3719bab..d38715d571 100644
              (mode == BOOT_ROCKBOX) ? "ROCKBOX" : "TOOLS";
  
          int desc_height;
-@@ -358,11 +582,19 @@ static enum boot_mode get_boot_mode(void)
+@@ -347,6 +676,10 @@ static enum boot_mode get_boot_mode(void)
+ #else
+         if(btn & BUTTON_MAIN)
+             last_activity = current_tick;
++#endif
++#ifdef HAVE_SONIX_ENTRY
++        if(btn & BUTTON_MAIN)
++            touched = true;
+ #endif
+         /* ignore release, allow repeat */
+         if(btn & BUTTON_REL)
+@@ -358,11 +691,19 @@ static enum boot_mode get_boot_mode(void)
              break;
          /* left/right/up/down: change mode */
          if(btn == BUTTON_LEFT || btn == BUTTON_DOWN) {
@@ -388,7 +512,7 @@ index abb3719bab..d38715d571 100644
              init_mode = BOOT_CANARY;
          }
      }
-@@ -553,7 +785,18 @@ static void tools_screen(void)
+@@ -553,7 +894,18 @@ static void tools_screen(void)
      printf("Version: %s\n", rbversion);
      printf("%s\n", MODEL_NAME);
      const char *choices[] = {"ADB start", "ADB stop", "Run script", "Remount SD", "Restart", "Shutdown", "Recovery", "Back"};
@@ -407,7 +531,7 @@ index abb3719bab..d38715d571 100644
      if(choice == 0)
      {
          /* run service menu */
-@@ -597,6 +840,9 @@ static void tools_screen(void)
+@@ -597,6 +949,9 @@ static void tools_screen(void)
      {
          return;
      }
@@ -417,7 +541,19 @@ index abb3719bab..d38715d571 100644
  }
  
  #ifdef ENABLE_LOGGING
-@@ -675,6 +921,35 @@ int main(int argc, char **argv)
+@@ -660,7 +1015,11 @@ int main(int argc, char **argv)
+ //    if(font_id >= 0)
+ //        lcd_setfont(font_id);
+ 
++#ifdef HIDIZS_AP80MAX
++    wait_for_storage();
++#else
+     mount_storage(true);
++#endif
+ 
+     /* run all tools menu */
+     while(true)
+@@ -675,6 +1034,35 @@ int main(int argc, char **argv)
              close(fileno(stderr));
  #endif
              mount_storage(false);
@@ -453,7 +589,7 @@ index abb3719bab..d38715d571 100644
              /* boot OF */
              execvp("/usr/bin/hiby_player", argv);
              error_screen("Cannot boot OF");
-@@ -684,8 +959,56 @@ int main(int argc, char **argv)
+@@ -684,8 +1072,56 @@ int main(int argc, char **argv)
          {
              tools_screen();
          }

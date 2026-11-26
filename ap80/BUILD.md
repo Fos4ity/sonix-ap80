@@ -143,6 +143,9 @@ The patch:
 - frees memory before HiBy OS starts (its display driver needs one 8 MB block
   and the player has 64 MB of RAM),
 - ignores a stored choice that is out of range.
+- waits for the SD card after a cold power-on (up to 8 s, any button skips) and
+  keeps looking for it while the menu is up, so ROCKBOX and SONIX are not
+  missing when a slow card shows up late.
 
 **Trying it before flashing** is possible but limited. Copy `bootloader.ap80max`
 to the SD card as `bl_test` together with `ap80/bootloader/testbl.sh`, then run
