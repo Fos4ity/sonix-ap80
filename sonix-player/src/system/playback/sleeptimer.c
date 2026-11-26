@@ -333,11 +333,18 @@ bool sleeptimer_tick_needed(bool playing) {
 		}
 	}
 	bool auto_enabled = auto_settings.enabled;
+	// Only music and audiobooks can be armed by the automatic option, and only
+	// with a set clock. Podcasts, radio and the other external sources are none
+	// of them, so waking every second for those would be all night with nothing
+	// to check. `playing_kind` is the one last told by the player under this
+	// lock, so it says which of them is actually on.
+	bool auto_eligible = playing && (playing_kind == SLEEPTIMER_MUSIC || playing_kind == SLEEPTIMER_AUDIOBOOK);
 	pthread_mutex_unlock(&state_lock);
-	// An automatic option that is on while something plays needs the tick even
-	// before a stretch is armed: the window may open mid-track. A manual timer
-	// paused with playback is not a reason to keep the tick alive.
-	return any || (playing && auto_enabled);
+	// An automatic option that is on while an eligible kind plays needs the tick
+	// even before a stretch is armed: the window may open mid-track. A manual
+	// timer paused with playback, or a source the automatic option can never
+	// arm, is not a reason to keep the tick alive.
+	return any || (auto_enabled && auto_eligible && clock_is_set());
 }
 
 bool sleeptimer_expired(sleeptimer_kind_t kind) {

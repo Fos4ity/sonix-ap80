@@ -313,6 +313,41 @@ static void test_paused_manual_timer_does_not_keep_tick(void) {
 	stub_manual_enabled = 0;
 }
 
+static void test_tick_not_needed_for_ineligible_playback_or_unset_clock(void) {
+	stub_clock_set = true;
+	stub_manual_enabled = 0;
+	stub_auto_enabled = 1;
+	stub_auto_start = 0;
+	stub_auto_end = 0;
+	stub_minutes = 0;
+	virtual_ms = 1000;
+	sleeptimer_init();
+	sleeptimer_check_auto();
+
+	// The two kinds the option can arm keep the tick alive even before the
+	// stretch is armed, so a window opening mid-track is noticed.
+	sleeptimer_note_playing(SLEEPTIMER_MUSIC);
+	CHECK(sleeptimer_tick_needed(true));
+	sleeptimer_note_playing(SLEEPTIMER_AUDIOBOOK);
+	CHECK(sleeptimer_tick_needed(true));
+
+	// A podcast can never be auto-armed: keeping the tick alive for it would
+	// wake the player every second all night with nothing to check.
+	sleeptimer_note_playing(SLEEPTIMER_PODCAST);
+	CHECK(!sleeptimer_any_running());
+	CHECK(!sleeptimer_tick_needed(true));
+
+	// Nor can anything arm without a clock, even for an otherwise eligible
+	// kind. The radio and the other external sources report no kind at all.
+	stub_clock_set = false;
+	sleeptimer_check_auto();
+	sleeptimer_note_playing(SLEEPTIMER_MUSIC);
+	CHECK(!sleeptimer_running(SLEEPTIMER_MUSIC));
+	CHECK(!sleeptimer_tick_needed(true));
+	sleeptimer_note_playing(SLEEPTIMER_COUNT);
+	CHECK(!sleeptimer_tick_needed(true));
+}
+
 int main(void) {
 	test_span();
 	test_no_arm_without_clock();
@@ -325,6 +360,7 @@ int main(void) {
 	test_enabling_auto_mid_playback_arms_and_keeps_tick();
 	test_daytime_enable_keeps_tick_for_the_window();
 	test_paused_manual_timer_does_not_keep_tick();
+	test_tick_not_needed_for_ineligible_playback_or_unset_clock();
 	puts("auto sleep timer tests passed");
 	return 0;
 }

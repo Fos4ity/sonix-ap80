@@ -790,8 +790,9 @@ static void sync_sleep_timer(bool playing) {
 	if (!sleep_timer) {
 		return;
 	}
-	// The nightly window can open while a track is already playing. Keep the
-	// slow tick alive for the automatic option even before a stretch is armed.
+	// The nightly window can open while music or a book is already playing.
+	// Keep the slow tick alive for the automatic option even before a stretch is
+	// armed, but not for a source the option can never arm (or without a clock).
 	if (sleeptimer_tick_needed(playing)) {
 		lv_timer_resume(sleep_timer);
 	} else {
