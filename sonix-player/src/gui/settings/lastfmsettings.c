@@ -180,6 +180,8 @@ static void open_login(void) {
 	show_auth_url(st.auth_url);
 	if (st.state == LASTFM_STATE_AWAITING_AUTH) {
 		update_countdown(st.auth_seconds_left);
+		// This token can still expire while the screen is open.
+		waiting_for_login = true;
 	} else {
 		lv_label_set_text(login_countdown, "");
 	}
