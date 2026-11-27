@@ -89,6 +89,12 @@ client_secret = ...
 
 Never share that file or commit it.
 
+Last.fm keys can also be typed in on the player (Streaming > Last.fm > Enter
+the keys); they are kept in `sonix/device_config.ini` under `[lastfm]`, and a
+keys file wins over them. The Last.fm tiles are drawn by
+`ap80/tools/lastfm_tile.py` (built-in) and `ap80/tools/lastfm_pack_tiles.py`
+(icon packs).
+
 ### Releases and the updater
 
 Sonix updates itself from this repository's releases

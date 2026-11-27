@@ -162,7 +162,7 @@ original [README](README.sonix.md). On top of that:
 New in 1.6, taken from other Sonix forks (see Credits):
 
 - **ListenBrainz scrobbling** (from upstream Sonix). Last.fm stays available here
-  for anyone with their own keys.
+  for anyone with their own keys (see 1.9 for the guide on the player).
 - **True crossfade** between tracks, up to 12 seconds. *Music > Crossfade and gapless.*
 - **Colour themes, any accent colour and wallpapers** from SonixOS HUE: ready-made
   palettes, hue and saturation sliders, a wallpaper from the card, and pages for how
@@ -209,6 +209,20 @@ New in 1.8:
   on-screen keyboards are built when first opened instead of all at startup.
 - **Boot menu**: HiBy OS no longer hangs on a frozen picture when it is chosen
   after a long wait in the menu; the menu restarts the player into it instead.
+
+New in 1.9:
+
+- **Last.fm, with a guide on the player.** A Last.fm tile on the *Streaming*
+  page. Without keys it opens a step-by-step guide made for the 360x640 screen:
+  a QR code to Last.fm's API page, what to fill in, and a screen to type the
+  API key and shared secret on the player. Last.fm starts at once and asks for
+  your username and password. The keys are your own and stay on your card.
+- **From upstream Sonix 1.3.3**: the length of every track in the library lists
+  (shown after the next full scan), Norwegian and Ukrainian (with a Ukrainian
+  keyboard), and a Hebrew font.
+- **Boot menu**: Sonix and Rockbox no longer go missing from the menu after a
+  cold power-on with a slow SD card. The menu waits up to 8 s for the card
+  ("Waiting for SD card..."; any button skips) and keeps trying while it is shown.
 
 ## How it works
 
