@@ -221,8 +221,8 @@ New in 1.9:
   (shown after the next full scan), Norwegian and Ukrainian (with a Ukrainian
   keyboard), and a Hebrew font.
 - **Boot menu**: Sonix and Rockbox no longer go missing from the menu after a
-  cold power-on with a slow SD card. The menu waits up to 8 s for the card
-  ("Waiting for SD card..."; any button skips) and keeps trying while it is shown.
+  cold power-on with a slow SD card. The menu shows at once and adds them as
+  soon as the card is ready.
 
 ## How it works
 

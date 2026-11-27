@@ -12,50 +12,20 @@ index 5fab11132..4c691e2c9 100644
  #endif
  #endif
  
-diff --git a/apps/bitmaps/native/sonixicon.130x130x16.bmp b/apps/bitmaps/native/sonixicon.130x130x16.bmp
-new file mode 100644
-index 0000000000000000000000000000000000000000..4a6d6736a74bf18bdc985b2a2a7ef9865a1ae08b
-GIT binary patch
-literal 51014
-zcmeI4O^zQY5XGGfL|$f*b(9l$9eLrM?~`>7;8R6OZjxifXv%qhqM;h9;ol!TYi9Hs
-zs-XBipl9T<KYsr7_q(@0AJW%f)8`-GK7V-k(_8!d)c@y?_W9PJFCriUA|L`H@G1ho
-z{rt=0KVHSMcb><CcNW;oYEHaU;8I<4=(dcy6z0aows0F4(^%B9VdF?UBP~m}YvB&S
-z5nWxiEFL_9_jZiMp@x^gC3&DFT!j)7fdk+<RV<GaV4hKZyb6sFWsf`|97O;~`^Bgd
-zG>#GIcOYd5-V6f$R?MhEV|Mx=VDkv{STU~(joj>mP|YULX2t9(G=75*w}bTGKfl|@
-zy(-_c;$EwP3AeN2K|W+A+{+62aE)IlaecV;rF5_JkWkmHkPojUa8)00-#5ZQJd4KM
-zD}-Ir2WFXc3#Tl_9$OMG5_3HtVnkzE7cn7~As?>(Ez?<hCAPC;S!b<rJMS{*;omQR
-z*~gZ_6<XHt0VecXfyCKfE#L!KvS{JT@kzI&gk$7G<vpF5V2@$UyNRdzfVFa&u{W-h
-zg;`kej781C(8b6hjpzA*#hJir9HNNX3MVU@D4T9Ol(odNYNPG8pX7tHN{6Vk8Yjz{
-z%Na11<qYU|$%m!i56*6LcD8LP<nj)4vJlULbBmgTp^K428t--<fW!nC$cM_g2BD(J
-za5B^w(O6coHfwY$v;fTL4AS0ptMlNn0TmXFM2obXxl%mOl5}x|u15JlP??<LLuP_K
-za&AD+_W@ONb+J_r&q^hsybNb-E?#4op6tWeRmRx7GOLR{2ha2&Gl4hUE7`nqE=Jp>
-z<-`BKiiurg{9^8PvFBj<ARoT{1sQgp?GNlr7Dx6d#%D2UuB=XbZ27A5F#0^O+ex>W
-zkYeP+P#-cA?6Jj)K|Wx9o|7*YXbV6*3+qB8iw9&enXMk-1G7vTlQ2l=2N1<tSnRF~
-zSc>AX519$}Xj5^S(7W{_lEnkEiulneA0G04(0Q<PyL)1>^@~F1LFeItKgT(@L-81(
-zQRhMDLFeK7f4Z&np!1;fpz~laNd8d~+Pa)KE+Sd%X5p1w6uOsmFX>*=y=0dIUo6nO
-zHw+?K>}D0OBQ)w>(!Hd6Y2dw-PFD7<1<o2DTWIUeQtZ*X5Xs^JS-?^hhwr6~5KqD&
-zp|f~4#JUj4;sIGqW~&GJupKzHFi2>NWc<+9g-8|;$g(BWzRHK8@9BgY+sZ@@eAX@>
-zM*F~4WU!q_`7pr;hj*<@KFEg${`^qe?z`<X&qJD=zvoFB<zz22ex+q8_GpRM&%y$G
-z#bh5+IpE5rU4$r?$A+i&ScSaCE<N9eVmYx@4$rdM2JV#NVp|&JL*?HcJDw-5ur51A
-zEy#;8@*(5{TT$fN+juJ<(&Dmhisfb-l(%V?Vvk6yiC9)`wB7c*`H&U_LcBQnP&wBO
-zX{*7Kg@rjpx8tD2$>J%XkysOmWKjz~-hRXLP+YWp2%U$-lJ{BCpz9Dt%vLyA*+llZ
-z9U*IpWo3i3Kb~|RtU#=l>vf27Sf-sU%)%l|-#&6M^fqi%%c(vT7vT^s##^J41&S=3
-zp{$F8p?9;w0rH`KuL8e`FyofQ1$;;t!bFkS!tzMW8a}WUM`+E<UB-ub2#1U;AL{Ri
-zA%GhPkq`3W`)?Iyn<o1vH0v!sW-0bqjJ#&!_0EHF0@p@th-cB5dxfy8`q0aU@k93x
-za$>xE(EFkKehBPKoB<Yran4GqpNG_QR#Aa@89#JjoKsR<6Yk|h;s^XDP9Ykb^jSWz
-z6)_%XWj)S^vp^o4ch860T}=mhoRZ#Pf_!*^Gi^S|im6sKn;;)9<Abc2WJS+mu-Hk3
-zEIw?%4>}UVw@k<cor<wO956vvjI!de32A^)wX8hO2p?p{!5uWn1RLgHEz714H35Sy
-zi!-orK${~16)l)DhkZ8cf?T_noZ*`M*j3sh!IP0Y!!H7OcbN{N7k2HI`QU&TV(yyi
-V!N{?+E+7gP0TB=Z5fFhmfv=mfQC0u|
-
-literal 0
-HcmV?d00001
-
 diff --git a/bootloader/hibyos_linux.c b/bootloader/hibyos_linux.c
-index abb3719ba..13177be62 100644
+index abb3719ba..777051ec7 100644
 --- a/bootloader/hibyos_linux.c
 +++ b/bootloader/hibyos_linux.c
-@@ -46,6 +46,8 @@
+@@ -37,6 +37,8 @@
+ #include "font.h"
+ #include "power.h"
+ #include "rbpaths.h"
++#include <limits.h>
++#include <stdio.h>
+ #include <string.h>
+ #include <stdlib.h>
+ #include <unistd.h>
+@@ -46,6 +48,8 @@
  #include <dirent.h>
  #include <sys/wait.h>
  #include <stdarg.h>
@@ -64,7 +34,7 @@ index abb3719ba..13177be62 100644
  #include "version.h"
  
  //#define ENABLE_LOGGING
-@@ -139,6 +141,11 @@
+@@ -139,6 +143,11 @@
  /* images */
  #include "bitmaps/rockboxicon.h"
  #include "bitmaps/toolsicon.h"
@@ -76,7 +46,7 @@ index abb3719ba..13177be62 100644
  
  /* don't issue an error when parsing the file for dependencies */
  #if defined(BMPWIDTH_rockboxicon) && (BMPWIDTH_rockboxicon != ICON_WIDTH || \
-@@ -178,6 +185,9 @@ enum boot_mode
+@@ -178,6 +187,9 @@ enum boot_mode
      BOOT_ROCKBOX,
      BOOT_TOOLS,
      BOOT_OF,
@@ -86,7 +56,7 @@ index abb3719ba..13177be62 100644
      BOOT_COUNT,
      BOOT_STOP, /* power down/suspend */
      BOOT_CANARY,
-@@ -200,16 +210,26 @@ static void display_text_centerf(int y, const char *format, ...)
+@@ -200,16 +212,26 @@ static void display_text_centerf(int y, const char *format, ...)
      display_text_center(y, buf);
  }
  
@@ -113,7 +83,7 @@ index abb3719ba..13177be62 100644
          else
              return 10 * HZ; /* Default timeout */
  }
-@@ -227,6 +247,75 @@ static enum boot_mode inactivity_action(enum boot_mode cur_selection)
+@@ -227,6 +249,77 @@ static enum boot_mode inactivity_action(enum boot_mode cur_selection)
  
  static int mounted = 0;
  
@@ -124,17 +94,30 @@ index abb3719ba..13177be62 100644
 + * so ROCKBOX and SONIX stayed hidden until a restart (a warm restart finds
 + * the card faster). Now "mounted" means what /proc/mounts says, and a failed
 + * mount is tried again later. */
-+#define SD_WAIT_TICKS (8 * HZ) /* longest wait for the card at power-on */
++/* How long the menu waits, silently, for the card before it is drawn. A
++ * card that takes longer just makes ROCKBOX and SONIX appear in the menu a
++ * moment later: the menu keeps looking for it once a second. */
++#define SD_WAIT_TICKS (HZ * 3 / 2)
 +
++/* True when the card is mounted on BASE_DIR. /proc/mounts lists the
++ * kernel's own path, and on this firmware BASE_DIR goes through a symlink
++ * (/data -> /usr/data), so both spellings are compared. A card that is
++ * plainly there (its Sonix or Rockbox files can be read) counts too: the
++ * bare mount point on the internal storage has neither. */
 +static bool storage_mounted(void)
 +{
++    if(access(BASE_DIR "/sonix.sh", F_OK) == 0 || access(BASE_DIR "/.rockbox", F_OK) == 0)
++        return true;
++    char canon[PATH_MAX];
++    const char *real = realpath(BASE_DIR, canon) ? canon : BASE_DIR;
 +    FILE *f = fopen("/proc/mounts", "r");
 +    if(!f)
 +        return false;
-+    char line[512], dev[128], dir[128];
++    char line[512], dev[128], dir[256];
 +    bool found = false;
 +    while(fgets(line, sizeof(line), f))
-+        if(sscanf(line, "%127s %127s", dev, dir) == 2 && strcmp(dir, BASE_DIR) == 0)
++        if(sscanf(line, "%127s %255s", dev, dir) == 2 &&
++           (strcmp(dir, BASE_DIR) == 0 || strcmp(dir, real) == 0))
 +        {
 +            found = true;
 +            break;
@@ -160,26 +143,15 @@ index abb3719ba..13177be62 100644
 +    mounted = 0;
 +}
 +
-+/* at power-on: wait until the card is mounted, at most SD_WAIT_TICKS. A
-+ * button press stops the wait (no card in the player, or no patience). */
++/* at power-on: give the card a moment, at most SD_WAIT_TICKS, with nothing
++ * on the screen. A button press ends the wait at once. */
 +static void wait_for_storage(void)
 +{
 +    long start = current_tick;
-+    bool shown = false;
 +    mount_storage(true);
 +    while(!mounted && TIME_BEFORE(current_tick, start + SD_WAIT_TICKS))
 +    {
-+        if(!shown && TIME_AFTER(current_tick, start + HZ / 2))
-+        {
-+            lcd_clear_display();
-+            lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
-+            display_text_center(LCD_HEIGHT / 2 - 20, "Waiting for SD card...");
-+            lcd_set_foreground(LCD_RGBPACK(0, 255, 0));
-+            display_text_center(LCD_HEIGHT / 2 + 20, "any button: skip");
-+            lcd_update();
-+            shown = true;
-+        }
-+        int btn = button_get_w_tmo(HZ / 5);
++        int btn = button_get_w_tmo(HZ / 4);
 +        if((btn & BUTTON_MAIN) && !(btn & BUTTON_REL))
 +            break;
 +        mount_storage(true);
@@ -189,7 +161,7 @@ index abb3719ba..13177be62 100644
  static void mount_storage(int enable)
  {
      if (enable && !mounted) {
-@@ -240,12 +329,112 @@ static void mount_storage(int enable)
+@@ -240,12 +333,112 @@ static void mount_storage(int enable)
      }
      mounted = enable;
  }
@@ -302,7 +274,7 @@ index abb3719ba..13177be62 100644
      if(fd >= 0)
      {
          read(fd, &mode, sizeof(mode));
-@@ -256,8 +445,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
+@@ -256,8 +449,15 @@ static enum boot_mode load_boot_mode(enum boot_mode mode)
  
  static void save_boot_mode(enum boot_mode mode)
  {
@@ -318,7 +290,7 @@ index abb3719ba..13177be62 100644
      if(fd >= 0)
      {
          write(fd, &mode, sizeof(mode));
-@@ -265,18 +461,145 @@ static void save_boot_mode(enum boot_mode mode)
+@@ -265,18 +465,145 @@ static void save_boot_mode(enum boot_mode mode)
      }
  }
  
@@ -464,7 +436,7 @@ index abb3719ba..13177be62 100644
          /* on usb detect, immediately boot with last choice */
  #if !defined(HIBY_R3PROII) && !defined(HIBY_R1) && !defined(HIDIZS_AP80MAX)
          if(!adb_running && power_input_status() & POWER_INPUT_USB_CHARGER)
-@@ -312,10 +635,16 @@ static enum boot_mode get_boot_mode(void)
+@@ -312,10 +639,16 @@ static enum boot_mode get_boot_mode(void)
          lcd_set_foreground(LCD_RGBPACK(255, 201, 0));
          /* display icon */
          const struct bitmap *icon = (mode == BOOT_OF) ? &ICON_NAME :
@@ -481,7 +453,7 @@ index abb3719ba..13177be62 100644
              (mode == BOOT_ROCKBOX) ? "ROCKBOX" : "TOOLS";
  
          int desc_height;
-@@ -347,6 +676,10 @@ static enum boot_mode get_boot_mode(void)
+@@ -347,6 +680,10 @@ static enum boot_mode get_boot_mode(void)
  #else
          if(btn & BUTTON_MAIN)
              last_activity = current_tick;
@@ -492,7 +464,7 @@ index abb3719ba..13177be62 100644
  #endif
          /* ignore release, allow repeat */
          if(btn & BUTTON_REL)
-@@ -358,11 +691,19 @@ static enum boot_mode get_boot_mode(void)
+@@ -358,11 +695,19 @@ static enum boot_mode get_boot_mode(void)
              break;
          /* left/right/up/down: change mode */
          if(btn == BUTTON_LEFT || btn == BUTTON_DOWN) {
@@ -512,7 +484,7 @@ index abb3719ba..13177be62 100644
              init_mode = BOOT_CANARY;
          }
      }
-@@ -553,7 +894,18 @@ static void tools_screen(void)
+@@ -553,7 +898,18 @@ static void tools_screen(void)
      printf("Version: %s\n", rbversion);
      printf("%s\n", MODEL_NAME);
      const char *choices[] = {"ADB start", "ADB stop", "Run script", "Remount SD", "Restart", "Shutdown", "Recovery", "Back"};
@@ -531,7 +503,7 @@ index abb3719ba..13177be62 100644
      if(choice == 0)
      {
          /* run service menu */
-@@ -597,6 +949,9 @@ static void tools_screen(void)
+@@ -597,6 +953,9 @@ static void tools_screen(void)
      {
          return;
      }
@@ -541,7 +513,7 @@ index abb3719ba..13177be62 100644
  }
  
  #ifdef ENABLE_LOGGING
-@@ -660,7 +1015,11 @@ int main(int argc, char **argv)
+@@ -660,7 +1019,11 @@ int main(int argc, char **argv)
  //    if(font_id >= 0)
  //        lcd_setfont(font_id);
  
@@ -553,7 +525,7 @@ index abb3719ba..13177be62 100644
  
      /* run all tools menu */
      while(true)
-@@ -675,6 +1034,35 @@ int main(int argc, char **argv)
+@@ -675,6 +1038,35 @@ int main(int argc, char **argv)
              close(fileno(stderr));
  #endif
              mount_storage(false);
@@ -589,7 +561,7 @@ index abb3719ba..13177be62 100644
              /* boot OF */
              execvp("/usr/bin/hiby_player", argv);
              error_screen("Cannot boot OF");
-@@ -684,8 +1072,56 @@ int main(int argc, char **argv)
+@@ -684,8 +1076,56 @@ int main(int argc, char **argv)
          {
              tools_screen();
          }
