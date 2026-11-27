@@ -224,7 +224,7 @@ New in 1.9:
   cold power-on with a slow SD card. The menu shows at once and adds them as
   soon as the card is ready.
 
-Next version (in testing), more from other Sonix forks (see Credits):
+Also in 1.9, more from other Sonix forks (see Credits):
 
 - **Album grid.** Albums, artists and playlists as a grid of covers, two, three
   or four to a line. *Music > gear icon > Library > Album grid.*
