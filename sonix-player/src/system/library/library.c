@@ -93,6 +93,9 @@ static const char *const SCHEMA[] = {
 	// rule Last.fm counts a play by, and when last. Keyed by path and kept apart
 	// from MEDIA_TABLE like the favourites, so a rescan does not forget it.
 	"CREATE TABLE IF NOT EXISTS PLAY_COUNTS(path TEXT PRIMARY KEY, plays INT NOT NULL, last_played INT)",
+	// A hand correction of a track's synced lyrics, in milliseconds (idea and
+	// table from mr-f0xx's TempoTec V1 fork).
+	"CREATE TABLE IF NOT EXISTS LYRICS_OFFSETS(path TEXT PRIMARY KEY, ms INTEGER NOT NULL)",
 
 	// Also local: every track the queue has played, one row each time, in the
 	// order it happened (the queue page's History). The title and artist are
@@ -8213,4 +8216,45 @@ int library_search(const char *query, int per_category, library_search_cb_t cb, 
 	}
 	pthread_mutex_unlock(&db_lock);
 	return total;
+}
+
+// Per-track timing of synced lyrics. Ported from mr-f0xx's
+// sonix-player-tempotec-v1 ("Add per-track timing adjustments for synced
+// lyrics", GPL-3.0).
+int library_lyrics_offset(const char *path) {
+	int ms = 0;
+	if (!path || !path[0]) {
+		return 0;
+	}
+	sqlite3_stmt *stmt = NULL;
+	pthread_mutex_lock(&db_lock);
+	if (db && sqlite3_prepare_v2(db, "SELECT ms FROM LYRICS_OFFSETS WHERE path=?1", -1, &stmt, NULL) == SQLITE_OK) {
+		sqlite3_bind_text(stmt, 1, path, -1, SQLITE_TRANSIENT);
+		if (sqlite3_step(stmt) == SQLITE_ROW) {
+			ms = sqlite3_column_int(stmt, 0);
+		}
+	}
+	sqlite3_finalize(stmt);
+	pthread_mutex_unlock(&db_lock);
+	return ms;
+}
+
+bool library_set_lyrics_offset(const char *path, int ms) {
+	if (!path || !path[0]) {
+		return false;
+	}
+	const char *sql = ms ? "INSERT OR REPLACE INTO LYRICS_OFFSETS(path, ms) VALUES(?1, ?2)" : "DELETE FROM LYRICS_OFFSETS WHERE path=?1";
+	bool saved = false;
+	sqlite3_stmt *stmt = NULL;
+	pthread_mutex_lock(&db_lock);
+	if (db && sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) {
+		sqlite3_bind_text(stmt, 1, path, -1, SQLITE_TRANSIENT);
+		if (ms) {
+			sqlite3_bind_int(stmt, 2, ms);
+		}
+		saved = sqlite3_step(stmt) == SQLITE_DONE;
+	}
+	sqlite3_finalize(stmt);
+	pthread_mutex_unlock(&db_lock);
+	return saved;
 }

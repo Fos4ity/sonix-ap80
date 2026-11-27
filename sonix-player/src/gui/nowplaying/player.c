@@ -1471,6 +1471,22 @@ static int32_t lyrics_progress; // 0 the sleeve, LYRICS_FULL the words
 // A line tapped: where it plays from, and until when the column waits for the
 // player to get there rather than follow the position from before the jump.
 static int32_t lyrics_tap_ms = -1;
+// Lyrics text size and per-track timing, after mr-f0xx's TempoTec V1 fork:
+// the size is one setting for every track, the timing a correction kept for
+// each track in the library (positive shows the words sooner).
+static int lyrics_offset_ms;
+static int lyrics_text_size = -1; // index into lyrics_fonts(); read on first use
+#define LYRICS_SIZES 4
+static const lv_font_t *lyrics_font(void) {
+	static const lv_font_t *const fonts[LYRICS_SIZES] = {&font_ui_22, &font_ui_26, &font_ui_28, &font_ui_32};
+	if (lyrics_text_size < 0) {
+		lyrics_text_size = (int)config_get_int("lyrics", "text_size", 1);
+	}
+	if (lyrics_text_size < 0 || lyrics_text_size >= LYRICS_SIZES) {
+		lyrics_text_size = 1;
+	}
+	return fonts[lyrics_text_size];
+}
 static uint32_t lyrics_tap_until;
 #define LYRICS_TAP_WAIT_MS 2000
 static int lyrics_pane_x;		// where the page rests
@@ -1573,7 +1589,7 @@ static void lyrics_fill(void) {
 		lv_label_set_long_mode(line, LV_LABEL_LONG_WRAP);
 		lv_obj_set_width(line, lv_pct(100));
 		lv_obj_set_style_text_align(line, LV_TEXT_ALIGN_CENTER, 0);
-		lv_obj_set_style_text_font(line, &font_ui_26, 0);
+		lv_obj_set_style_text_font(line, lyrics_font(), 0);
 		lv_obj_set_style_text_opa(line, lyrics_cur.synced ? LYRICS_DIM_OPA : LV_OPA_COVER, 0);
 		lv_obj_set_event_bubble(line, true);
 		lv_obj_set_clickable(line, false);
@@ -1586,6 +1602,7 @@ typedef struct {
 	char title[256];
 	lyrics_t lyrics;
 	bool found;
+	int offset_ms;
 } lyrics_job_t;
 
 static void lyrics_settle(void);
@@ -1596,6 +1613,7 @@ static void lyrics_arrived(void *user) {
 		lyrics_free(&lyrics_cur);
 		lyrics_cur = job->lyrics; // handed over, found or empty
 		lyrics_loaded = true;
+		lyrics_offset_ms = job->offset_ms;
 		lyrics_fill();
 		lyrics_settle();
 	} else {
@@ -1607,6 +1625,9 @@ static void lyrics_arrived(void *user) {
 static void *lyrics_worker(void *arg) {
 	lyrics_job_t *job = arg;
 	job->found = lyrics_load(job->path, job->title, &job->lyrics);
+	if (job->found && job->lyrics.synced) {
+		job->offset_ms = library_lyrics_offset(job->path);
+	}
 	if (!gui_post(lyrics_arrived, job)) {
 		lyrics_free(&job->lyrics);
 		free(job);
@@ -1648,6 +1669,7 @@ static void lyrics_request(const device_state_t *state) {
 	snprintf(lyrics_path, sizeof(lyrics_path), "%s", state->current_file);
 	lyrics_free(&lyrics_cur);
 	lyrics_loaded = false;
+	lyrics_offset_ms = 0;
 	lyrics_generation++;
 	lyrics_fill();
 
@@ -1728,7 +1750,7 @@ static void lyrics_follow(double seconds) {
 		}
 		lyrics_tap_ms = -1;
 	}
-	int line = lyrics_line_at(&lyrics_cur, ms);
+	int line = lyrics_line_at(&lyrics_cur, ms + lyrics_offset_ms);
 	if (line != lyrics_lit) {
 		lyrics_paint_line(lyrics_lit, false);
 		lyrics_lit = line;
@@ -1858,7 +1880,10 @@ static void lyrics_star_to_head(bool up) {
 #define LYRICS_FIND_BTN 56
 static lv_obj_t *lyrics_find_btn;
 static lv_obj_t *lyrics_find_icon;
+static lv_obj_t *lyrics_opts_btn; // "Aa": text size and timing, beside it
+static lv_obj_t *lyrics_opts_icon;
 static lv_obj_t *lyrics_find_narrowed; // the names' column, made room in
+#define LYRICS_ROOM (2 * (LYRICS_FIND_BTN + LYRICS_FIND_BTN))
 
 // The names at the top give up the button's width on both sides, so a long
 // title stays centred and stops short of it.
@@ -1868,11 +1893,11 @@ static void lyrics_find_make_room(lv_obj_t *col) {
 	}
 	if (lyrics_find_narrowed) {
 		int32_t w = lv_obj_get_style_width(lyrics_find_narrowed, 0);
-		lv_obj_set_width(lyrics_find_narrowed, w + 2 * LYRICS_FIND_BTN);
+		lv_obj_set_width(lyrics_find_narrowed, w + LYRICS_ROOM);
 	}
 	if (col) {
 		int32_t w = lv_obj_get_style_width(col, 0);
-		lv_obj_set_width(col, w - 2 * LYRICS_FIND_BTN);
+		lv_obj_set_width(col, w - LYRICS_ROOM);
 	}
 	lyrics_find_narrowed = col;
 }
@@ -1884,6 +1909,9 @@ static void lyrics_find_sync(bool full) {
 	bool show = full && lyrics_now;
 	if (!show) {
 		lv_obj_set_hidden(lyrics_find_btn, true);
+		if (lyrics_opts_btn) {
+			lv_obj_set_hidden(lyrics_opts_btn, true);
+		}
 		lyrics_find_make_room(NULL);
 		return;
 	}
@@ -1895,12 +1923,20 @@ static void lyrics_find_sync(bool full) {
 		beside = lv_obj_get_width(fav_btn_obj);
 	}
 	lv_obj_set_pos(lyrics_find_btn, width - STUDIO_MARGIN - beside - LYRICS_FIND_BTN, back_btn_centre_y() - LYRICS_FIND_BTN / 2);
+	if (lyrics_opts_btn) {
+		lv_obj_set_pos(lyrics_opts_btn, width - STUDIO_MARGIN - beside - 2 * LYRICS_FIND_BTN, back_btn_centre_y() - LYRICS_FIND_BTN / 2);
+	}
 	lyrics_find_make_room(layout_studio_now ? studio_text_col : layout_alt_now ? lyrics_head_col : NULL);
 	// The ink of the names beside it: white over the blurred sleeve, the
 	// theme's own over the page's background.
 	lv_obj_set_style_image_recolor(lyrics_find_icon, lyrics_backdrop() ? lv_color_white() : theme()->text_primary, 0);
 	lv_obj_set_hidden(lyrics_find_btn, false);
 	lv_obj_move_foreground(lyrics_find_btn);
+	if (lyrics_opts_btn) {
+		lv_obj_set_style_image_recolor(lyrics_opts_icon, lyrics_backdrop() ? lv_color_white() : theme()->text_primary, 0);
+		lv_obj_set_hidden(lyrics_opts_btn, false);
+		lv_obj_move_foreground(lyrics_opts_btn);
+	}
 }
 
 // Everything the swipe moves, at `progress` of the way from the sleeve (0)
@@ -2456,6 +2492,8 @@ static void lyrics_tap_cb(lv_event_t *e) {
 			if (ms < 0) {
 				return;
 			}
+			// Where the line is heard, with the track's correction taken off.
+			ms = ms - lyrics_offset_ms < 0 ? 0 : ms - lyrics_offset_ms;
 			device_state_seek((double)ms / 1000.0);
 			// Back to following at once: the finger chose this line.
 			lyrics_user_until = 0;
@@ -2465,6 +2503,77 @@ static void lyrics_tap_cb(lv_event_t *e) {
 			lyrics_tap_until = lv_tick_get() + LYRICS_TAP_WAIT_MS;
 			return;
 		}
+	}
+}
+
+// The "Aa" menu: text size for all lyrics, and for synced ones the timing of
+// this track. A pick reopens the menu, so the words can be nudged a few times
+// in a row while they play.
+static void lyrics_opts_menu(void);
+
+static void lyrics_opts_pick(void *user) {
+	int what = (int)(intptr_t)user;
+	if (what == 1 || what == -1) { // text smaller / larger
+		lyrics_font();
+		int size = lyrics_text_size + what;
+		if (size < 0 || size >= LYRICS_SIZES) {
+			lyrics_opts_menu();
+			return;
+		}
+		lyrics_text_size = size;
+		config_set_int("lyrics", "text_size", size);
+		config_save();
+		lyrics_fill();
+		lyrics_settle();
+		lyrics_opts_menu();
+		return;
+	}
+	device_state_t state;
+	device_state_get(&state);
+	if (!lyrics_cur.synced || strcmp(state.current_file, lyrics_path) != 0) {
+		return;
+	}
+	// The rest carry the step in tenths of a second: words sooner is +.
+	int step = what / 10 * 100;
+	lyrics_offset_ms = what == 0 ? 0 : lyrics_offset_ms + step;
+	if (lyrics_offset_ms > 600000 || lyrics_offset_ms < -600000) {
+		lyrics_offset_ms = lyrics_offset_ms > 0 ? 600000 : -600000;
+	}
+	if (!library_set_lyrics_offset(lyrics_path, lyrics_offset_ms)) {
+		toast_error(tr("lyrics_timing_not_saved")); // still used for this playback
+	}
+	lyrics_tap_ms = -1;
+	lyrics_centred = false;
+	lyrics_follow(state.progress_current_secs);
+	lyrics_opts_menu();
+}
+
+static void lyrics_opts_menu(void) {
+	if (!lyrics_opts_btn || lv_obj_is_hidden(lyrics_opts_btn)) {
+		return;
+	}
+	static char timing[96];
+	snprintf(timing, sizeof(timing), "%s (%+.1f s)", tr("lyrics_timing_reset"), lyrics_offset_ms / 1000.0);
+	popover_item_t items[7];
+	memset(items, 0, sizeof(items));
+	int n = 0;
+	items[n++] = (popover_item_t){.label = "lyrics_text_larger", .action = lyrics_opts_pick, .user = (void *)(intptr_t)1};
+	items[n++] = (popover_item_t){.label = "lyrics_text_smaller", .action = lyrics_opts_pick, .user = (void *)(intptr_t)-1};
+	if (lyrics_cur.synced) {
+		// Tags, not raw strings, so the language files can say them.
+		items[n++] = (popover_item_t){.label = "lyrics_sooner_05", .action = lyrics_opts_pick, .user = (void *)(intptr_t)50};
+		items[n++] = (popover_item_t){.label = "lyrics_sooner_01", .action = lyrics_opts_pick, .user = (void *)(intptr_t)10};
+		items[n++] = (popover_item_t){.label = "lyrics_later_01", .action = lyrics_opts_pick, .user = (void *)(intptr_t)-10};
+		items[n++] = (popover_item_t){.label = "lyrics_later_05", .action = lyrics_opts_pick, .user = (void *)(intptr_t)-50};
+		items[n++] = (popover_item_t){.label = timing, .action = lyrics_opts_pick, .user = (void *)(intptr_t)0};
+	}
+	popover_show(lyrics_opts_btn, items, n);
+}
+
+static void lyrics_opts_cb(lv_event_t *e) {
+	(void)e;
+	if (lyrics_now) {
+		lyrics_opts_menu();
 	}
 }
 
@@ -2551,6 +2660,20 @@ static void lyrics_build(void) {
 	lv_obj_add_style(lyrics_find_icon, &theme_style_icon, 0);
 	lv_obj_set_style_image_recolor_opa(lyrics_find_icon, LV_OPA_COVER, 0);
 	lv_obj_center(lyrics_find_icon);
+
+	lyrics_opts_btn = lv_btn_create(player_screen);
+	lv_obj_set_ignore_layout(lyrics_opts_btn, true);
+	lv_obj_set_size(lyrics_opts_btn, LYRICS_FIND_BTN, LYRICS_FIND_BTN);
+	lv_obj_set_style_bg_opa(lyrics_opts_btn, LV_OPA_TRANSP, 0);
+	lv_obj_set_style_shadow_width(lyrics_opts_btn, 0, 0);
+	lv_obj_set_style_border_width(lyrics_opts_btn, 0, 0);
+	lv_obj_add_event_cb(lyrics_opts_btn, lyrics_opts_cb, LV_EVENT_CLICKED, NULL);
+	lv_obj_set_hidden(lyrics_opts_btn, true);
+	lyrics_opts_icon = lv_image_create(lyrics_opts_btn);
+	lv_image_set_src(lyrics_opts_icon, &icon_ebook_font);
+	lv_obj_add_style(lyrics_opts_icon, &theme_style_icon, 0);
+	lv_obj_set_style_image_recolor_opa(lyrics_opts_icon, LV_OPA_COVER, 0);
+	lv_obj_center(lyrics_opts_icon);
 
 	// The sleeve is where the page is pulled in from.
 	lv_obj_add_event_cb(cover_panel, lyrics_drag_cb, LV_EVENT_PRESSED, (void *)(uintptr_t) true);

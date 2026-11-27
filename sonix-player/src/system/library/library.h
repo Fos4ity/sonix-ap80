@@ -802,4 +802,9 @@ int library_queue_load_extra(char ***paths_out, int **slots_out);
 int library_queue_load(char ***paths_out, int *index_out, bool *custom_out);
 void library_queue_free(char **paths, int count);
 
+// A hand correction of a track's synced lyrics in milliseconds (positive shows
+// the words sooner). A track with none reads 0; saving 0 removes it.
+int library_lyrics_offset(const char *path);
+bool library_set_lyrics_offset(const char *path, int ms);
+
 #endif /* LIBRARY_H */
