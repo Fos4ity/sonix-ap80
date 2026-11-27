@@ -58,6 +58,25 @@ void lastfm_init(void);
 
 bool lastfm_available(void);
 
+// Keys typed in on the player, for whoever has no keys file. Checked for the
+// shape of a Last.fm key (32 hexadecimal digits), stored in the configuration
+// on the card and, if Last.fm was not running yet, started with at once.
+typedef enum {
+	LASTFM_KEYS_OK,
+	LASTFM_KEYS_AFTER_RESTART, // stored; used from the next start
+	LASTFM_KEYS_BAD_KEY,
+	LASTFM_KEYS_BAD_SECRET,
+} lastfm_keys_result_t;
+
+lastfm_keys_result_t lastfm_set_keys(const char *key, const char *secret);
+
+// True when the keys come from the streaming keys file, which wins over
+// typed ones.
+bool lastfm_keys_from_file(void);
+
+// Lower-cases `in` into `out` without spaces; true if it is 32 hex digits.
+bool lastfm_normalise_key(const char *in, char out[33]);
+
 // Stored in the configuration. GUI thread.
 void lastfm_set_enabled(bool on);
 

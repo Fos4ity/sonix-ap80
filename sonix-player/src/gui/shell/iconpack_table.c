@@ -250,6 +250,7 @@ iconpack_entry_t iconpack_table[] = {
 	{&icon_menu_qobuz, "qobuz", false},
 	{&icon_menu_radio, "radio", false},
 	{&icon_menu_podcast, "podcast", false},
+	{&icon_menu_lastfm, "lastfm", false},
 	{&icon_menu_audiobooks, "audiobooks", false},
 	{&icon_menu_audiobook_library, "audiobook-library", false},
 	{&icon_menu_audiobook_series, "audiobook-series", false},

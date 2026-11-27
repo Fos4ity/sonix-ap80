@@ -64,6 +64,11 @@ static bool started;
 static const char *api_key;
 static const char *api_secret;
 
+// Keys typed in on the player (Last.fm > Enter the keys), kept in the
+// configuration on the card. A keys file wins over them.
+static char typed_key[64];
+static char typed_secret[64];
+
 static bool enabled;
 static char session_key[64];
 static char user[128];
@@ -1113,12 +1118,59 @@ static void *worker_main(void *arg) {
 // the public side
 // ---------------------------------------------------------------------------
 
+// A Last.fm API key and shared secret are both 32 hexadecimal digits. Copies
+// `in` into `out` lower-cased, without the spaces a hand-typed key picks up,
+// and says whether what is left has that shape.
+bool lastfm_normalise_key(const char *in, char out[33]) {
+	size_t n = 0;
+	for (const char *p = in ? in : ""; *p; p++) {
+		char c = *p;
+		if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+			continue;
+		}
+		if (c >= 'A' && c <= 'F') {
+			c = (char)(c - 'A' + 'a');
+		}
+		if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) || n >= 32) {
+			out[0] = '\0';
+			return false;
+		}
+		out[n++] = c;
+	}
+	out[n] = '\0';
+	return n == 32;
+}
+
+static void load_typed_keys(void) {
+	char k[33], s[33];
+	if (lastfm_normalise_key(config_get("lastfm", "api_key", ""), k) &&
+		lastfm_normalise_key(config_get("lastfm", "api_secret", ""), s)) {
+		snprintf(typed_key, sizeof(typed_key), "%s", k);
+		snprintf(typed_secret, sizeof(typed_secret), "%s", s);
+	}
+}
+
+static bool init_done;
+
 void lastfm_init(void) {
 	if (started) {
 		return;
 	}
 	api_key = streamkeys_lastfm_key();
 	api_secret = streamkeys_lastfm_secret();
+	if (!api_key || !api_secret) {
+		load_typed_keys();
+		if (typed_key[0] && typed_secret[0]) {
+			api_key = typed_key;
+			api_secret = typed_secret;
+		}
+	}
+	if (init_done) {
+		// A second call, from lastfm_set_keys(): the paths and the session
+		// are already read, only the worker is missing.
+		goto start_worker;
+	}
+	init_done = true;
 	build_paths();
 
 	pthread_condattr_t attr;
@@ -1133,6 +1185,7 @@ void lastfm_init(void) {
 	session_expired = !session_key[0] && user[0];
 	pthread_mutex_unlock(&lock);
 
+start_worker:
 	if (!api_key || !api_secret) {
 		printf("lastfm: no API keys; Last.fm stays off\n");
 		return;
@@ -1149,6 +1202,28 @@ void lastfm_init(void) {
 }
 
 bool lastfm_available(void) { return started; }
+
+bool lastfm_keys_from_file(void) { return streamkeys_lastfm_key() && streamkeys_lastfm_secret(); }
+
+lastfm_keys_result_t lastfm_set_keys(const char *key, const char *secret) {
+	char k[33], s[33];
+	if (!lastfm_normalise_key(key, k)) {
+		return LASTFM_KEYS_BAD_KEY;
+	}
+	if (!lastfm_normalise_key(secret, s)) {
+		return LASTFM_KEYS_BAD_SECRET;
+	}
+	config_set("lastfm", "api_key", k);
+	config_set("lastfm", "api_secret", s);
+	config_save();
+	if (started) {
+		// The worker reads the keys without the lock; they change at the
+		// next start rather than under it.
+		return LASTFM_KEYS_AFTER_RESTART;
+	}
+	lastfm_init();
+	return started ? LASTFM_KEYS_OK : LASTFM_KEYS_AFTER_RESTART;
+}
 
 void lastfm_set_enabled(bool on) {
 	config_set_bool("lastfm", "enabled", on);

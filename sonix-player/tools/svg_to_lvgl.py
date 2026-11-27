@@ -439,6 +439,7 @@ COLOR_ICONS = [
     ("qobuz.png", "menu_qobuz", SECTION_ICON_SIZE),
     ("radio.png", "menu_radio", SECTION_ICON_SIZE),
     ("podcast.png", "menu_podcast", SECTION_ICON_SIZE),
+    ("lastfm.png", "menu_lastfm", SECTION_ICON_SIZE),
     # The Subsonic/Navidrome app: the server's own logo, so the tile is
     # branded rather than a generic streaming glyph.
     ("navidrome.png", "menu_navidrome", SECTION_ICON_SIZE),

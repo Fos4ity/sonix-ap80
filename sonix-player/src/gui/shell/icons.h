@@ -256,6 +256,7 @@ extern lv_image_dsc_t icon_menu_tidal;
 extern lv_image_dsc_t icon_menu_ytmusic;
 extern lv_image_dsc_t icon_menu_qobuz;
 extern lv_image_dsc_t icon_menu_radio;
+extern lv_image_dsc_t icon_menu_lastfm;
 extern lv_image_dsc_t icon_menu_podcast;
 extern lv_image_dsc_t icon_menu_audiobooks;
 extern lv_image_dsc_t icon_menu_audiobook_library;

@@ -4,6 +4,7 @@
 
 #include "src/gui/shell/gridpage.h"
 #include "src/gui/shell/icons.h"
+#include "src/gui/settings/lastfmsettings.h"
 #include "src/gui/streaming/audiobookshelfpage.h"
 #include "src/gui/streaming/podcastpage.h"
 #include "src/gui/streaming/qobuzpage.h"
@@ -35,6 +36,7 @@ void streaming_init(gui_config_t *cfg) {
 		{"podcasts", &icon_menu_podcast, &podcast_screen, NULL},
 		{"audiobookshelf", &icon_menu_audiobooks, &audiobookshelf_screen, NULL},
 		{"subsonic", &icon_menu_streaming, &subsonic_screen, NULL},
+		{"lastfm", &icon_menu_lastfm, NULL, lastfmsettings_open},
 	};
 
 	// Two columns and three rows of tile, exactly like Music and Wireless, so a
@@ -43,7 +45,7 @@ void streaming_init(gui_config_t *cfg) {
 	// rather than the tiles growing to fill it.
 	lv_obj_t *grid =
 		gridpage_build(streaming_screen, cfg, entries, (int)(sizeof(entries) / sizeof(entries[0])), 2, 3, true);
-	// Seven tiles in a grid of six: the page scrolls to the last row, as Music
+	// Eight tiles in a grid of six: the page scrolls to the last row, as Music
 	// does, and shows its scrollbar for a moment when it is opened.
 	gridpage_set_scrolling(grid);
 	lv_obj_add_event_cb(streaming_screen, streaming_loaded_cb, LV_EVENT_SCREEN_LOADED, grid);
