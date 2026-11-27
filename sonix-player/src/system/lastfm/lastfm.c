@@ -1098,7 +1098,7 @@ static void *worker_main(void *arg) {
 		bool complete = complete_requested;
 		// Retire a token at its deadline even when nobody presses Done: the
 		// GUI cannot offer Retry while a dead token still looks live.
-		if (!complete && pending_token[0] && boot_seconds() >= token_deadline) {
+		if (!complete && !begin && pending_token[0] && boot_seconds() >= token_deadline) {
 			pending_token[0] = '\0';
 			auth_url[0] = '\0';
 			auth_serial++;
@@ -1193,15 +1193,8 @@ static void *worker_main(void *arg) {
 		bool more_now = active && up && file_count > 0 && boot_seconds() >= sender.retry_at;
 		bool waiting = (counting && (!card_ready || pending_count > 0)) || (active && (file_count > 0 || now_playing_waiting));
 		bool auth_pending = pending_token[0];
-		if (!logout_requested && !begin_requested && !complete_requested && !more_now && !auth_pending) {
-			if (waiting) {
-				struct timespec ts;
-				clock_gettime(CLOCK_MONOTONIC, &ts);
-				ts.tv_sec += WAIT_POLL_SECS;
-				pthread_cond_timedwait(&wake, &lock, &ts);
-			} else {
-				pthread_cond_wait(&wake, &lock);
-			}
+		if (logout_requested || begin_requested || complete_requested || more_now) {
+			// Pending work always wins; its signal must not be lost in a sleep.
 		} else if (auth_pending) {
 			// Wake at the deadline so the attempt is published as expired.
 			struct timespec ts;
@@ -1211,6 +1204,13 @@ static void *worker_main(void *arg) {
 			if (left > WAIT_POLL_SECS) left = WAIT_POLL_SECS;
 			ts.tv_sec += left;
 			pthread_cond_timedwait(&wake, &lock, &ts);
+		} else if (waiting) {
+			struct timespec ts;
+			clock_gettime(CLOCK_MONOTONIC, &ts);
+			ts.tv_sec += WAIT_POLL_SECS;
+			pthread_cond_timedwait(&wake, &lock, &ts);
+		} else {
+			pthread_cond_wait(&wake, &lock);
 		}
 		pthread_mutex_unlock(&lock);
 	}

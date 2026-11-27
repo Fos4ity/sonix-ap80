@@ -178,9 +178,15 @@ static void open_login(void) {
 	lastfm_get_status(&st);
 	seen_auth_serial = st.auth_serial;
 	show_auth_url(st.auth_url);
-	update_countdown(st.auth_seconds_left);
+	if (st.state == LASTFM_STATE_AWAITING_AUTH) {
+		update_countdown(st.auth_seconds_left);
+	} else {
+		lv_label_set_text(login_countdown, "");
+	}
 
 	if (st.state != LASTFM_STATE_AWAITING_AUTH || st.auth_seconds_left <= 0) {
+		// Ignore a result published by the attempt we are replacing.
+		seen_login_serial = st.login_serial;
 		waiting_for_login = true;
 		toast_busy("lastfm_state_signing_in");
 		lastfm_begin_login();
@@ -577,6 +583,9 @@ static void retry_cb(lv_event_t *e) {
 		return;
 	}
 	lv_label_set_text(login_message, tr("lastfm_auth_note"));
+	lastfm_status_t st;
+	lastfm_get_status(&st);
+	seen_login_serial = st.login_serial;
 	waiting_for_login = true;
 	toast_busy("lastfm_state_signing_in");
 	lastfm_begin_login();
@@ -712,9 +721,13 @@ static void tick_cb(lv_timer_t *t) {
 			toast_busy_end();
 		}
 	}
-	update_countdown(st.auth_seconds_left);
-	if (st.state == LASTFM_STATE_AWAITING_AUTH && st.auth_seconds_left <= 0) {
-		set_visible(login_retry, true);
+	if (st.state == LASTFM_STATE_AWAITING_AUTH) {
+		update_countdown(st.auth_seconds_left);
+		if (st.auth_seconds_left <= 0) {
+			set_visible(login_retry, true);
+		}
+	} else {
+		lv_label_set_text(login_countdown, "");
 	}
 	if (st.login_serial != seen_login_serial) {
 		seen_login_serial = st.login_serial;
