@@ -701,6 +701,10 @@ static result_t call(param_t *params, int count, char *why, size_t why_size, int
 
 // Worker. Step one: a single-use token the user authorizes in a browser.
 static void do_get_token(void) {
+	pthread_mutex_lock(&lock);
+	bool had_token = pending_token[0] != '\0';
+	pthread_mutex_unlock(&lock);
+
 	param_t params[3] = {{"method", "auth.getToken"}};
 	char why[160] = "";
 	int code = 0;
@@ -732,8 +736,11 @@ static void do_get_token(void) {
 		snprintf(auth_url, sizeof(auth_url), AUTH_URL, api_key, token);
 		printf("lastfm: waiting for the user to authorize the session\n");
 	} else {
-		pending_token[0] = '\0';
-		auth_url[0] = '\0';
+		// A failed refresh must not destroy a token the user can still use.
+		if (!had_token) {
+			pending_token[0] = '\0';
+			auth_url[0] = '\0';
+		}
 		login_result = outcome;
 		login_serial++;
 		snprintf(detail, sizeof(detail), "%s", why);
@@ -1089,6 +1096,17 @@ static void *worker_main(void *arg) {
 		bool out = logout_requested;
 		bool begin = begin_requested;
 		bool complete = complete_requested;
+		// Retire a token at its deadline even when nobody presses Done: the
+		// GUI cannot offer Retry while a dead token still looks live.
+		if (!complete && pending_token[0] && boot_seconds() >= token_deadline) {
+			pending_token[0] = '\0';
+			auth_url[0] = '\0';
+			auth_serial++;
+			logging_in = false;
+			login_result = LASTFM_LOGIN_EXPIRED;
+			login_serial++;
+			snprintf(detail, sizeof(detail), "the authorization token expired");
+		}
 		logout_requested = false;
 		begin_requested = false;
 		complete_requested = false;
@@ -1174,7 +1192,8 @@ static void *worker_main(void *arg) {
 		counting = counting_locked();
 		bool more_now = active && up && file_count > 0 && boot_seconds() >= sender.retry_at;
 		bool waiting = (counting && (!card_ready || pending_count > 0)) || (active && (file_count > 0 || now_playing_waiting));
-		if (!logout_requested && !begin_requested && !complete_requested && !more_now) {
+		bool auth_pending = pending_token[0];
+		if (!logout_requested && !begin_requested && !complete_requested && !more_now && !auth_pending) {
 			if (waiting) {
 				struct timespec ts;
 				clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -1183,6 +1202,15 @@ static void *worker_main(void *arg) {
 			} else {
 				pthread_cond_wait(&wake, &lock);
 			}
+		} else if (auth_pending) {
+			// Wake at the deadline so the attempt is published as expired.
+			struct timespec ts;
+			clock_gettime(CLOCK_MONOTONIC, &ts);
+			int left = (int)(token_deadline - boot_seconds());
+			if (left < 1) left = 1;
+			if (left > WAIT_POLL_SECS) left = WAIT_POLL_SECS;
+			ts.tv_sec += left;
+			pthread_cond_timedwait(&wake, &lock, &ts);
 		}
 		pthread_mutex_unlock(&lock);
 	}
@@ -1324,6 +1352,10 @@ void lastfm_begin_login(void) {
 		return;
 	}
 	pthread_mutex_lock(&lock);
+	if (logging_in) {
+		pthread_mutex_unlock(&lock);
+		return;
+	}
 	begin_requested = true;
 	logging_in = true;
 	pthread_cond_signal(&wake);
@@ -1335,6 +1367,10 @@ void lastfm_complete_login(void) {
 		return;
 	}
 	pthread_mutex_lock(&lock);
+	if (logging_in) {
+		pthread_mutex_unlock(&lock);
+		return;
+	}
 	complete_requested = true;
 	logging_in = true;
 	pthread_cond_signal(&wake);
@@ -1375,10 +1411,10 @@ void lastfm_get_status(lastfm_status_t *out) {
 		out->state = LASTFM_STATE_UNAVAILABLE;
 	} else if (logging_in) {
 		out->state = LASTFM_STATE_SIGNING_IN;
-	} else if (pending_token[0]) {
-		out->state = LASTFM_STATE_AWAITING_AUTH;
 	} else if (!enabled) {
 		out->state = LASTFM_STATE_OFF;
+	} else if (pending_token[0]) {
+		out->state = LASTFM_STATE_AWAITING_AUTH;
 	} else if (session_expired) {
 		out->state = LASTFM_STATE_SESSION_EXPIRED;
 	} else if (!session_key[0]) {

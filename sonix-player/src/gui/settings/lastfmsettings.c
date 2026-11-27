@@ -150,7 +150,8 @@ static void show_auth_url(const char *url) {
 	} else {
 		lv_label_set_text(login_url, url ? url : "");
 	}
-	lv_label_set_text(login_message, tr("lastfm_auth_note"));
+	lv_label_set_text(login_message, url && url[0] ? tr("lastfm_auth_note") : tr("lastfm_no_reply"));
+	set_visible(login_done, url && url[0]);
 }
 
 static void update_countdown(int seconds) {
@@ -179,7 +180,7 @@ static void open_login(void) {
 	show_auth_url(st.auth_url);
 	update_countdown(st.auth_seconds_left);
 
-	if (st.state != LASTFM_STATE_AWAITING_AUTH) {
+	if (st.state != LASTFM_STATE_AWAITING_AUTH || st.auth_seconds_left <= 0) {
 		waiting_for_login = true;
 		toast_busy("lastfm_state_signing_in");
 		lastfm_begin_login();
@@ -712,6 +713,9 @@ static void tick_cb(lv_timer_t *t) {
 		}
 	}
 	update_countdown(st.auth_seconds_left);
+	if (st.state == LASTFM_STATE_AWAITING_AUTH && st.auth_seconds_left <= 0) {
+		set_visible(login_retry, true);
+	}
 	if (st.login_serial != seen_login_serial) {
 		seen_login_serial = st.login_serial;
 		login_finished(&st);
