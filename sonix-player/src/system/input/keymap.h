@@ -83,8 +83,7 @@ int keymap_seek_step(void);
 // Clamps to a step the interface offers (see seekpolicy_clamp_step).
 void keymap_set_seek_step(int seconds);
 
-// The action's name, in the source's Italian like every other string here; it
-// passes through tr() where it is drawn.
+// The action's name passes through tr() where it is drawn.
 const char *keymap_action_name(keymap_action_t action);
 
 #endif /* KEYMAP_H */

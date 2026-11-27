@@ -430,8 +430,10 @@ static void remove_old_files(const char *root) {
 }
 
 static ota_result_t do_download(void) {
+	// Not just the path: while the card is shared with a computer the bare
+	// mount point is on the internal storage, and the download would land there.
 	const char *root = package_mode ? sonixpkg_root() : storage_sd_root();
-	if (!root || !*root) {
+	if (!root || !*root || (!package_mode && !storage_sd_ready())) {
 		return OTA_NO_CARD;
 	}
 
