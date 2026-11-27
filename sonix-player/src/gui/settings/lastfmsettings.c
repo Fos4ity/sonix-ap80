@@ -40,6 +40,7 @@ static lv_obj_t *login_message;
 static lv_obj_t *login_qr;
 static lv_obj_t *login_url;
 static lv_obj_t *login_countdown;
+static lv_obj_t *login_actions;
 static lv_obj_t *login_done;
 static lv_obj_t *login_retry;
 
@@ -502,14 +503,13 @@ static void build_keys(gui_config_t *cfg) {
 	switcher_attach_back_gesture(keys_screen);
 }
 
-static lv_obj_t *make_button(lv_obj_t *parent, const char *label, lv_event_cb_t cb, int x) {
+static lv_obj_t *make_button(lv_obj_t *parent, const char *label, lv_event_cb_t cb) {
 	lv_obj_t *btn = lv_btn_create(parent);
 	lv_obj_set_size(btn, LV_SIZE_CONTENT, 56);
-	lv_obj_set_style_pad_hor(btn, 22, 0);
+	lv_obj_set_style_pad_hor(btn, 24, 0);
 	lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
 	lv_obj_set_style_shadow_width(btn, 0, 0);
 	lv_obj_set_style_border_width(btn, 0, 0);
-	lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, x, -24);
 	lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, NULL);
 	lv_obj_t *text = lv_label_create(btn);
 	lv_label_set_text(text, tr(label));
@@ -619,11 +619,27 @@ static void build_login(gui_config_t *cfg) {
 	lv_label_set_text(login_url, "");
 
 	login_countdown = lv_label_create(box);
+	lv_obj_add_style(login_countdown, &theme_style_text, 0);
 	lv_obj_set_style_text_font(login_countdown, &font_ui_20, 0);
 	lv_label_set_text(login_countdown, "");
 
-	login_done = make_button(login_screen, "lastfm_auth_done", done_cb, -70);
-	login_retry = make_button(login_screen, "lastfm_auth_retry", retry_cb, 70);
+	// One group for the actions: a single Done sits centred, and when Retry
+	// appears the pair shares the space with one even gap between them.
+	login_actions = lv_obj_create(login_screen);
+	lv_obj_set_size(login_actions, cfg->screen_width - 2 * cfg->padding, LV_SIZE_CONTENT);
+	lv_obj_align(login_actions, LV_ALIGN_BOTTOM_MID, 0, -24);
+	lv_obj_set_style_bg_opa(login_actions, 0, 0);
+	lv_obj_set_style_border_width(login_actions, 0, 0);
+	lv_obj_set_style_pad_all(login_actions, 0, 0);
+	lv_obj_set_style_pad_gap(login_actions, 16, 0);
+	lv_obj_set_scrollable(login_actions, false);
+	lv_obj_set_flex_flow(login_actions, LV_FLEX_FLOW_ROW);
+	lv_obj_set_flex_align(login_actions, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+	lv_obj_set_style_pad_top(login_actions, 0, 0);
+	lv_obj_set_style_pad_bottom(login_actions, 0, 0);
+
+	login_done = make_button(login_actions, "lastfm_auth_done", done_cb);
+	login_retry = make_button(login_actions, "lastfm_auth_retry", retry_cb);
 	set_visible(login_qr, false);
 	set_visible(login_url, false);
 	set_visible(login_retry, false);
@@ -678,10 +694,13 @@ static void tick_cb(lv_timer_t *t) {
 		seen_auth_serial = st.auth_serial;
 		show_auth_url(st.auth_url);
 		set_visible(login_retry, st.auth_url[0] == '\0');
+		if (st.auth_url[0]) {
+			// The token is ready; the user, not the worker, is now the one
+			// being waited on. Drop the "signing in" overlay.
+			toast_busy_end();
+		}
 	}
-	if (lv_screen_active() == login_screen) {
-		update_countdown(st.auth_seconds_left);
-	}
+	update_countdown(st.auth_seconds_left);
 	if (st.login_serial != seen_login_serial) {
 		seen_login_serial = st.login_serial;
 		login_finished(&st);
