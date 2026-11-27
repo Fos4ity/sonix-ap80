@@ -943,7 +943,12 @@ void medialist_grid_layout(int width, medialist_grid_t *out) {
 	out->columns = columns;
 	out->gap = GRID_GAP;
 	out->tile_w = (width - (columns - 1) * GRID_GAP) / columns;
-	out->cover = columns == 2 ? GRID_COVER : out->tile_w - 2 * GRID_TILE_PAD;
+	out->cover = out->tile_w - 2 * GRID_TILE_PAD;
+	// At two columns the carousel's size, so the two share one thumbnail --
+	// but never wider than the tile: on a 360 px panel (AP80) it would spill.
+	if (columns == 2 && out->cover > GRID_COVER) {
+		out->cover = GRID_COVER;
+	}
 	out->pad = out->tile_w > out->cover ? (out->tile_w - out->cover) / 2 : 0;
 	out->text_gap = GRID_TEXT_GAP;
 	// Narrower tiles, smaller type: at four columns a tile is about 100 px.
