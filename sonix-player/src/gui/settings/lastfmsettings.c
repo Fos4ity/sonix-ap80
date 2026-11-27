@@ -161,10 +161,14 @@ static void update_countdown(int seconds) {
 	}
 }
 
-static void open_login(void) {
+static bool wifi_ok(void) {
 	wifi_status_t wifi;
 	wifi_get_status(&wifi);
-	if (wifi.state != WIFI_STATE_CONNECTED || !wifi.ip[0]) {
+	return wifi.state == WIFI_STATE_CONNECTED && wifi.ip[0];
+}
+
+static void open_login(void) {
+	if (!wifi_ok()) {
 		toast_error("enable_wi_fi_first");
 		return;
 	}
@@ -556,12 +560,19 @@ static void done_cb(lv_event_t *e) {
 	if (switcher_back_drag_active()) {
 		return;
 	}
+	// A Done after an error is a new attempt: arm the result watcher again,
+	// otherwise the successful sign-in is saved but the GUI never hears it.
+	waiting_for_login = true;
+	toast_busy("lastfm_state_signing_in");
 	lastfm_complete_login();
 }
 
 static void retry_cb(lv_event_t *e) {
 	(void)e;
-	if (switcher_back_drag_active()) {
+	if (switcher_back_drag_active() || !wifi_ok()) {
+		if (!wifi_ok()) {
+			toast_error("enable_wi_fi_first");
+		}
 		return;
 	}
 	lv_label_set_text(login_message, tr("lastfm_auth_note"));
