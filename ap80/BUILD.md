@@ -87,7 +87,10 @@ client_id = ...
 client_secret = ...
 ```
 
-Never share that file or commit it.
+Never share that file or commit it. The card package has an empty template next
+to it, `streaming-keys.ini.example`: copy it, name the copy `streaming-keys.ini`
+and fill it in. Updates replace the example, never your own file, and a line
+with an empty value is ignored.
 
 Last.fm keys can also be typed in on the player (Streaming > Last.fm > Enter
 the keys); they are kept in `sonix/device_config.ini` under `[lastfm]`, and a

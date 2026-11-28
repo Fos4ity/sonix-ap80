@@ -1,0 +1,19 @@
+; Sonix: a template for your own API keys.
+;
+; 1. Copy this file and name the copy  streaming-keys.ini  (same folder).
+;    Updates replace this example, never your streaming-keys.ini.
+; 2. Fill in the values and restart Sonix. A line with an empty value is ignored.
+; 3. Never share the filled-in file.
+;
+; Last.fm: both values are 32 characters, free from
+; https://www.last.fm/api/account/create
+; (they can also be typed on the player: Streaming > Last.fm).
+[lastfm]
+api_key =
+api_secret =
+
+; YouTube Music sign-in: your own OAuth client of type
+; "TVs and Limited Input devices" from Google Cloud.
+[youtube]
+client_id =
+client_secret =

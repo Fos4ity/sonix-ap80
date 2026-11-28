@@ -216,7 +216,9 @@ New in 1.9:
   page. Without keys it opens a step-by-step guide made for the 360x640 screen:
   a QR code to Last.fm's API page, what to fill in, and a screen to type the
   API key and shared secret on the player. Last.fm starts at once and asks you
-  to sign in. The keys are your own and stay on your card.
+  to sign in. The keys are your own and stay on your card. If you would rather
+  type them on a computer, copy `streaming-keys.ini.example` in
+  `sonix/resource/components` to `streaming-keys.ini` and fill it in.
 - **From upstream Sonix 1.3.3**: the length of every track in the library lists
   (shown after the next full scan), Norwegian and Ukrainian (with a Ukrainian
   keyboard), and a Hebrew font.
