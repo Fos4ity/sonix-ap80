@@ -247,7 +247,9 @@ Also in 1.9, more from other Sonix forks (see Credits):
 - **Whole skin.** A switch under the theme row in *Settings > Appearance*. On, a
   theme changes the whole look: colours, font and icons. Nothing gets its own
   font and icons, the Sonix themes bring back the original Sonix look. Off, a
-  theme only changes the colours. It replaces the *Nothing preset* switch.
+  theme only changes the colours. On a theme that has colours only (the colour
+  themes and most skins) the switch is greyed out. It replaces the *Nothing
+  preset* switch.
 - **Fix**: `.m4b` audiobooks from some programs showed 0:00 and did not play.
 
 ## How it works
