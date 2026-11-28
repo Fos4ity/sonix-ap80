@@ -12,6 +12,45 @@ index 5fab11132..4c691e2c9 100644
  #endif
  #endif
  
+diff --git a/apps/bitmaps/native/sonixicon.130x130x16.bmp b/apps/bitmaps/native/sonixicon.130x130x16.bmp
+new file mode 100644
+index 0000000000000000000000000000000000000000..4a6d6736a74bf18bdc985b2a2a7ef9865a1ae08b
+GIT binary patch
+literal 51014
+zcmeI4O^zQY5XGGfL|$f*b(9l$9eLrM?~`>7;8R6OZjxifXv%qhqM;h9;ol!TYi9Hs
+zs-XBipl9T<KYsr7_q(@0AJW%f)8`-GK7V-k(_8!d)c@y?_W9PJFCriUA|L`H@G1ho
+z{rt=0KVHSMcb><CcNW;oYEHaU;8I<4=(dcy6z0aows0F4(^%B9VdF?UBP~m}YvB&S
+z5nWxiEFL_9_jZiMp@x^gC3&DFT!j)7fdk+<RV<GaV4hKZyb6sFWsf`|97O;~`^Bgd
+zG>#GIcOYd5-V6f$R?MhEV|Mx=VDkv{STU~(joj>mP|YULX2t9(G=75*w}bTGKfl|@
+zy(-_c;$EwP3AeN2K|W+A+{+62aE)IlaecV;rF5_JkWkmHkPojUa8)00-#5ZQJd4KM
+zD}-Ir2WFXc3#Tl_9$OMG5_3HtVnkzE7cn7~As?>(Ez?<hCAPC;S!b<rJMS{*;omQR
+z*~gZ_6<XHt0VecXfyCKfE#L!KvS{JT@kzI&gk$7G<vpF5V2@$UyNRdzfVFa&u{W-h
+zg;`kej781C(8b6hjpzA*#hJir9HNNX3MVU@D4T9Ol(odNYNPG8pX7tHN{6Vk8Yjz{
+z%Na11<qYU|$%m!i56*6LcD8LP<nj)4vJlULbBmgTp^K428t--<fW!nC$cM_g2BD(J
+za5B^w(O6coHfwY$v;fTL4AS0ptMlNn0TmXFM2obXxl%mOl5}x|u15JlP??<LLuP_K
+za&AD+_W@ONb+J_r&q^hsybNb-E?#4op6tWeRmRx7GOLR{2ha2&Gl4hUE7`nqE=Jp>
+z<-`BKiiurg{9^8PvFBj<ARoT{1sQgp?GNlr7Dx6d#%D2UuB=XbZ27A5F#0^O+ex>W
+zkYeP+P#-cA?6Jj)K|Wx9o|7*YXbV6*3+qB8iw9&enXMk-1G7vTlQ2l=2N1<tSnRF~
+zSc>AX519$}Xj5^S(7W{_lEnkEiulneA0G04(0Q<PyL)1>^@~F1LFeItKgT(@L-81(
+zQRhMDLFeK7f4Z&np!1;fpz~laNd8d~+Pa)KE+Sd%X5p1w6uOsmFX>*=y=0dIUo6nO
+zHw+?K>}D0OBQ)w>(!Hd6Y2dw-PFD7<1<o2DTWIUeQtZ*X5Xs^JS-?^hhwr6~5KqD&
+zp|f~4#JUj4;sIGqW~&GJupKzHFi2>NWc<+9g-8|;$g(BWzRHK8@9BgY+sZ@@eAX@>
+zM*F~4WU!q_`7pr;hj*<@KFEg${`^qe?z`<X&qJD=zvoFB<zz22ex+q8_GpRM&%y$G
+z#bh5+IpE5rU4$r?$A+i&ScSaCE<N9eVmYx@4$rdM2JV#NVp|&JL*?HcJDw-5ur51A
+zEy#;8@*(5{TT$fN+juJ<(&Dmhisfb-l(%V?Vvk6yiC9)`wB7c*`H&U_LcBQnP&wBO
+zX{*7Kg@rjpx8tD2$>J%XkysOmWKjz~-hRXLP+YWp2%U$-lJ{BCpz9Dt%vLyA*+llZ
+z9U*IpWo3i3Kb~|RtU#=l>vf27Sf-sU%)%l|-#&6M^fqi%%c(vT7vT^s##^J41&S=3
+zp{$F8p?9;w0rH`KuL8e`FyofQ1$;;t!bFkS!tzMW8a}WUM`+E<UB-ub2#1U;AL{Ri
+zA%GhPkq`3W`)?Iyn<o1vH0v!sW-0bqjJ#&!_0EHF0@p@th-cB5dxfy8`q0aU@k93x
+za$>xE(EFkKehBPKoB<Yran4GqpNG_QR#Aa@89#JjoKsR<6Yk|h;s^XDP9Ykb^jSWz
+z6)_%XWj)S^vp^o4ch860T}=mhoRZ#Pf_!*^Gi^S|im6sKn;;)9<Abc2WJS+mu-Hk3
+zEIw?%4>}UVw@k<cor<wO956vvjI!de32A^)wX8hO2p?p{!5uWn1RLgHEz714H35Sy
+zi!-orK${~16)l)DhkZ8cf?T_noZ*`M*j3sh!IP0Y!!H7OcbN{N7k2HI`QU&TV(yyi
+V!N{?+E+7gP0TB=Z5fFhmfv=mfQC0u|
+
+literal 0
+HcmV?d00001
+
 diff --git a/bootloader/hibyos_linux.c b/bootloader/hibyos_linux.c
 index abb3719ba..777051ec7 100644
 --- a/bootloader/hibyos_linux.c
