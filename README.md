@@ -230,6 +230,11 @@ Also in 1.9, more from other Sonix forks (see Credits):
 
 - **Album grid.** Albums, artists and playlists as a grid of covers, two, three
   or four to a line. *Music > gear icon > Library > Album grid.*
+
+  | Two to a line | Three to a line |
+  |:---:|:---:|
+  | ![Album grid, two covers to a line](https://github.com/Fos4ity/sonix-ap80/raw/ap80/ap80/screenshots/album-grid-2.png) | ![Album grid, three covers to a line](https://github.com/Fos4ity/sonix-ap80/raw/ap80/ap80/screenshots/album-grid-3.png) |
+
 - **Playlists from the card.** Use the `.m3u` files in the `Playlists` folder on
   the card as your playlists, read only. *Music > gear icon > Library.*
 - **Last.fm sign-in with a QR code.** No password typed on the player: scan the
@@ -239,6 +244,12 @@ Also in 1.9, more from other Sonix forks (see Credits):
   for the track playing; the correction is remembered for that track.
 - **Auto sleep timer.** Between two times of your choice (at night, say) the
   sleep timer starts by itself. *Settings > Auto sleep timer.*
+- **Whole skin.** A switch under the theme row in *Settings > Appearance*. On, a
+  theme changes the whole look: colours, font and icons. Nothing gets its own
+  font and icons, the Sonix themes bring back the original Sonix look. Off, a
+  theme only changes the colours. On a theme that has colours only (the colour
+  themes and most skins) the switch is greyed out. It replaces the *Nothing
+  preset* switch.
 - **Fix**: `.m4b` audiobooks from some programs showed 0:00 and did not play.
 
 ## How it works
