@@ -239,6 +239,10 @@ Also in 1.9, more from other Sonix forks (see Credits):
   for the track playing; the correction is remembered for that track.
 - **Auto sleep timer.** Between two times of your choice (at night, say) the
   sleep timer starts by itself. *Settings > Auto sleep timer.*
+- **Whole skin.** A switch under the theme row in *Settings > Appearance*. On, a
+  theme changes the whole look: colours, font and icons. Nothing gets its own
+  font and icons, the Sonix themes bring back the original Sonix look. Off, a
+  theme only changes the colours. It replaces the *Nothing preset* switch.
 - **Fix**: `.m4b` audiobooks from some programs showed 0:00 and did not play.
 
 ## How it works

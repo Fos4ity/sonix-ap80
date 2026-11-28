@@ -142,71 +142,92 @@ static void text_size_cb(lv_event_t *e) {
 	refresh_text_size_pills();
 }
 
-// The Nothing preset: one switch for the whole look -- the "Nothing" skin
-// (black, red accent), the dot-matrix font and the Nothing icon pack. On when
-// all three are in place; switching it off goes back to Sonix's own skin-less
-// look, built-in font and icons. The pieces stay separately choosable below.
+// Whole skin: one switch that makes the theme row dress the whole player, not
+// only its colours. While it is on, every theme picked brings its own font and
+// icons with it: the two Nothing skins the dot-matrix font and the Nothing icon
+// pack of the same name, any other skin an icon pack or a font of its own name
+// when the card has one, and Sonix's own themes the built-in font and icons,
+// which is the original Sonix look. Off, a theme only changes the colours and
+// the font and icons stay as they were chosen below.
 #define NOTHING_SKIN "Nothing"
 #define NOTHING_SKIN_LIGHT "Nothing Light"
 #define NOTHING_FONT "Nothing Dot"
-static lv_obj_t *nothing_toggle;
+static lv_obj_t *whole_toggle;
 
-static int nothing_skin_index(const char *name) {
-	for (int i = 0; i < theme_skin_count(); i++) {
-		if (strcmp(theme_skin_name(i), name) == 0) return i;
-	}
-	return -1;
-}
-
-static bool nothing_active(void) {
+// Until the switch has been touched it reads as on for a player that already
+// wears the complete Nothing look (the old "Nothing preset" switch).
+static bool whole_skin_on(void) {
 	int idx = theme_get_skin();
-	if (idx < 0) return false;
-	const char *skin = theme_skin_name(idx);
-	if (strcmp(skin, NOTHING_SKIN) != 0 && strcmp(skin, NOTHING_SKIN_LIGHT) != 0) return false;
-	return strcmp(fonts_get_custom(), NOTHING_FONT) == 0 && strcmp(iconpack_current(), skin) == 0;
+	const char *skin = idx >= 0 ? theme_skin_name(idx) : "";
+	bool nothing = strcmp(skin, NOTHING_SKIN) == 0 || strcmp(skin, NOTHING_SKIN_LIGHT) == 0;
+	bool dressed = nothing && strcmp(fonts_get_custom(), NOTHING_FONT) == 0 && strcmp(iconpack_current(), skin) == 0;
+	return config_get_int("ui", "whole_skin", dressed ? 1 : 0) != 0;
 }
+
+static bool have_iconpack(const char *name) {
+	int n = iconpack_count();
+	for (int i = 0; i < n; i++) {
+		if (strcmp(iconpack_name(i), name) == 0) return true;
+	}
+	return false;
+}
+
+static bool have_font(const char *name) {
+	int n = fonts_custom_count();
+	for (int i = 0; i < n; i++) {
+		if (strcmp(fonts_custom_name(i), name) == 0) return true;
+	}
+	return false;
+}
+
+// The font and the icons that belong to the theme now on. Copies of the names:
+// the lists are rescanned on the way.
+static void apply_whole_skin(void) {
+	char skin[64] = "", font[64] = "", pack[64] = "";
+	int idx = theme_get_skin();
+	if (idx >= 0) {
+		snprintf(skin, sizeof(skin), "%s", theme_skin_name(idx));
+		bool nothing = strcmp(skin, NOTHING_SKIN) == 0 || strcmp(skin, NOTHING_SKIN_LIGHT) == 0;
+		if (have_iconpack(skin)) snprintf(pack, sizeof(pack), "%s", skin);
+		if (nothing && have_font(NOTHING_FONT)) {
+			snprintf(font, sizeof(font), "%s", NOTHING_FONT);
+		} else if (have_font(skin)) {
+			snprintf(font, sizeof(font), "%s", skin);
+		}
+	}
+	if (strcmp(fonts_get_custom(), font) != 0) {
+		fonts_custom_count();
+		fonts_set_custom(font);
+	}
+	if (strcmp(iconpack_current(), pack) != 0) {
+		iconpack_count();
+		iconpack_set(pack);
+	}
+}
+
+static void refresh_font_row(void);
+static void refresh_iconpack_row(void);
 
 static void refresh_nothing_toggle(void) {
-	if (!nothing_toggle) return;
-	if (nothing_active()) {
-		lv_obj_add_state(nothing_toggle, LV_STATE_CHECKED);
+	if (!whole_toggle) return;
+	if (whole_skin_on()) {
+		lv_obj_add_state(whole_toggle, LV_STATE_CHECKED);
 	} else {
-		lv_obj_remove_state(nothing_toggle, LV_STATE_CHECKED);
+		lv_obj_remove_state(whole_toggle, LV_STATE_CHECKED);
 	}
 }
 
-static void nothing_toggle_cb(lv_event_t *e) {
+static void whole_toggle_cb(lv_event_t *e) {
 	(void)e;
-	bool on = lv_obj_has_state(nothing_toggle, LV_STATE_CHECKED);
+	bool on = lv_obj_has_state(whole_toggle, LV_STATE_CHECKED);
+	config_set_int("ui", "whole_skin", on ? 1 : 0);
+	config_save();
 	if (on) {
-		int idx = nothing_skin_index(NOTHING_SKIN);
-		if (idx < 0) {
-			toast_error(appearance_czech() ? "Chyb\xC3\xAD sonix/resource/themes/Nothing.theme"
-										   : "sonix/resource/themes/Nothing.theme is missing");
-			refresh_nothing_toggle();
-			return;
-		}
-		theme_set_skin(idx); // switches the dynamic tint off
-		fonts_custom_count();
-		bool font_ok = fonts_set_custom(NOTHING_FONT);
-		iconpack_count();
-		bool icons_ok = iconpack_set(NOTHING_SKIN) > 0;
-		if (font_ok && icons_ok) {
-			toast_success(appearance_czech() ? "Nothing: skin, p\xC3\xADsmo a ikony" : "Nothing: skin, font and icons");
-		} else {
-			toast_error(appearance_czech() ? "Nothing: chyb\xC3\xAD p\xC3\xADsmo nebo ikony na kart\xC4\x9B"
-										   : "Nothing: font or icons missing on the card");
-		}
-	} else {
-		theme_set_skin(-1);
-		fonts_set_custom("");
-		iconpack_set("");
+		apply_whole_skin();
+		toast_success(appearance_czech() ? "Cel\xC3\xBD skin: barvy, p\xC3\xADsmo a ikony" : "Whole skin: colours, font and icons");
 	}
-	sync_tint_toggle();
-	refresh_theme_row();
 	refresh_font_row();
 	refresh_iconpack_row();
-	refresh_nothing_toggle();
 }
 
 
@@ -402,6 +423,11 @@ static void refresh_theme_widgets(void) {
 }
 
 static void theme_picked(void) {
+	if (whole_skin_on()) {
+		apply_whole_skin();
+		refresh_font_row();
+		refresh_iconpack_row();
+	}
 	refresh_theme_widgets();
 	refresh_iconpack_row();
 	refresh_accent_buttons();
@@ -519,12 +545,12 @@ void appearance_init(gui_config_t *cfg) {
 	refresh_theme_row();
 	settingsrow_add(container, cz ? "Výběr motivu" : "Theme selector", NULL, theme_open_cb, NULL);
 
-	// One switch for the whole Nothing look: skin, font and icons. Shown only
-	// when the Nothing skin is on the card.
-	if (nothing_skin_index(NOTHING_SKIN) >= 0) {
-		settingsrow_toggle(container, cz ? "Preset Nothing" : "Nothing preset", &nothing_toggle, nothing_toggle_cb);
-		refresh_nothing_toggle();
-	}
+	// One switch for the whole look: with it on, a theme brings its font and
+	// icons along (Nothing its own, Sonix the built-in ones).
+	settingsrow_toggle(container, cz ? "Cel\xC3\xBD skin" : "Whole skin", &whole_toggle, whole_toggle_cb);
+	refresh_nothing_toggle();
+	add_note(container, cz ? "Zapnuto: motiv zm\xC4\x9Bn\xC3\xAD cel\xC3\xBD vzhled, tedy barvy, p\xC3\xADsmo i ikony. Nothing dostane sv\xC3\xA9 p\xC3\xADsmo a ikony, motivy Sonix p\xC5\xAFvodn\xC3\xAD vzhled Sonixu. Vypnuto: motiv m\xC4\x9Bn\xC3\xAD jen barvy."
+						  : "On: a theme changes the whole look, that is colours, font and icons. Nothing gets its own font and icons, the Sonix themes the original Sonix look. Off: a theme only changes the colours.");
 
 	// The accent colour, as a row of coloured circles, and any colour at all
 	// under it: hue and saturation (from SonixOS HUE).
