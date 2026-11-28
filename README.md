@@ -162,7 +162,7 @@ original [README](https://github.com/Fos4ity/sonix-ap80/blob/ap80/README.sonix.m
 New in 1.6, taken from other Sonix forks (see Credits):
 
 - **ListenBrainz scrobbling** (from upstream Sonix). Last.fm stays available here
-  for anyone with their own keys.
+  for anyone with their own keys (see 1.9 for the guide on the player).
 - **True crossfade** between tracks, up to 12 seconds. *Music > Crossfade and gapless.*
 - **Colour themes, any accent colour and wallpapers** from SonixOS HUE: ready-made
   palettes, hue and saturation sliders, a wallpaper from the card, and pages for how
@@ -209,6 +209,37 @@ New in 1.8:
   on-screen keyboards are built when first opened instead of all at startup.
 - **Boot menu**: HiBy OS no longer hangs on a frozen picture when it is chosen
   after a long wait in the menu; the menu restarts the player into it instead.
+
+New in 1.9:
+
+- **Last.fm, with a guide on the player.** A Last.fm tile on the *Streaming*
+  page. Without keys it opens a step-by-step guide made for the 360x640 screen:
+  a QR code to Last.fm's API page, what to fill in, and a screen to type the
+  API key and shared secret on the player. Last.fm starts at once and asks you
+  to sign in. The keys are your own and stay on your card. If you would rather
+  type them on a computer, copy `streaming-keys.ini.example` in
+  `sonix/resource/components` to `streaming-keys.ini` and fill it in.
+- **From upstream Sonix 1.3.3**: the length of every track in the library lists
+  (shown after the next full scan), Norwegian and Ukrainian (with a Ukrainian
+  keyboard), and a Hebrew font.
+- **Boot menu**: Sonix and Rockbox no longer go missing from the menu after a
+  cold power-on with a slow SD card. The menu shows at once and adds them as
+  soon as the card is ready.
+
+Also in 1.9, more from other Sonix forks (see Credits):
+
+- **Album grid.** Albums, artists and playlists as a grid of covers, two, three
+  or four to a line. *Music > gear icon > Library > Album grid.*
+- **Playlists from the card.** Use the `.m3u` files in the `Playlists` folder on
+  the card as your playlists, read only. *Music > gear icon > Library.*
+- **Last.fm sign-in with a QR code.** No password typed on the player: scan the
+  code with your phone, allow access on Last.fm and press Done.
+- **Lyrics: text size and timing.** The *Aa* button on the lyrics page makes the
+  words larger or smaller, and moves synced lyrics 0.1 or 0.5 s sooner or later
+  for the track playing; the correction is remembered for that track.
+- **Auto sleep timer.** Between two times of your choice (at night, say) the
+  sleep timer starts by itself. *Settings > Auto sleep timer.*
+- **Fix**: `.m4b` audiobooks from some programs showed 0:00 and did not play.
 
 ## How it works
 
@@ -304,6 +335,11 @@ This fork stands on other people's work. Thank you.
 | Crossfade, A-Z index, hold-to-seek, stop after track, hidden Wi-Fi, browser memory, lock screen date, duplicate prompt, MSEB fix, Navidrome / Subsonic | [CookieCaptainD/sonix-player](https://github.com/CookieCaptainD/sonix-player) | CookieCaptainD | GPL v3 |
 | Theme presets, accent hue and saturation, wallpapers, player and menu style pages | [SonixOS HUE](https://github.com/Xkalin1990/SonixOS-HUE) | Xkalin1990 | GPL v3 |
 | Audiobookshelf | [Sonix Audiobooks](https://github.com/yetisoldier/sonix-audiobooks) | yetisoldier | GPL v3 |
+| Album grid | [jgancedo/sonix-player](https://github.com/jgancedo/sonix-player) (`feature/album-grid`) | Jaime Gancedo | GPL v3 |
+| Playlists from the card's Playlists folder | [cbec-dev/sonix-player](https://github.com/cbec-dev/sonix-player) (`sd-playlists`) | cbec-dev | GPL v3 |
+| Last.fm QR sign-in, auto sleep timer | [CookieCaptainD/sonix-player](https://github.com/CookieCaptainD/sonix-player) (`feat/lastfm-token-auth`, `feat/issue-41-auto-sleep`) | CookieCaptainD | GPL v3 |
+| Lyrics text size and per-track timing (idea, table, offset handling; rewritten here) | [mr-f0xx/sonix-player-tempotec-v1](https://github.com/mr-f0xx/sonix-player-tempotec-v1) | mr-f0xx | GPL v3 |
+| `.m4b` files that showed 0:00 | [chrsgrhm/sonix-player](https://github.com/chrsgrhm/sonix-player) | Chris Graham | GPL v3 |
 | Target curves for AutoEq (Diamond β, HiFiEndgame, PEQdB Ultra and the others in the list) | [PEQdB](https://peqdb.com/) studio; the curves' own authors are named there (Diamond: S. Chala, *An Optimized Headphone Target Response Curve*) | PEQdB and the authors of each curve | curve values only, as differences from AutoEq's target |
 | AutoEq targets the differences are taken from | [AutoEq](https://github.com/jaakkopasanen/AutoEq) `targets/` | Jaakko Pasanen | curve values only |
 | Headphone corrections | [AutoEq](https://github.com/jaakkopasanen/AutoEq) (already used by Sonix) | Jaakko Pasanen | MIT |
