@@ -54,7 +54,22 @@ with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
                 z.write(full, os.path.relpath(full, src).replace(os.sep, "/"))
 bad = [i.filename for i in zipfile.ZipFile(dst).infolist()
        if not i.filename.isascii() and not i.flag_bits & 0x800]
-sys.exit("names without the UTF-8 flag: %s" % bad if bad else 0)
+if bad:
+    sys.exit("names without the UTF-8 flag: %s" % bad)
+# An update replaces every file that is in the package. A user's own settings,
+# keys and sign-ins must therefore never be in it.
+PRIVATE = ("device_config.ini", "ebook_config.ini", "tidal_session.ini",
+           "ytmusic_session.ini", "lastfm.session", "listenbrainz.session",
+           "audiobookshelf_profiles.ini", "streaming-keys.ini",
+           "streaming-keys.bin", "streaming-keys.key", "boot_direct.txt",
+           "rb_bl_mode.txt", "library.db")
+private = [i.filename for i in zipfile.ZipFile(dst).infolist()
+           if os.path.basename(i.filename) in PRIVATE
+           or os.path.basename(i.filename).startswith("device_config.ini")
+           or i.filename.endswith((".session", ".log"))]
+if private:
+    os.remove(dst)
+    sys.exit("user files must not be in the package: %s" % private)
 PY
 
 echo "Done. Copy the contents of $out to the root of the SD card."
