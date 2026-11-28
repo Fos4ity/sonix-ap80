@@ -230,6 +230,11 @@ Also in 1.9, more from other Sonix forks (see Credits):
 
 - **Album grid.** Albums, artists and playlists as a grid of covers, two, three
   or four to a line. *Music > gear icon > Library > Album grid.*
+
+  | Two to a line | Three to a line |
+  |:---:|:---:|
+  | ![Album grid, two covers to a line](ap80/screenshots/album-grid-2.png) | ![Album grid, three covers to a line](ap80/screenshots/album-grid-3.png) |
+
 - **Playlists from the card.** Use the `.m3u` files in the `Playlists` folder on
   the card as your playlists, read only. *Music > gear icon > Library.*
 - **Last.fm sign-in with a QR code.** No password typed on the player: scan the
