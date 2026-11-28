@@ -180,12 +180,44 @@ static bool have_font(const char *name) {
 	return false;
 }
 
+static bool have_skin(const char *name) {
+	int n = theme_skin_count();
+	for (int i = 0; i < n; i++) {
+		if (strcmp(theme_skin_name(i), name) == 0) return true;
+	}
+	return false;
+}
+
+// Whether the theme now on has a whole look to give, more than its colours:
+// Sonix's own dark and light (the built-in font and icons), the Nothing skins,
+// and any skin the card holds an icon pack or a font of the same name for. The
+// colour themes and the other skins are colours only.
+static bool theme_has_whole_look(void) {
+	int idx = theme_get_skin();
+	if (idx < 0) {
+		int preset = theme_get_preset();
+		return preset == 0 || strcmp(theme_preset_name(preset), "Light") == 0;
+	}
+	char skin[64];
+	snprintf(skin, sizeof(skin), "%s", theme_skin_name(idx));
+	bool nothing = strcmp(skin, NOTHING_SKIN) == 0 || strcmp(skin, NOTHING_SKIN_LIGHT) == 0;
+	return have_iconpack(skin) || have_font(skin) || (nothing && have_font(NOTHING_FONT));
+}
+
 // The font and the icons that belong to the theme now on. Copies of the names:
-// the lists are rescanned on the way.
+// the lists are rescanned on the way. A theme that is colours only brings
+// nothing, and only takes off what a whole skin had put on (the dot-matrix
+// font, an icon pack or a font named after a skin): a font or a pack chosen by
+// hand stays.
 static void apply_whole_skin(void) {
 	char skin[64] = "", font[64] = "", pack[64] = "";
 	int idx = theme_get_skin();
-	if (idx >= 0) {
+	if (!theme_has_whole_look()) {
+		snprintf(font, sizeof(font), "%s", fonts_get_custom());
+		snprintf(pack, sizeof(pack), "%s", iconpack_current());
+		if (strcmp(font, NOTHING_FONT) == 0 || have_skin(font)) font[0] = '\0';
+		if (have_skin(pack)) pack[0] = '\0';
+	} else if (idx >= 0) {
 		snprintf(skin, sizeof(skin), "%s", theme_skin_name(idx));
 		bool nothing = strcmp(skin, NOTHING_SKIN) == 0 || strcmp(skin, NOTHING_SKIN_LIGHT) == 0;
 		if (have_iconpack(skin)) snprintf(pack, sizeof(pack), "%s", skin);
@@ -208,17 +240,29 @@ static void apply_whole_skin(void) {
 static void refresh_font_row(void);
 static void refresh_iconpack_row(void);
 
+// On only where the theme has a whole look. On a theme that is colours only
+// the switch reads off and dimmed, whatever is stored; dimmed and not
+// LV_STATE_DISABLED, so that a tap can still say why.
 static void refresh_nothing_toggle(void) {
 	if (!whole_toggle) return;
-	if (whole_skin_on()) {
+	bool has = theme_has_whole_look();
+	if (has && whole_skin_on()) {
 		lv_obj_add_state(whole_toggle, LV_STATE_CHECKED);
 	} else {
 		lv_obj_remove_state(whole_toggle, LV_STATE_CHECKED);
 	}
+	lv_obj_set_style_opa(whole_toggle, has ? LV_OPA_COVER : LV_OPA_40, 0);
 }
 
 static void whole_toggle_cb(lv_event_t *e) {
 	(void)e;
+	if (!theme_has_whole_look()) {
+		// Nothing to switch here: the stored choice stays for the themes that
+		// do have a whole look.
+		lv_obj_remove_state(whole_toggle, LV_STATE_CHECKED);
+		toast_plain(appearance_czech() ? "Tento motiv m\xC3\xA1 jen barvy" : "This theme has colours only");
+		return;
+	}
 	bool on = lv_obj_has_state(whole_toggle, LV_STATE_CHECKED);
 	config_set_int("ui", "whole_skin", on ? 1 : 0);
 	config_save();
@@ -549,8 +593,8 @@ void appearance_init(gui_config_t *cfg) {
 	// icons along (Nothing its own, Sonix the built-in ones).
 	settingsrow_toggle(container, cz ? "Cel\xC3\xBD skin" : "Whole skin", &whole_toggle, whole_toggle_cb);
 	refresh_nothing_toggle();
-	add_note(container, cz ? "Zapnuto: motiv zm\xC4\x9Bn\xC3\xAD cel\xC3\xBD vzhled, tedy barvy, p\xC3\xADsmo i ikony. Nothing dostane sv\xC3\xA9 p\xC3\xADsmo a ikony, motivy Sonix p\xC5\xAFvodn\xC3\xAD vzhled Sonixu. Vypnuto: motiv m\xC4\x9Bn\xC3\xAD jen barvy."
-						  : "On: a theme changes the whole look, that is colours, font and icons. Nothing gets its own font and icons, the Sonix themes the original Sonix look. Off: a theme only changes the colours.");
+	add_note(container, cz ? "Zapnuto: motiv změní celý vzhled, tedy barvy, písmo i ikony. Nothing dostane své písmo a ikony, motivy Sonix původní vzhled Sonixu. Vypnuto: motiv mění jen barvy. U motivů, které mají jen barvy, je přepínač šedý."
+						  : "On: a theme changes the whole look, that is colours, font and icons. Nothing gets its own font and icons, the Sonix themes the original Sonix look. Off: a theme only changes the colours. On a theme that has colours only the switch is greyed out.");
 
 	// The accent colour, as a row of coloured circles, and any colour at all
 	// under it: hue and saturation (from SonixOS HUE).
